@@ -5,7 +5,7 @@ open System
 open Alea.CUDA.Utilities
 open FsUnit
 
-open Alea.CUDA.Unbound.LinAlg.Matrix.Multiply.GPU.Common
+open Alea.CUDA.Unbound.LinAlg.Matrix.Multiply.CUDA
 
 
 (**

@@ -5,11 +5,11 @@ using System.Drawing.Printing;
 using System.Linq;
 using Alea.CUDA;
 using Alea.CUDA.Unbound;
-using Alea.CUDA.Unbound.LinAlg.Matrix.Multiply.GPU;
+using Alea.CUDA.Unbound.LinAlg.Matrix.Multiply.CUDA;
 using Alea.CUDA.Utilities;
 using NUnit.Framework;
 using Tutorial.Cs.examples.cublas;
-using Common = Alea.CUDA.Unbound.LinAlg.Matrix.Multiply.GPU.Common;
+using MatrixStorageOrder = Alea.CUDA.Unbound.LinAlg.Matrix.Multiply.CUDA.MatrixStorageOrder;
 
 namespace Tutorial.Cs.examples.unbound
 {
@@ -46,7 +46,7 @@ namespace Tutorial.Cs.examples.unbound
         //[unboundMatrixMultGemm1DArrayTest]
         public static void Gemm1DArrayTest()
         {
-            var gpuMultiplication64 = Common.DefaultMatrixMultiplyModuleF64.DefaultInstance;
+            var gpuMultiplication64 = DefaultMatrixMultiplyModuleF64.DefaultInstance;
             const int wA = 32, hA = 64, wB = 64, hB = 32;
             const int wC = 64, hC = 64;
             var rng = new Random(42);
@@ -55,7 +55,7 @@ namespace Tutorial.Cs.examples.unbound
             var c = Enumerable.Repeat(0.0, hC*wC).ToArray();
 
             var cpuOutput = MatrixMult.MultiplyMatrix(c, a, b, wA, wB);
-            var gpuOutput = gpuMultiplication64.Mult(Common.Implementation.PrefetchingData, Common.Transpose.NoTranspose, Common.Transpose.NoTranspose, Common.MatrixStorageOrder.RowMajor, wA, wB, 1.0, 0.0, a, b, c);
+            var gpuOutput = gpuMultiplication64.Mult(Implementation.PrefetchingData, Transpose.NoTranspose, Transpose.NoTranspose, MatrixStorageOrder.RowMajor, wA, wB, 1.0, 0.0, a, b, c);
 
             for (var i = 0; i < cpuOutput.Length; ++i)
             {
@@ -69,7 +69,7 @@ namespace Tutorial.Cs.examples.unbound
         //[unboundMatrixMultGemm2DArrayTest]
         public static void Gemm2DArrayTest()
         {
-            var gpuMultiplication64 = Common.DefaultMatrixMultiplyModuleF64.DefaultInstance;
+            var gpuMultiplication64 = DefaultMatrixMultiplyModuleF64.DefaultInstance;
             const int wA = 31, hA = 65, wB = 65, hB = 31;
             const int wC = 65, hC = 65;
             var rng = new Random(42);
@@ -78,7 +78,7 @@ namespace Tutorial.Cs.examples.unbound
             var c = Array2D.ofArrayRowMajor(hC, wC, Enumerable.Repeat(0.0, hC * wC).ToArray());
 
             var cpuOutput = MatrixMult.MultiplyMatrix(Array2D.toArrayRowMajor(c), Array2D.toArrayRowMajor(a), Array2D.toArrayRowMajor(b), wA, wB);
-            var gpuOutput = gpuMultiplication64.Mult(Common.Implementation.PrefetchingData, Common.Transpose.NoTranspose, Common.Transpose.NoTranspose, Common.MatrixStorageOrder.RowMajor, 1.0, 0.0, a, b, c);
+            var gpuOutput = gpuMultiplication64.Mult(Implementation.PrefetchingData, Transpose.NoTranspose, Transpose.NoTranspose, MatrixStorageOrder.RowMajor, 1.0, 0.0, a, b, c);
 
             for (var i = 0; i < cpuOutput.ToArray().Length; ++i)
             {
