@@ -1,5 +1,6 @@
 ﻿(**
 GPU implementation with static `blockSize`, i.e. the `blockSize` is known at compile-time and loop over threads can be unrolled.
+Infrastructure around kernel might be slightly more coplex, but the compiler can optimize the code better.
 *)
 (*** define:startStatic ***)
 module Tutorial.Fs.examples.NBody.Impl.GPU.StaticBlockSize
@@ -13,9 +14,11 @@ type SimulatorModule(target, blockSize:int) =
     inherit GPUModule(target)
 
 (**
-Computing the accelerations between the particles. The parallelization strategy is nicely described in: [GPU Gems 3](http://http.developer.nvidia.com/GPUGems3/gpugems3_ch31.html),
+Computation of the accelerations between the particles. The parallelization strategy is nicely described in: 
+[GPU Gems 3](http://http.developer.nvidia.com/GPUGems3/gpugems3_ch31.html),
 essentailly it is parallelized over the particles. Particle positions for `blockDim.x` are loaded to shared memory in order to have faster access.
-In this version the `blockSize` is known at compile time and hence loop-unrolling of the inner loop is possible, in contrast to the `DynamicBlockSize` implementation.
+In this version the `blockSize` is known at compile time and for f# loop-unrolling of the inner loop is possible, in contrast to the `DynamicBlockSize` implementation.
+In C# no explicite argument for loop-unrolling can not be given, but compilation to IL code will improve this part.
 *)
 (*** define:StaticComputeBodyAccel ***)
     [<ReflectedDefinition>]
@@ -42,7 +45,7 @@ In this version the `blockSize` is known at compile time and hence loop-unrollin
         acc
 
 (**
-Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation of motion, inlcuding a `damping`-term.
+Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation of motion, including a `damping`-term.
 *)
 (*** define:StaticStartKernel ***)
     [<Kernel;ReflectedDefinition>]
@@ -87,7 +90,7 @@ Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation 
 
 (**
 Prepare and launch kernel.
-Note: `blockSize` is a compile-time constant.
+Note: `blockSize` will be used as a compile-time constant.
 *)
 (*** define:StaticPrepareAndLaunchKernel ***)
     member this.IntegrateNbodySystem (newPos:deviceptr<float4>)

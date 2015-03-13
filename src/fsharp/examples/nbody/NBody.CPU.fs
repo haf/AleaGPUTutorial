@@ -1,5 +1,5 @@
 ﻿(**
-CPU implementation of the NBody simulation. It is mainly given to test the GPU implementations.
+CPU implementation of the NBody simulation. It is mainly given to test the GPU implementations and show the difference in performance.
 *)
 (*** define:StartCPU ***)
 module Tutorial.Fs.examples.NBody.Impl.CPU.Simple
@@ -9,7 +9,7 @@ open Tutorial.Fs.examples.NBody.Common
 
 type SimulatorModule() =
 (**
-CPU integration method. First calculates all forces, then integrates including a `damping`-factor.
+CPU integration method. First calculates all forces, then integrates including damping the volicity using a `damping`-factor.
 *)
 (*** define:IntegrateCommonNbodySystem ***)
     member this.IntegrateNbodySystem (accel:float3[])

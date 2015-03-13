@@ -1,5 +1,6 @@
 ﻿(**
-GPU implementation with dynamic `blockSize`, i.e. the `blockSize` is not known at compiletime.
+GPU implementation with dynamic `blockSize`, i.e. the `blockSize` is not known at compiletime. It makes the infrastructure around the kernel a bit
+simpler, but might give away possible performance gains due to better optization possibilities by the compiler.
 *)
 (*** define:dynamicStart ***)
 module Tutorial.Fs.examples.NBody.Impl.GPU.DynamicBlockSize
@@ -9,7 +10,9 @@ open Alea.CUDA.Utilities
 open NUnit.Framework
 open Tutorial.Fs.examples.NBody
 
-(** start Class and make sure it is compiled ahead of time (AOT) in the three specific architectures:
+(** 
+Start Class and make sure it is compiled ahead of time (AOT).
+We specify to compile and optimize for in the three specific architectures: `sm20`, `sm30` and `sm35`.
 *)
 (*** define:DynamicAOTCompile***)
 [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>]
@@ -17,9 +20,11 @@ type SimulatorModule(target) =
     inherit GPUModule(target)
 
 (**
-Computing the accelerations between the particles. The parallelization strategy is nicely described in: [GPU Gems 3](http://http.developer.nvidia.com/GPUGems3/gpugems3_ch31.html),
+Computing the accelerations between the particles. The parallelization strategy is nicely described in: 
+[GPU Gems 3](http://http.developer.nvidia.com/GPUGems3/gpugems3_ch31.html),
 essentailly it is parallelized over the particles. Particle positions for `blockDim.x` are loaded to shared memory in order to have faster access.
-In this version the `blockDim.x` is not known at compile time and hence loop-unrolling of the inner loop is not possible, see the StaticBlockSize implementation for comparison.
+In this version the `blockDim.x` is not known at compile time and hence loop-unrolling of the inner loop is not possible, see the StaticBlockSize 
+implementation for comparison.
 *)
 (*** define:DynamicComputeBodyAccel ***)
     [<ReflectedDefinition>]
@@ -44,7 +49,7 @@ In this version the `blockDim.x` is not known at compile time and hence loop-unr
 
         acc
 (**
-Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation of motion, inlcuding a `damping`-term.
+Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation of motion, including a `damping`-term.
 *)
 (*** define:DynamicStartKernel ***)
     [<Kernel;ReflectedDefinition>]

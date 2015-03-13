@@ -35,7 +35,7 @@ type SimWindow() as this =
     let mutable frameCounter = 0
 
 (**
-function to create cuda GL context, needed in order to initialize worker.
+Function to create cuda GL context, needed in order to initialize worker.
 *)
 (*** define:createGLContextGenerator ***)
     let generate() =
@@ -44,7 +44,7 @@ function to create cuda GL context, needed in order to initialize worker.
         cuSafeCall(cuGLCtxCreate(&&cuContext, 0u, Device.Default.ID))
         cuDevice, cuContext
 (**
-create worker using Cuda GL context generation function.
+Create worker using Cuda GL context generation function.
 *)
 (*** define:CreateWorker ***)
     // Note, we don't need worker.Eval cause we will run it in single thread.
@@ -52,7 +52,7 @@ create worker using Cuda GL context generation function.
         Worker.CreateOnCurrentThread(generate)
 
 (**
-Create several simulators: dynamic & static with different `blockSize`s for comparison.
+Create several simulators: dynamic & static with different `blockSize`s, so their performance can later be compared.
 *)
 (***  define:CreateSimulatros ***)
     let simulators, disposeSimulators =
@@ -96,7 +96,7 @@ Create several simulators: dynamic & static with different `blockSize`s for comp
     let mutable simulator = simulators.Dequeue()
 
 (**
-Method to describe simulation in window-title.
+Method to describe simulation in window title.
 *)
 (*** define:GLdescription***)
     let description() =
@@ -127,7 +127,7 @@ Display options: exit simulation or switch simulator.
 
 (**
 Create `buffer`s and `vel`, where the particles position and velocities will be stored in.
-Positions are read from one `buffer` and stored to the other, hence the `buffer`s have to change between every integration step. This is what `swapPos` is for.
+Positions are read from one `buffer` and stored to the other, hence the `buffer`s have to change between every integration step. This is what the method `swapPos` is for.
 *)
 (*** define:CreateBuffers***)
     let buffers = 
@@ -164,6 +164,7 @@ Positions are read from one `buffer` and stored to the other, hence the `buffer`
 
 (**
 Locks pointers from acces by [OpenTK](http://www.opentk.com/), s.t. function `f` can work on these pointers.
+This function is needed for whenever a non-OpenTK function accesses the data, e.g. perform a simulation step.
 *)
 (*** define:LockPositions ***)
     let lockPos(f:deviceptr<float4> -> deviceptr<float4> -> 'T) =
