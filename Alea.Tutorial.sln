@@ -1,0 +1,81 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.30110.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{AF41D64B-52C6-4591-91DB-761D70D4E438}"
+	ProjectSection(SolutionItems) = preProject
+		paket.dependencies = paket.dependencies
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{87EA75D3-9F1C-471E-8434-1004CDC9E941}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{2C74732F-DE34-4275-8DFA-D91BA1989E99}"
+	ProjectSection(SolutionItems) = preProject
+		build.bat = build.bat
+		build.fsx = build.fsx
+		buildUnix.fsx = buildUnix.fsx
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fsharp", "fsharp", "{809D1035-C566-4DAD-9415-D4BA61F81F1E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "csharp", "csharp", "{7C95A1D5-A70B-4047-818D-0BBB38DD3E40}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "vb", "vb", "{6C5EE189-C6A5-4DA2-A178-60D544890C67}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tutorial.Cs", "src\csharp\Tutorial.Cs.csproj", "{354FF4F2-FFA5-4E58-91CC-E4EC1F4E1AA1}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Tutorial.Fs", "src\fsharp\Tutorial.Fs.fsproj", "{457FEA7B-529B-4145-91A2-D7E9E02476A3}"
+EndProject
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "Tutorial.Vb", "src\vb\Tutorial.Vb.vbproj", "{E4E0D40F-6C10-42ED-B130-15D0B9CECDB2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{2049EEA1-D631-49C2-8B00-C5C68A694653}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{63D5DE30-464B-4A50-BEC8-99824D3CCDD6}"
+	ProjectSection(SolutionItems) = preProject
+		docs\tools\directories.fsx = docs\tools\directories.fsx
+		docs\tools\formatting.fsx = docs\tools\formatting.fsx
+		docs\tools\generate.fsx = docs\tools\generate.fsx
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{354FF4F2-FFA5-4E58-91CC-E4EC1F4E1AA1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{354FF4F2-FFA5-4E58-91CC-E4EC1F4E1AA1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{354FF4F2-FFA5-4E58-91CC-E4EC1F4E1AA1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{354FF4F2-FFA5-4E58-91CC-E4EC1F4E1AA1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{354FF4F2-FFA5-4E58-91CC-E4EC1F4E1AA1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{354FF4F2-FFA5-4E58-91CC-E4EC1F4E1AA1}.Release|x64.ActiveCfg = Release|Any CPU
+		{457FEA7B-529B-4145-91A2-D7E9E02476A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{457FEA7B-529B-4145-91A2-D7E9E02476A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{457FEA7B-529B-4145-91A2-D7E9E02476A3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{457FEA7B-529B-4145-91A2-D7E9E02476A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{457FEA7B-529B-4145-91A2-D7E9E02476A3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{457FEA7B-529B-4145-91A2-D7E9E02476A3}.Release|x64.ActiveCfg = Release|Any CPU
+		{E4E0D40F-6C10-42ED-B130-15D0B9CECDB2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E4E0D40F-6C10-42ED-B130-15D0B9CECDB2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E4E0D40F-6C10-42ED-B130-15D0B9CECDB2}.Debug|x64.ActiveCfg = Debug|x64
+		{E4E0D40F-6C10-42ED-B130-15D0B9CECDB2}.Debug|x64.Build.0 = Debug|x64
+		{E4E0D40F-6C10-42ED-B130-15D0B9CECDB2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E4E0D40F-6C10-42ED-B130-15D0B9CECDB2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E4E0D40F-6C10-42ED-B130-15D0B9CECDB2}.Release|x64.ActiveCfg = Release|x64
+		{E4E0D40F-6C10-42ED-B130-15D0B9CECDB2}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{809D1035-C566-4DAD-9415-D4BA61F81F1E} = {87EA75D3-9F1C-471E-8434-1004CDC9E941}
+		{7C95A1D5-A70B-4047-818D-0BBB38DD3E40} = {87EA75D3-9F1C-471E-8434-1004CDC9E941}
+		{6C5EE189-C6A5-4DA2-A178-60D544890C67} = {87EA75D3-9F1C-471E-8434-1004CDC9E941}
+		{457FEA7B-529B-4145-91A2-D7E9E02476A3} = {809D1035-C566-4DAD-9415-D4BA61F81F1E}
+		{354FF4F2-FFA5-4E58-91CC-E4EC1F4E1AA1} = {7C95A1D5-A70B-4047-818D-0BBB38DD3E40}
+		{E4E0D40F-6C10-42ED-B130-15D0B9CECDB2} = {6C5EE189-C6A5-4DA2-A178-60D544890C67}
+		{63D5DE30-464B-4A50-BEC8-99824D3CCDD6} = {2049EEA1-D631-49C2-8B00-C5C68A694653}
+	EndGlobalSection
+EndGlobal
