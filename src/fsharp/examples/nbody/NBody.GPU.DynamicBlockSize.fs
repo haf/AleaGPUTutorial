@@ -1,7 +1,7 @@
 ﻿(**
 GPU implementation with dynamic `blockSize`, i.e. the `blockSize` is not known at compiletime.
 *)
-
+(*** define:dynamicStart ***)
 module Tutorial.Fs.examples.NBody.Impl.GPU.DynamicBlockSize
 
 open Alea.CUDA
@@ -9,6 +9,9 @@ open Alea.CUDA.Utilities
 open NUnit.Framework
 open Tutorial.Fs.examples.NBody
 
+(** start Class and make sure it is compiled ahead of time (AOT) in the three specific architectures:
+*)
+(*** define:DynamicAOTCompile***)
 [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>]
 type SimulatorModule(target) =
     inherit GPUModule(target)
@@ -18,6 +21,7 @@ Computing the accelerations between the particles. The parallelization strategy 
 essentailly it is parallelized over the particles. Particle positions for `blockDim.x` are loaded to shared memory in order to have faster access.
 In this version the `blockDim.x` is not known at compile time and hence loop-unrolling of the inner loop is not possible, see the StaticBlockSize implementation for comparison.
 *)
+(*** define:DynamicComputeBodyAccel ***)
     [<ReflectedDefinition>]
     member this.ComputeBodyAccel softeningSquared
                                  (bodyPos:float4)
@@ -42,6 +46,7 @@ In this version the `blockDim.x` is not known at compile time and hence loop-unr
 (**
 Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation of motion, inlcuding a `damping`-term.
 *)
+(*** define:DynamicStartKernel ***)
     [<Kernel;ReflectedDefinition>]
     member this.IntegrateBodies (newPos:deviceptr<float4>)
                                 (oldPos:deviceptr<float4>)
@@ -85,6 +90,7 @@ Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation 
 (**
 Prepare and launch kernel.
 *)
+(*** define:DynamicPrepareAndLaunchKernel ***)
     member this.IntegrateNbodySystem (newPos:deviceptr<float4>)
                                      (oldPos:deviceptr<float4>)
                                      (vel:deviceptr<float4>)
@@ -103,6 +109,7 @@ Prepare and launch kernel.
 (**
 Creating infrastructure for launching.
 *)
+(*** define:DynamicCreateInfrastructure ***)
     member this.CreateSimulator(blockSize:int) =
         let description = sprintf "GPU.DynamicBlockSize(%d)" blockSize
         { new ISimulator with
@@ -139,6 +146,7 @@ Creating infrastructure for launching.
 (**
 Infrastructure for (performance) testing.
 *)
+(*** define:DynamicTest ***)
 [<Test>]
 let Correctness256() =
     let target = GPUModuleTarget.DefaultWorker

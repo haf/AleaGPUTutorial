@@ -1,4 +1,4 @@
-﻿using System;
+﻿//[startStatic]
 using Alea.CUDA;
 using Alea.CUDA.IL;
 using Microsoft.FSharp.Core;
@@ -16,7 +16,9 @@ namespace Tutorial.Cs.examples.nbody
             _blockSize = blockSize;
             _description = string.Format("GPU.StaticBlockSize({0})", _blockSize);
         }
+        //[/startStatic]
 
+        //[StaticComputeBodyAccel]
         public float3 ComputeBodyAccel(float softeningSquared, float4 bodyPos, deviceptr<float4> positions, int numTiles)
         {
             var sharedPos = __shared__.Array<float4>(_blockSize);
@@ -38,7 +40,9 @@ namespace Tutorial.Cs.examples.nbody
             }
             return (acc);
         }
+        //[/StaticComputeBodyAccel]
 
+        //[StaticStartKernel]
         [Kernel]
         public void IntegrateBodies(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel,
             int numBodies, float deltaTime, float softeningSquared, float damping, int numTiles)
@@ -72,7 +76,9 @@ namespace Tutorial.Cs.examples.nbody
             newPos[index] = position;
             vel[index] = velocity;
         }
+        //[/StaticStartKernel]
 
+        //[StaticPrepareAndLaunchKernel]
         public void IntegrateNbodySystem(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel,
             int numBodies, float deltaTime, float softeningSquared, float damping)
         {
@@ -82,7 +88,9 @@ namespace Tutorial.Cs.examples.nbody
             GPULaunch(IntegrateBodies, lp, newPos, oldPos, vel, numBodies, deltaTime, softeningSquared, damping,
                 numTiles);
         }
+        //[/StaticPrepareAndLaunchKernel]
 
+        //[StaticCreateInfrastructure]
         string ISimulator.Description()
         {
             return _description;
@@ -119,8 +127,10 @@ namespace Tutorial.Cs.examples.nbody
                 GPUWorker.Gather(dvel.Ptr, vel, FSharpOption<int>.None, FSharpOption<int>.None);
             }
         }
+        //[/StaticCreateInfrastructure]
     }
 
+    //[CompileArchitectures]
     [AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")]
     public class GpuStaticSimulatorModule64 : GpuStaticSimulatorModule
     {
@@ -156,7 +166,9 @@ namespace Tutorial.Cs.examples.nbody
         {
         }
     }
+    //[/CompileArchitectures]
 
+    //[StaticTest]
     public static class GpuStaticSimulatorTests
     {
         [Test]
@@ -189,4 +201,5 @@ namespace Tutorial.Cs.examples.nbody
             }
         }
     }
+    //[/StaticTest]
 }

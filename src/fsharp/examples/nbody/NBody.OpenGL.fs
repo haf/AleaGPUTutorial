@@ -1,6 +1,7 @@
 ﻿(**
 Visualizing simulation using [OpenGL](https://www.opengl.org/) respectively [OpenTK](http://www.opentk.com/).
 *)
+(*** define:StartOpenGL ***)
 module Tutorial.Fs.examples.NBody.OpenGL
 open System
 open System.Collections.Generic
@@ -16,6 +17,7 @@ open Alea.CUDA
 (**
 We inhere from the [OpenTK](http://www.opentk.com/) class `GameWindow`.
 *)
+(*** define:startSimWindow ***)
 type SimWindow() as this =
     inherit GameWindow(800, 600, GraphicsMode.Default, "Gravitational n-body simulation")
 
@@ -33,20 +35,26 @@ type SimWindow() as this =
     let mutable frameCounter = 0
 
 (**
-Creating a worker which knows about the OpenGL context.
+function to create cuda GL context, needed in order to initialize worker.
 *)
+(*** define:createGLContextGenerator ***)
+    let generate() =
+        let mutable cuContext = 0n
+        let cuDevice = Device.Default
+        cuSafeCall(cuGLCtxCreate(&&cuContext, 0u, Device.Default.ID))
+        cuDevice, cuContext
+(**
+create worker using Cuda GL context generation function.
+*)
+(*** define:CreateWorker ***)
     // Note, we don't need worker.Eval cause we will run it in single thread.
     let worker =
-        let generate() =
-            let mutable cuContext = 0n
-            let cuDevice = Device.Default
-            cuSafeCall(cuGLCtxCreate(&&cuContext, 0u, Device.Default.ID))
-            cuDevice, cuContext
         Worker.CreateOnCurrentThread(generate)
 
 (**
 Create several simulators: dynamic & static with different `blockSize`s for comparison.
 *)
+(***  define:CreateSimulatros ***)
     let simulators, disposeSimulators =
         let simulators = Queue<ISimulator>()
         let target = GPUModuleTarget.Worker(worker)
@@ -90,6 +98,7 @@ Create several simulators: dynamic & static with different `blockSize`s for comp
 (**
 Method to describe simulation in window-title.
 *)
+(*** define:GLdescription***)
     let description() =
         let time = stopWatch.ElapsedMilliseconds
         let fps = (float frameCounter) * 1000.0 / (float time)
@@ -99,6 +108,7 @@ Method to describe simulation in window-title.
 (**
 Switch between different simulators in order to compare the performence for dynamic & static GPU implementation and different `blockSize`s.
 *)
+(*** define:GLswitchSimulators***)
     let switchSimulator() =
         simulators.Enqueue(simulator)
         simulator <- simulators.Dequeue()
@@ -109,6 +119,7 @@ Switch between different simulators in order to compare the performence for dyna
 (**
 Display options: exit simulation or switch simulator. 
 *)
+(*** define:GLhelp***)
     let help() =
         printfn "Press these keys:"
         printfn "[ESC]    : Exit"
@@ -118,6 +129,7 @@ Display options: exit simulation or switch simulator.
 Create `buffer`s and `vel`, where the particles position and velocities will be stored in.
 Positions are read from one `buffer` and stored to the other, hence the `buffer`s have to change between every integration step. This is what `swapPos` is for.
 *)
+(*** define:CreateBuffers***)
     let buffers = 
         let buffers = Array.zeroCreate<GLuint> 2
         GL.GenBuffers(buffers.Length, buffers)
@@ -153,6 +165,7 @@ Positions are read from one `buffer` and stored to the other, hence the `buffer`
 (**
 Locks pointers from acces by [OpenTK](http://www.opentk.com/), s.t. function `f` can work on these pointers.
 *)
+(*** define:LockPositions ***)
     let lockPos(f:deviceptr<float4> -> deviceptr<float4> -> 'T) =
         cuSafeCall(cuGraphicsResourceSetMapFlags(resources.[0], uint32 CUgraphicsMapResourceFlags.CU_GRAPHICS_MAP_RESOURCE_FLAGS_READ_ONLY))
         cuSafeCall(cuGraphicsResourceSetMapFlags(resources.[1], uint32 CUgraphicsMapResourceFlags.CU_GRAPHICS_MAP_RESOURCE_FLAGS_WRITE_DISCARD))
@@ -170,6 +183,7 @@ Locks pointers from acces by [OpenTK](http://www.opentk.com/), s.t. function `f`
 (**
 Final steps in order to initialize the simulaiton and the visualization.
 *)
+(*** define:FinalizeGL ***)
     do
         let hpos, hvel = initializeBodies numBodies
         worker.Scatter(hvel, vel.Ptr)
@@ -186,6 +200,7 @@ Final steps in order to initialize the simulaiton and the visualization.
 (**
 Override needed functionality from `GameWindow`.
 *)
+(*** define:overrideFuctions ***)
     override this.Dispose(disposing) =
         for resource in resources do cuSafeCall(cuGraphicsUnregisterResource(resource))
         for buffer in buffers do cuSafeCall(cuGLUnregisterBufferObject(buffer))
@@ -215,6 +230,7 @@ Render function:
 - Calls `Integrate` method from choosen `simulator`.
 - Displays all the particles using [OpenTK](http://www.opentk.com/) functionality.
 *)
+(*** define:render ***)
     override this.OnRenderFrame e =
         base.OnRenderFrame(e)
 
@@ -244,6 +260,7 @@ Render function:
 (**
 Defaults to use `SimWindow`.
 *)
+(*** define:runSimWindow ***)
 let runSim() =
     use window = new SimWindow()
     window.Run()

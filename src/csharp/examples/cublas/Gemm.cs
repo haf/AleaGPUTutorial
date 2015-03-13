@@ -93,8 +93,6 @@ namespace Tutorial.Cs.examples.cublas
             }
         }
         //[/gemmGpu]
-
-
     }
     
     //[gemmTest]

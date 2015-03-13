@@ -1,6 +1,7 @@
 ﻿(**
 CPU implementation of the NBody simulation. It is mainly given to test the GPU implementations.
 *)
+(*** define:StartCPU ***)
 module Tutorial.Fs.examples.NBody.Impl.CPU.Simple
 
 open Alea.CUDA
@@ -10,6 +11,7 @@ type SimulatorModule() =
 (**
 CPU integration method. First calculates all forces, then integrates including a `damping`-factor.
 *)
+(*** define:IntegrateCommonNbodySystem ***)
     member this.IntegrateNbodySystem (accel:float3[])
                                      (pos:float4[])
                                      (vel:float4[])
@@ -55,8 +57,9 @@ CPU integration method. First calculates all forces, then integrates including a
             vel.[i] <- velocity
 
 (**
-Creates a Simulator using the CPU integration.
+Creator functionality for Simulator and SimulatorTester
 *)
+(*** define:CPUTestFunctionality ***)
     member this.CreateSimulator(worker:Worker, numBodies:int) =
         // create arrays for work, store in closure, to save time for allocation.
         let haccel = Array.zeroCreate<float3> numBodies
@@ -74,9 +77,6 @@ Creates a Simulator using the CPU integration.
                 this.IntegrateNbodySystem haccel hpos hvel numBodies deltaTime softeningSquared damping
         }
 
-(**
-Creates a SimulatorTester using the CPU integration.
-*)
     member this.CreateSimulatorTester(numBodies:int) =
         let description = "CPU.Simple"
         let accel = Array.zeroCreate<float3> numBodies
