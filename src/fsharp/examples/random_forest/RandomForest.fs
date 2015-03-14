@@ -1,10 +1,11 @@
 ﻿module Tutorial.Fs.examples.RandomForest.RandomForest
 
+open FSharp.Collections.ParallelSeq
+
 open Tutorial.Fs.examples.RandomForest.DataModel
 open Tutorial.Fs.examples.RandomForest.Common
 open Tutorial.Fs.examples.RandomForest.Cuda
 open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
-open FSharp.Collections.ParallelSeq
 
 [<Literal>]
 let private DEBUG = false
@@ -24,8 +25,7 @@ type LabeledFeatureSet =
 
     member this.Labels = 
         this |> function
-        | LabeledSamples trainingSet -> 
-            trainingSet |> Array.unzip |> snd
+        | LabeledSamples trainingSet -> trainingSet |> Array.unzip |> snd
         | LabeledDomains (_, labels) -> labels
         | SortedFeatures features -> features.[0] |> (fun (_, x, _) -> x)
 
@@ -40,15 +40,12 @@ type LabeledFeatureSet =
         | LabeledSamples trainingSet -> 
             let numSamples = this.Length
             let samples, labels = trainingSet |> Array.unzip
-            let domains = Array.init samples.[0].Length (fun i ->
-                Array.init numSamples (fun j -> samples.[j].[i])
-            )
+            let domains = Array.init samples.[0].Length (fun i -> Array.init numSamples (fun j -> samples.[j].[i]))
             SortedFeatures (domains |> sortAllFeatures labels)
         | LabeledDomains (domains, labels) -> 
             SortedFeatures (domains |> sortAllFeatures labels)
         | SortedFeatures _ -> this
         
-
 let rec forecastTree (sample:Sample) (tree : Tree) =
     match tree with
     | Tree.Leaf label -> label
@@ -57,7 +54,6 @@ let rec forecastTree (sample:Sample) (tree : Tree) =
             forecastTree sample low 
         else 
             forecastTree sample high
-
 
 let forecast (model : Model) (sample : Sample) : Label =
     match model with
@@ -173,9 +169,8 @@ type CpuMode =
     | Sequential
     | Parallel
 
-let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) numClasses (labelsPerFeature : Labels[]) 
-    (indicesPerFeature : Indices[]) weights =
-    // Remove zero weights
+let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) numClasses (labelsPerFeature : Labels[]) (indicesPerFeature : Indices[]) weights =
+    // remove zero weights
     let weightsPerFeature = Array.expandWeights indicesPerFeature weights
     let nonZeroIdcsPerFeature = Array.findNonZeroWeights weightsPerFeature
     
@@ -201,7 +196,7 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
     let rounding (value : float) = System.Math.Round(value, options.Decimals)
     let mask = options.FeatureSelector (labelsPerFeature |> Array.length)
 
-    // For each feature find minimum entropy and corresponding index
+    // for each feature find minimum entropy and corresponding index
     let mapping = (fun featureIdx labels ->
         if (mask.[featureIdx]) then
             let featureWeights = weightsPerFeature.[featureIdx]
@@ -237,7 +232,7 @@ let rec trainTree depth (optimizer : Weights -> (float * int)[])
             |> Array.mapi (fun i (entropy, splitIdx) -> (entropy, splitIdx, i))
             |> Array.minBy (fun (entropy, _, _) -> entropy)
 
-    let (domain, labels, indices) = sortedTrainingSet.[featureIdx]
+    let domain, labels, indices = sortedTrainingSet.[featureIdx]
     let sortedWeights = weights |> Array.projectIdcs indices
     let threshold = domainThreshold sortedWeights domain splitIdx
 
@@ -253,7 +248,7 @@ let rec trainTree depth (optimizer : Weights -> (float * int)[])
 
     match threshold with
     | Some num ->
-        //Set weights to 0 for elements which aren't included in left and right branches respectively
+        // set weights to 0 for elements which aren't included in left and right branches respectively
         let lowWeights  = sortedWeights |> restrictBelow splitIdx
         let highWeights = sortedWeights |> restrictAbove (splitIdx + 1)
         if DEBUG then

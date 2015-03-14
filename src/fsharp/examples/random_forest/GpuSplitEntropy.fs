@@ -9,6 +9,7 @@ open Tutorial.Fs.examples.RandomForest.DataModel
 
 [<Literal>]
 let private DEBUG = false
+
 (**
 Matrix row scan resource.
 

@@ -1,0 +1,512 @@
+﻿module Tutorial.Fs.examples.RandomForest.RandomForestExample
+
+open NUnit.Framework
+open FsUnit
+open Alea.CUDA
+open Tutorial.Fs.examples.RandomForest.Common
+open Tutorial.Fs.examples.RandomForest.DataModel
+open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
+open Tutorial.Fs.examples.RandomForest.RandomForest
+
+[<Test>] 
+let ``Transform training set``() =
+    let trainingSamples = 
+        LabeledSamples 
+            [|
+                [|0.4;0.5;0.1|], 0
+                [|0.8;0.1;0.4|], 1
+                [|0.2;0.7;0.5|], 1
+                [|0.6;0.5;0.9|], 0
+            |]
+
+    let expected = 
+        [|
+            [|0.2;0.4;0.6;0.8|], [|1;0;0;1|], [|2;0;3;1|] 
+            [|0.1;0.5;0.5;0.7|], [|1;0;0;1|], [|1;0;3;2|]
+            [|0.1;0.4;0.5;0.9|], [|0;1;1;0|], [|0;1;2;3|]
+        |]
+    
+    let expectedDomains, expectedLabels, expectedIndices = expected |> Array.unzip3
+
+    match trainingSamples.Sorted with
+    | SortedFeatures features ->
+        let domains, labels, indices = features |> Array.unzip3
+
+        domains |> should equal expectedDomains
+        labels |> should equal expectedLabels
+        indices |> should equal expectedIndices
+    | _ -> failwith "expected SortedFeatures"
+
+[<Test>] 
+let ``Sort features``() =
+    let featureValues = [|10.0;5.0;9.0;7.0;3.0;2.0|]
+    let labels = [|1;1;0;0;1;0;|]
+    let expectedFeatures = [|2.0;3.0;5.0;7.0;9.0;10.0|]
+    let expectedLabels = [|0;1;1;0;0;1|]
+    let expectedIdxs = [|5; 4; 1; 3; 2; 0|]
+    let sortedFeatures, sortedLabels, idxs = (labels, featureValues) ||> sortFeature
+    sortedFeatures |> should equal expectedFeatures
+    sortedLabels |> should equal expectedLabels
+    idxs |> should equal expectedIdxs
+
+[<Test>] 
+let ``Min and max functions``() =
+    let testData = [|2.0;1.0;3.0;10.0;9.0;5.0|]
+    testData
+    |> MinMax.minAndArgMin
+    |> should equal (1.0,1)
+    testData
+    |> MinMax.maxAndArgMax
+    |> should equal (10.0,3)
+
+[<Test>] 
+let ``Threshold and labels``() =
+    let numClasses = 2
+    let domain = [|4.0;5.0;10.0;12.0|]
+    let labels = [|1;0;0;1|]
+    let weights = Array.init labels.Length (fun _ -> 1)
+    let thresholdAndLabels splitIdx =
+        let threshold = domainThreshold weights domain splitIdx
+        let lowWeights = weights |> restrictBelow splitIdx
+        let highWeights = weights |> restrictAbove (splitIdx + 1)
+        let low = findMajorityClass lowWeights numClasses labels
+        let high = findMajorityClass highWeights numClasses labels
+        threshold, low, high
+    thresholdAndLabels 0 |> should equal (Some 4.5, 1, 0)
+    thresholdAndLabels 1 |> should equal (Some 7.5, 0, 0)
+    thresholdAndLabels 2 |> should equal (Some 11.0, 0, 1)
+    let threshold, _, _ = thresholdAndLabels 3
+    threshold |> should equal None
+
+[<Test>] 
+let ``Forecast random forest of stumps``() =
+    let stump1 = Node (Leaf 0, Split.Create 0 5.0, Leaf 1) 
+    let stump2 = Node (Leaf 0, Split.Create 0 7.0, Leaf 1) 
+    let stumps = Array.init 100 (fun i -> if i%3=0 then stump2 else stump1)
+    let model = RandomForest (stumps, 2)
+    forecast model [|6.0|] |> should equal 1
+    forecast model [|4.0|] |> should equal 0
+ 
+let checkStump feature threshold low high (stump : Tree) = 
+    match stump with
+    | Leaf label -> 
+        label |> should equal low
+    | Node (left, split, right) ->
+        split.Feature |> should equal feature
+        split.Threshold |> should equal threshold
+        left |> should equal (Tree.Leaf low)
+        right |> should equal (Tree.Leaf high)
+           
+[<Test>]
+let ``Train simple stump`` () =
+    let optimizeStump numClasses sortedTrainingSet weights =
+        let optimizer, disposer = EntropyDevice.GPU.CreateDefaultOptions numClasses sortedTrainingSet
+        let trainer = trainStump optimizer numClasses sortedTrainingSet
+        try
+            trainer weights
+        finally
+            disposer()
+
+    let numSamples = 10
+    let splitIdx = 5
+    let weights = Array.init numSamples (fun _ -> 1)
+    let labels = Array.init numSamples (fun i -> if i < splitIdx then 0 else 1)
+    let domain = Array.init numSamples (fun i -> float i)
+    let indices = Array.init numSamples (fun i -> i)
+    optimizeStump 2 [|domain, labels, indices|] weights
+    |> checkStump 0 4.5f 0 1
+
+    let mixedLabels = Array.init numSamples (fun i -> i % 2)
+    optimizeStump 2 [|domain, mixedLabels, indices; domain, labels, indices|] weights
+    |> checkStump 1 4.5f 0 1
+
+    optimizeStump 2 [|domain, mixedLabels, indices|] weights
+    |> checkStump 0 0.5f 0 1
+
+    let biasedWeights = Array.zeroCreate numSamples
+    biasedWeights.[numSamples - 1] <- numSamples / 2
+    biasedWeights.[numSamples - 2] <- numSamples / 2
+    optimizeStump 2 [|domain, mixedLabels, indices|] biasedWeights
+    |> checkStump 0 8.5f 0 1
+
+[<Test>]
+let ``Sort domains labels and weights`` () =
+    let numSamples = 10
+    let reverseDomain = Array.init numSamples (fun i -> float (numSamples - i - 1))
+    let skewedWeights = Array.init numSamples (fun i -> if i < 2 then numSamples / 2 else 0)
+    let singleElementClass = Array.init numSamples (fun i -> if i = 0 then 1 else 0)
+    let trainigSet = LabeledDomains ([|reverseDomain|], singleElementClass)
+    let model = bootstrappedStumpsClassifier [|skewedWeights|] trainigSet
+    match model with
+    | RandomForest (stumps, _) -> stumps |> Seq.head |> checkStump 0 8.5f 0 1
+
+[<Test>] 
+let ``Train random stumps`` () =
+    let numStumps = 3500
+    let numSamples = 32
+    let splitIdx = numSamples / 2
+    let samples = Array.init numSamples (fun i -> [|float i|])
+    let labels = Array.init numSamples (fun i -> if i < splitIdx then 0 else 1)
+    let labeledSamples = (samples, labels) ||> Array.zip |> LabeledSamples
+    let rnd = System.Random(0)
+    let (RandomForest (stumps, _)) = randomStumpsClassifier rnd numStumps labeledSamples
+    let num, sum = 
+        Seq.fold (fun (num, sum) s -> 
+            match s with
+            | Node (low, split, high) -> (num + 1, sum + float split.Threshold)
+            | _ -> (num, sum)
+        ) (0, 0.0) stumps
+    sum / float num |> should (equalWithin 1e-2) (float splitIdx - 0.5)
+
+[<Test>]
+let ``Random weights`` () =
+    let numElements = 100
+    let rnd = System.Random(0)
+    let weights = randomWeights rnd numElements
+    weights |> Array.sum |> should equal numElements
+    weights |> Seq.forall (fun x -> x >= 0) |> should be True
+
+let singleEntropy node =
+    let sum = node |> Array.sum
+    seq { yield node, sum } |> entropy sum
+
+[<Test>]
+let ``Entropy of single nodes`` () =
+    [|0; 0|] |> singleEntropy |> should equal 0.0
+    [|5; 0|] |> singleEntropy |> should equal 0.0
+    [|0; 5|] |> singleEntropy |> should equal 0.0
+    [|5; 5|] |> singleEntropy |> should (equalWithin 1e-8) 1.0
+    [|2; 3|] |> singleEntropy |> should (equalWithin 1e-3) 0.971
+    [|3; 2|] |> singleEntropy |> should (equalWithin 1e-3) 0.971
+    [|9; 5|] |> singleEntropy |> should (equalWithin 1e-3) 0.940
+    [|5; 4; 5|] |> singleEntropy |> should (equalWithin 1e-3) 1.577
+
+[<Test>]
+let ``Multistage property of entropy`` () =
+    [|2; 3; 4|] |> singleEntropy
+                |> should (equalWithin 1e-8)
+                <| (singleEntropy [|2; 7|]) + 7.0 / 9.0 * (singleEntropy [|3; 4|])
+
+[<Test>]
+let ``Entropy of splits`` () =
+    let entropyWithoutTotals (hist : LabelHistogram seq) = 
+        let total = hist |> Seq.map snd |> Seq.sum
+        entropy total hist
+
+    let seqEntropy = Seq.ofList >> Seq.map (fun hist -> hist, hist |> Array.sum) >> entropyWithoutTotals
+
+    [[|2; 3|]; [|4; 0|]; [|3; 2|]]
+    |> seqEntropy
+    |> should (equalWithin 1e-3) 0.693
+
+    [[|4; 2|]; [|5; 3|]]
+    |> seqEntropy
+    |> should (equalWithin 1e-3) 0.939
+
+    [[|4; 2|]; [|0; 0|]]
+    |> seqEntropy
+    |> should (equalWithin 1e-3) (singleEntropy [|4; 2|])
+
+    [[|4; 2|]; [|6; 0|]]
+    |> seqEntropy
+    |> should (equalWithin 1e-3) (0.5 * singleEntropy [|4; 2|])
+
+[<Test>]
+let ``Entropy mask`` () =
+    let weights = [| 1; 0; 2; 1; 1; 2; 1; 0 |] 
+    let labels  = [| 1; 0; 0; 1; 1; 0; 1; 0 |] 
+    let numSamples = labels.Length
+
+    entropyMask weights labels (weights |> Array.sum) 1
+    |> should equal [| true; false; true; false; true; true; true; false |]
+
+    entropyMask weights labels (weights |> Array.sum) 2
+    |> should equal [| false; false; true; false; true; false; true; false |]
+
+[<Test>]
+let ``Restrict array`` () =
+    let numElems = 100
+    let arr = Array.init numElems id
+    let startIdx = 10
+    let count = 20
+    let restricted = arr |> restrict startIdx count
+    let splitIdx = numElems / 2
+    let restrictedBelow = arr |> restrictBelow splitIdx
+    let restrictedAbove = arr |> restrictAbove (splitIdx + 1)
+
+    let stopIdx = startIdx + count
+    for i = 0 to numElems - 1 do
+        if startIdx <= i && i < stopIdx then
+            restricted.[i] |> should equal arr.[i]
+        else
+            restricted.[i] |> should equal 0
+        if i <= splitIdx then
+            restrictedBelow.[i] |> should equal arr.[i]
+            restrictedAbove.[i] |> should equal 0
+        else
+            restrictedBelow.[i] |> should equal 0
+            restrictedAbove.[i] |> should equal arr.[i]
+
+[<Test>]
+let ``CPU vs GPU optimizer`` () =
+    let rnd = System.Random 0
+    let numSamples = 10000
+    let numFeatures = 20
+    let numClasses = 2
+    let domains = Array.init numFeatures (fun _ -> Array.init numSamples (fun _ -> rnd.NextDouble()))
+    let labels = Array.init numSamples (fun i -> i % numClasses)
+    let trainingSet = LabeledDomains (domains, labels)
+
+    match trainingSet.Sorted with
+    | SortedFeatures sortedTrainingSet -> 
+        let gpuOpt, gpuDisposer = EntropyDevice.GPU.CreateDefaultOptions numClasses sortedTrainingSet
+        let cpuOpt, _ = (EntropyDevice.CPU Parallel).CreateDefaultOptions numClasses sortedTrainingSet
+        let weights = randomWeights rnd numSamples
+        try
+            let gpuMinEnt, gpuMinEntArg = gpuOpt weights |> Array.unzip
+            let cpuMinEnt, cpuMinEntArg = cpuOpt weights |> Array.unzip
+            gpuMinEnt |> should (equalWithin 1e-10) cpuMinEnt
+            gpuMinEntArg |> should equal cpuMinEntArg
+        finally
+            gpuDisposer()
+    | _ -> failwith "expected sorted features"
+    
+[<Test>]
+let ``Tree with one feature`` () =
+    let labels = [| 0; 0; 1; 1; 0; 0; 1; 1 |]
+    let domain = Array.init labels.Length (fun x -> float x)
+    let trainingSet = LabeledFeatureSet.LabeledDomains ([| domain |], labels)
+    [|
+        (1, Node (Leaf 0, { Feature = 0; Threshold = 1.5 }, Leaf 1))
+        (2, Node (Leaf 0, { Feature = 0; Threshold = 1.5 },
+                Node (Leaf 1, { Feature = 0; Threshold = 3.5 }, Leaf 0)))
+        (3, Node (Leaf 0, { Feature = 0; Threshold = 1.5 },
+                Node (Leaf 1, { Feature = 0; Threshold = 3.5 },
+                    Node (Leaf 0, { Feature = 0; Threshold = 5.5 }, Leaf 1))))
+        (4, Node (Leaf 0, { Feature = 0; Threshold = 1.5 },
+                Node (Leaf 1, { Feature = 0; Threshold = 3.5 },
+                    Node (Leaf 0, { Feature = 0; Threshold = 5.5 }, Leaf 1))))
+    |]
+    |> Array.iter (fun (depth, expectedTree) ->
+        let options = { TreeOptions.Default with MaxDepth = depth; Device = GPU }
+        let tree = treeClassfier options trainingSet
+        tree |> should equal expectedTree
+    )
+
+[<Test>]
+let ``Tree with two features`` () =
+    let labels = [|1; 0; 1; 0|]
+    let options = { TreeOptions.Default with MaxDepth = 4; Device = GPU }
+    [|  
+        [| 0.0; 1.0; 2.0; 3.0 |], [| 0.0; 1.0; 2.0; 3.0 |], 
+            Node // <(1 {0, 0.5} (0 {0, 1.5} (1 {0, 2.5} 0)))>
+                (
+                    Leaf 1, { Feature = 0; Threshold = 0.5 },
+                    Node (Leaf 0, { Feature = 0; Threshold = 1.5 },
+                        Node (Leaf 1, { Feature = 0; Threshold = 2.5 }, Leaf 0))
+                )
+        [| 0.0; 1.0; 2.0; 3.0 |], [| 2.0; 1.0; 0.0; 3.0 |], 
+            Node // <(1 {0, 0.5} (1 {1, 0.5} 0))>
+                (
+                    Leaf 1, { Feature = 0; Threshold = 0.5 },
+                    Node (Leaf 1, { Feature = 1; Threshold = 0.5 }, Leaf 0)
+                )
+        [| 0.0; 1.0; 3.0; 2.0|], [| 0.0; 3.0; 2.0; 1.0 |], 
+            Node // <(1 {0, 0.5} (0 {0, 2.5} 1))>
+                (
+                    Leaf 1, { Feature = 0; Threshold = 0.5 },
+                    Node (Leaf 0, { Feature = 0; Threshold = 2.5 }, Leaf 1)
+                )
+        [| 0.0; 2.0; 1.0; 3.0 |], [| 0.0; 2.0; 1.0; 3.0 |], 
+            Node (Leaf 1, { Feature = 0; Threshold = 1.5 }, Leaf 0)                                               
+    |]
+    |> Array.iter (fun (domainA, domainB, expectedTree) ->
+        let trainingSet = LabeledFeatureSet.LabeledDomains ([| domainA; domainB |], labels)
+        let tree = treeClassfier options trainingSet
+        tree |> should equal expectedTree
+    )
+    
+[<Test>]
+let ``Tree with weights`` () =
+    let labels = [|0; 1; 0|]
+    let domain = [| 0.0; 1.0; 2.0 |]
+    let weights = [|1; 0; 2|]
+    let options = { TreeOptions.Default with Device = GPU }
+    let expectedTree = Leaf 0
+    let trainingSet = LabeledFeatureSet.LabeledDomains ([| domain |], labels)
+    let tree = weightedTreeClassifier options trainingSet weights
+    tree |> should equal expectedTree
+
+let randomTrainingData (rnd : System.Random) numSamples numFeatures numClasses =
+    let domains = Array.init numFeatures (fun _ -> Array.init numSamples (fun _ -> rnd.NextDouble()))
+    let labels = Array.init numSamples (fun _ -> rnd.Next(numClasses))
+    LabeledDomains (domains, labels)
+
+let defaultTrainingData = 
+    let numSamples = 1000
+    let numFeatures = 20
+    let numClasses = 2
+    let rnd = System.Random(0)
+    let trainingData = randomTrainingData rnd numSamples numFeatures numClasses
+    trainingData.Sorted
+
+let compareForests options1 options2 = 
+    let trainingData = defaultTrainingData
+
+    let numTrees = 100
+    let rnd = System.Random(0)
+    let weights = Seq.init numTrees (fun _ -> randomWeights rnd trainingData.Length) |> Seq.toArray
+    let classifier options = bootstrappedForestClassifier options weights
+
+    let model1 = classifier options1 defaultTrainingData
+    let (RandomForest (trees1, _)) = model1
+
+    let rnd = System.Random(0)
+    let model2 = classifier options2 trainingData
+    let (RandomForest (trees2, _)) = model2
+    
+    Array.iteri2 (fun i tree1 tree2 -> 
+        try
+            tree1 |> should equal tree2
+        with 
+        | ex ->
+            printfn "Tree Nr. %d" i
+            reraise()
+    ) trees1 trees2
+
+[<Test>]
+let ``Random forest on CPU Parallel vs CPU Sequential`` () =
+    let options = { TreeOptions.Default with MaxDepth = 4 }
+    compareForests { options with Device = CPU Parallel } { options with Device = CPU Sequential }
+
+[<Test>]
+let ``Random forest on CPU Parallel vs GPU single threaded`` () =
+    let options = { TreeOptions.Default with MaxDepth = 4 }
+    compareForests { options with Device = GPU } { options with Device = CPU Parallel }
+
+[<Test>]
+let ``Random forest on CPU thread pool vs GPU thread pool`` () =
+    let poolSize = 2
+    let options = { TreeOptions.Default with MaxDepth = 4 }
+    let trainingData = defaultTrainingData
+    let numClasses = trainingData.NumClasses
+    match trainingData with
+    | SortedFeatures sortedData ->
+        let createPool (device : EntropyDevice) = device.CreatePool poolSize options.EntropyOptions numClasses sortedData
+        let cpuPool, cpuDisposers = createPool (CPU Sequential)
+        let gpuPool, gpuDisposers = createPool GPU
+        compareForests  { options with Device = cpuPool } { options with Device = gpuPool }
+        let callAll disposers = disposers |> Array.iter (fun disposer -> disposer())
+        callAll cpuDisposers
+        callAll gpuDisposers
+    | _ -> failwith "expected SortedFeatures"
+
+let addSquareRootFeatureSelector options =
+    let rnd = System.Random()
+    let featureSelector = EntropyOptimizationOptions.SquareRootFeatureSelector rnd
+    let entropyOptions = {options.EntropyOptions with FeatureSelector = featureSelector}
+    { options with EntropyOptions = entropyOptions }
+
+[<Test>]
+let ``Features subselection`` () =
+    let poolSize = 2
+    let options = { TreeOptions.Default with MaxDepth = 4 }
+    let trainingData = defaultTrainingData
+    let numClasses = trainingData.NumClasses
+    match trainingData with
+    | SortedFeatures sortedData ->
+        let createPool (device : EntropyDevice) = device.CreatePool poolSize options.EntropyOptions numClasses sortedData
+        let cpuPool, cpuDisposers = createPool (CPU Sequential)
+        let gpuPool, gpuDisposers = createPool GPU
+        compareForests  
+            ({ options with Device = cpuPool } |> addSquareRootFeatureSelector)
+            ({ options with Device = gpuPool } |> addSquareRootFeatureSelector)
+        let callAll disposers = disposers |> Array.iter (fun disposer -> disposer())
+        callAll cpuDisposers
+        callAll gpuDisposers
+    | _ -> failwith "expected SortedFeatures"
+
+[<Test>]
+let ``Random forest on CPU Parallel vs GPU thread pool`` () =
+    let poolSize = 2
+    let options = { TreeOptions.Default with MaxDepth = 4 }
+    let trainingData = defaultTrainingData
+    let numClasses = trainingData.NumClasses
+    match trainingData with
+    | SortedFeatures sortedData ->
+        let createPool (device : EntropyDevice) = device.CreatePool poolSize options.EntropyOptions numClasses sortedData
+        let gpuPool, gpuDisposers = createPool GPU
+        compareForests  { options with Device = CPU Parallel } { options with Device = gpuPool }
+        let callAll disposers = disposers |> Array.iter (fun disposer -> disposer())
+        callAll gpuDisposers
+    | _ -> failwith "expected SortedFeatures"
+
+[<Test>]
+let ``Speed of training random forests`` () =
+    let measureRandomForestTraining options numTrees trainingData = 
+        let rnd = System.Random(0)
+        let watch = System.Diagnostics.Stopwatch.StartNew()
+        printfn "Options:\n%A" options
+        randomForestClassifier rnd options numTrees trainingData |> ignore
+        watch.Stop()
+        let elapsed = watch.Elapsed
+        printfn "Total time elapsed: %A" elapsed
+        elapsed
+
+    let SEPERATOR = "-------------------------------------------------------------------------------------------"
+
+    let measureDevice poolSize numWarmups numTrees (options : TreeOptions) numClasses (trainingData : LabeledFeatureSet) (entropyDevice : EntropyDevice) = 
+        match trainingData.Sorted with
+        | SortedFeatures sortedData ->     
+            let device, disposers = 
+                if poolSize = 1 then
+                    let device, disposer = entropyDevice.ToCached options.EntropyOptions numClasses sortedData
+                    device, [|disposer|]
+                else
+                    entropyDevice.CreatePool poolSize options.EntropyOptions numClasses sortedData
+            let deviceOptions = {options with Device = device}
+            printfn "%s\n%A warm-up with %d trees" SEPERATOR entropyDevice numWarmups
+            measureRandomForestTraining deviceOptions numWarmups trainingData |> ignore
+            printfn "%s\n%A measurement with %d trees" SEPERATOR entropyDevice numTrees
+            let time = measureRandomForestTraining deviceOptions numTrees trainingData
+            disposers |> Array.iter(fun disposer -> disposer())
+            time
+        | _ -> failwith "expected sorted features"
+
+    let measureGpuVsCpu numSamples numFeatures numClasses numTrees maxDepth poolSize =
+        let numWarmups = numTrees / 10 |> min 10 |> max 3
+        printf "Generating training data ... "
+        let rnd = System.Random(0)
+        let trainingData = randomTrainingData rnd numSamples numFeatures numClasses
+        printf "sorting ... "
+        let trainingData = trainingData.Sorted
+        printfn "done."
+
+        let options = 
+            { TreeOptions.Default with 
+                MaxDepth = maxDepth; 
+                EntropyOptions = {TreeOptions.Default.EntropyOptions with AbsMinWeight = 2}
+            }
+
+        printfn "Starting measurements with %A samples, %A features, %A classes, %A trees, %A threads" 
+            numSamples numFeatures numClasses numTrees poolSize
+
+        let runner = measureDevice poolSize numWarmups numTrees options numClasses trainingData
+        let gpuTime = GPU |> runner
+        let cpuTime = CPU Sequential |> runner
+
+        let speedUp = cpuTime.TotalMilliseconds / gpuTime.TotalMilliseconds
+        printfn "Speed up: %.1f" speedUp
+
+        gpuTime.TotalMilliseconds, cpuTime.TotalMilliseconds
+
+    if Device.Devices.[0].Arch.Major < 3 then 
+        printf "Need a GPU with compute capability 3.0 or higher, \nbut your default GPU has: %d.%d\n" Device.Devices.[0].Arch.Major Device.Devices.[0].Arch.Minor
+    else
+        let numSamples = 20000
+        let numFeatures = 20
+        let numClasses = 2
+        let numTrees = 1000
+        let maxDepth = 1
+        let gpuTime, cpuTime = measureGpuVsCpu numSamples numFeatures numClasses numTrees maxDepth 2
+        printf "cpu time: %f, gpu time: %f" cpuTime gpuTime
