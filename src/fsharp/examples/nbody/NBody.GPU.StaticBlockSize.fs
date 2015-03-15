@@ -17,8 +17,7 @@ type SimulatorModule(target, blockSize:int) =
 Computation of the accelerations between the particles. The parallelization strategy is nicely described in: 
 [GPU Gems 3](http://http.developer.nvidia.com/GPUGems3/gpugems3_ch31.html),
 essentailly it is parallelized over the particles. Particle positions for `blockDim.x` are loaded to shared memory in order to have faster access.
-In this version the `blockSize` is known at compile time and for f# loop-unrolling of the inner loop is possible, in contrast to the `DynamicBlockSize` implementation.
-In C# no explicite argument for loop-unrolling can not be given, but compilation to IL code will improve this part.
+In this version the `blockSize` is known at compile time, in contrast to the `DynamicBlockSize` implementation.
 *)
 (*** define:StaticComputeBodyAccel ***)
     [<ReflectedDefinition>]
