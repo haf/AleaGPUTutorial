@@ -1,6 +1,8 @@
 ﻿(**
 GPU implementation with static `blockSize`, i.e. the `blockSize` is known at compile-time and loop over threads can be unrolled.
+Infrastructure around kernel might be slightly more coplex, but the compiler can optimize the code better.
 *)
+(*** define:startStatic ***)
 module Tutorial.Fs.examples.NBody.Impl.GPU.StaticBlockSize
 
 open Alea.CUDA
@@ -12,10 +14,12 @@ type SimulatorModule(target, blockSize:int) =
     inherit GPUModule(target)
 
 (**
-Computing the accelerations between the particles. The parallelization strategy is nicely described in: [GPU Gems 3](http://http.developer.nvidia.com/GPUGems3/gpugems3_ch31.html),
+Computation of the accelerations between the particles. The parallelization strategy is nicely described in: 
+[GPU Gems 3](http://http.developer.nvidia.com/GPUGems3/gpugems3_ch31.html),
 essentailly it is parallelized over the particles. Particle positions for `blockDim.x` are loaded to shared memory in order to have faster access.
-In this version the `blockSize` is known at compile time and hence loop-unrolling of the inner loop is possible, in contrast to the `DynamicBlockSize` implementation.
+In this version the `blockSize` is known at compile time, in contrast to the `DynamicBlockSize` implementation.
 *)
+(*** define:StaticComputeBodyAccel ***)
     [<ReflectedDefinition>]
     member this.ComputeBodyAccel softeningSquared 
                                  (bodyPos:float4) 
@@ -40,8 +44,9 @@ In this version the `blockSize` is known at compile time and hence loop-unrollin
         acc
 
 (**
-Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation of motion, inlcuding a `damping`-term.
+Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation of motion, including a `damping`-term.
 *)
+(*** define:StaticStartKernel ***)
     [<Kernel;ReflectedDefinition>]
     member this.IntegrateBodies (newPos:deviceptr<float4>)
                                 (oldPos:deviceptr<float4>)
@@ -84,8 +89,9 @@ Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation 
 
 (**
 Prepare and launch kernel.
-Note: `blockSize` is a compile-time constant.
+Note: `blockSize` will be used as a compile-time constant.
 *)
+(*** define:StaticPrepareAndLaunchKernel ***)
     member this.IntegrateNbodySystem (newPos:deviceptr<float4>)
                                      (oldPos:deviceptr<float4>)
                                      (vel:deviceptr<float4>)
@@ -102,6 +108,7 @@ Note: `blockSize` is a compile-time constant.
 (**
 Creating infrastructure for launching and testing.
 *)
+(*** define:StaticCreateInfrastructure ***)
     member this.CreateSimulator() =
         let description = sprintf "GPU.StaticBlockSize(%d)" blockSize
         { new ISimulator with
@@ -139,6 +146,7 @@ Creating infrastructure for launching and testing.
 Fixing `blockSize` and compile.
 Compile for all architectures: `sm20`, `sm30`, `sm35` separately.
 *)
+(*** define:CompileArchitectures ***)
 type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule64(target) = inherit SimulatorModule(target, 64)
 type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule128(target) = inherit SimulatorModule(target, 128)
 type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule256(target) = inherit SimulatorModule(target, 256)
@@ -147,6 +155,7 @@ type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorM
 (**
 Infrastructure for (performance) testing.
 *)
+(*** define:StaticTest ***)
 [<Test>]
 let Correctness256() =
     let target = GPUModuleTarget.DefaultWorker

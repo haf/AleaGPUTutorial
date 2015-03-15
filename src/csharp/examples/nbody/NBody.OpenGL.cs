@@ -1,4 +1,5 @@
-﻿using System;
+﻿//[StartOpenGL]
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Alea.CUDA;
@@ -11,6 +12,9 @@ namespace Tutorial.Cs.examples.nbody
 {
     public delegate void Disposer();
     public delegate void Del(deviceptr<float4> a, deviceptr<float4> b);
+    //[/StartOpenGL]
+
+    //[startSimWindow]
     public class SimWindow : GameWindow
     {
         private readonly int _numBodies;
@@ -27,7 +31,9 @@ namespace Tutorial.Cs.examples.nbody
         private readonly Stopwatch _stopwatch;
         private readonly int _fpsCalcLag;
         private int _frameCounter;
+        //[/startSimWindow]
 
+        //[createGLContextGenerator]
         unsafe Tuple<Device, IntPtr> Generate()
         {
             var cuContext = IntPtr.Zero;
@@ -35,14 +41,18 @@ namespace Tutorial.Cs.examples.nbody
             CUDAInterop.cuSafeCall(CUDAInterop.cuGLCtxCreate(&cuContext, 0u, Device.Default.ID));
             return (new Tuple<Device, IntPtr>(cuDevice, cuContext));
         }
+        //[/createGLContextGenerator]
 
-        void Help()
+        //[GLhelp]
+        static void Help()
         {
             Console.WriteLine("Press these keys:");
             Console.WriteLine("[ESC]    : Exit");
             Console.WriteLine("S        : Switch to next simulator");
         }
+        //[/GLhelp]
 
+        //[GLdescription]
         void Description()
         {
             var time = _stopwatch.ElapsedMilliseconds;
@@ -51,7 +61,9 @@ namespace Tutorial.Cs.examples.nbody
                 _worker.Device.Arch, _worker.Device.Cores, _simulator.Description(), fps);
             _stopwatch.Restart();
         }
+        //[/GLdescription]
 
+        //[LockPositions]
         void LockPos(Del f)
         {
             CUDAInterop.cuSafeCall(CUDAInterop.cuGraphicsResourceSetMapFlags(_resources[0],
@@ -79,6 +91,7 @@ namespace Tutorial.Cs.examples.nbody
                 CUDAInterop.cuSafeCall(CUDAInterop.cuGraphicsUnmapResourcesEx(2u, _resources, IntPtr.Zero));
             }
         }
+        //[/LockPositions]
 
         public SimWindow() : base(800, 600, GraphicsMode.Default, "Gravitational n-body simulation")
         {
@@ -88,11 +101,15 @@ namespace Tutorial.Cs.examples.nbody
             _deltaTime = 0.001f;
             _softeningSquared = 0.00125f;
             _damping = 0.9995f;
+            //[CreateWorker]
             _worker = Worker.CreateOnCurrentThreadByFunc(Generate);
+            //[/CreateWorker]
+
             _stopwatch = Stopwatch.StartNew();
             _fpsCalcLag = 128;
             _frameCounter = 0;
 
+            //[CreateSimulatros]
             _simulators = new Queue<ISimulator>();
             var target = GPUModuleTarget.Worker(_worker);
 
@@ -135,7 +152,9 @@ namespace Tutorial.Cs.examples.nbody
             };
 
             _simulator = _simulators.Dequeue();
+            //[/CreateSimulatros]
 
+            //[CreateBuffers]
             _buffers = new uint[2];
             for (var i = 0; i < _buffers.Length; i++)
             {
@@ -171,7 +190,9 @@ namespace Tutorial.Cs.examples.nbody
                 }
                 _resources[i] = res;
             }
+            //[/CreateBuffers]
 
+            //[FinalizeGL]
             _vel = _worker.Malloc<float4>(_numBodies);
 
             var h = Common.InitializeBodies2(clusterScale, velocityScale, _numBodies);
@@ -186,6 +207,30 @@ namespace Tutorial.Cs.examples.nbody
 
             Help();
             Description();
+            //[/FinalizeGL]
+        }
+
+
+        //[GLswitchSimulators]
+        public void SwitchSimulator()
+        {
+            _simulators.Enqueue(_simulator);
+            _simulator = _simulators.Dequeue();
+            Description();
+            _frameCounter = 0;
+            _stopwatch.Restart();
+        }
+        //[/GLswitchSimulators]
+
+        public void SwapPos()
+        {
+            var buffer = _buffers[0];
+            _buffers[0] = _buffers[1];
+            _buffers[1] = buffer;
+
+            var resource = _resources[0];
+            _resources[0] = _resources[1];
+            _resources[1] = resource;
         }
 
         void HandleKeyDown(object sender, KeyboardKeyEventArgs e)
@@ -201,26 +246,30 @@ namespace Tutorial.Cs.examples.nbody
             }
         }
 
-        public void SwitchSimulator()
+        //[overrideFuctions]
+        protected override void Dispose(bool disposing)
         {
-            _simulators.Enqueue(_simulator);
-            _simulator = _simulators.Dequeue();
-            Description();
-            _frameCounter = 0;
-            _stopwatch.Restart();
+            foreach (var resource in _resources)
+            {
+                CUDAInterop.cuSafeCall(CUDAInterop.cuGraphicsUnregisterResource(resource));
+            }
+            foreach (var buffer in _buffers)
+            {
+                CUDAInterop.cuSafeCall(CUDAInterop.cuGLUnregisterBufferObject(buffer));
+            }
+            if (_buffers.Length > 0)
+            {
+                GL.DeleteBuffers(_buffers.Length, _buffers);
+            }
+            if (disposing)
+            {
+                _vel.Dispose();
+                _disposeSimulators();
+                _worker.Dispose();
+            }
+            base.Dispose(disposing);
         }
 
-        public void SwapPos()
-        {
-            var buffer = _buffers[0];
-            _buffers[0] = _buffers[1];
-            _buffers[1] = buffer;
-
-            var resource = _resources[0];
-            _resources[0] = _resources[1];
-            _resources[1] = resource;
-        }
-        
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
@@ -238,7 +287,9 @@ namespace Tutorial.Cs.examples.nbody
             GL.MatrixMode(MatrixMode.Projection);
             GL.LoadMatrix(ref projection);
         }
+        //[/overrideFuctions]
 
+        //[render]
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             base.OnRenderFrame(e);
@@ -268,31 +319,10 @@ namespace Tutorial.Cs.examples.nbody
             GL.Finish();
             SwapBuffers();
         }
-
-        protected override void Dispose(bool disposing)
-        {
-            foreach (var resource in _resources)
-            {
-                CUDAInterop.cuSafeCall(CUDAInterop.cuGraphicsUnregisterResource(resource));
-            }
-            foreach (var buffer in _buffers)
-            {
-                CUDAInterop.cuSafeCall(CUDAInterop.cuGLUnregisterBufferObject(buffer));
-            }
-            if (_buffers.Length > 0)
-            {
-                GL.DeleteBuffers(_buffers.Length, _buffers);
-            }
-            if (disposing)
-            {
-                _vel.Dispose();
-                _disposeSimulators();
-                _worker.Dispose();
-            }
-            base.Dispose(disposing);
-        }
+        //[/render]
     }
 
+    //[runSimWindow]
     public static class Run
     {
         public static void Sim()
@@ -309,4 +339,5 @@ namespace Tutorial.Cs.examples.nbody
             GpuStaticSimulatorTests.Performence();
         }
     }
+    //[/runSimWindow]
 }

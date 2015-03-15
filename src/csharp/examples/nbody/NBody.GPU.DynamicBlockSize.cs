@@ -1,17 +1,23 @@
-﻿using Alea.CUDA;
+﻿//[dynamicStart]
+using Alea.CUDA;
 using Alea.CUDA.IL;
 using Microsoft.FSharp.Core;
 using NUnit.Framework;
 
 namespace Tutorial.Cs.examples.nbody
 {
+    //[/dynamicStart]
+
+    //[DynamicAOTCompile]
     [AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")]
     public class GpuDynamicSimulatorModule : ILGPUModule
     {
         public GpuDynamicSimulatorModule(GPUModuleTarget target) : base(target)
         {
         }
+        //[/DynamicAOTCompile]
 
+        //[DynamicComputeBodyAccel]
         public float3 ComputeBodyAccel(float softeningSquared, float4 bodyPos, deviceptr<float4> positions, int numTiles)
         {
             var sharedPos = __shared__.ExternArray<float4>();
@@ -32,7 +38,10 @@ namespace Tutorial.Cs.examples.nbody
             }
             return (acc);
         }
+        //[/DynamicComputeBodyAccel]
 
+
+        //[DynamicStartKernel]
         [Kernel]
         public void IntegrateBodies(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel,
             int numBodies, float deltaTime, float softeningSquared, float damping, int numTiles)
@@ -66,7 +75,9 @@ namespace Tutorial.Cs.examples.nbody
             newPos[index] = position;
             vel[index] = velocity;
         }
+        //[/DynamicStartKernel]
 
+        //[DynamicPrepareAndLaunchKernel]
         public void IntegrateNbodySystem(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel,
             int numBodies, float deltaTime, float softeningSquared, float damping, int blockSize)
         {
@@ -76,13 +87,15 @@ namespace Tutorial.Cs.examples.nbody
             var lp = new LaunchParam(numBlocks, blockSize, sharedMemSize);
             GPULaunch(IntegrateBodies, lp, newPos, oldPos, vel, numBodies, deltaTime, softeningSquared, damping, numTiles);
         }
+        //[/DynamicPrepareAndLaunchKernel]
 
         public GpuDynamicSimulator Create(int blockSize)
         {
             return new GpuDynamicSimulator(this, blockSize);
         }
     }
-    
+
+    //[DynamicCreateInfrastructure]
     public class GpuDynamicSimulator : ISimulator, ISimulatorTester
     {
         private readonly GpuDynamicSimulatorModule _simMod;
@@ -132,7 +145,9 @@ namespace Tutorial.Cs.examples.nbody
             }
         }
     }
+    //[/DynamicCreateInfrastructure]
 
+    //[DynamicTest]
     [AOTCompile]
     public static class GpuDynamicSimulatorTests
     {
@@ -162,4 +177,5 @@ namespace Tutorial.Cs.examples.nbody
             }
         }
     }
+    //[/DynamicTest]
 }

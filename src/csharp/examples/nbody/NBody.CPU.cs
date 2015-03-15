@@ -1,10 +1,14 @@
-﻿using Alea.CUDA;
+﻿//[StartCPU]
+using Alea.CUDA;
 using Microsoft.FSharp.Core;
 
 namespace Tutorial.Cs.examples.nbody
 {
     public static class CpuIntegrator
     {
+        //[/StartCPU]
+
+        //[IntegrateCommonNbodySystem]
         public static void IntegrateNbodySystem(float3[] accel, float4[] pos, float4[] vel, int numBodies,
             float deltaTime, float softeningSquared, float damping)
         {
@@ -49,8 +53,10 @@ namespace Tutorial.Cs.examples.nbody
                 vel[i] = velocity;
             }
         }
+        //[/IntegrateCommonNbodySystem]
     }
 
+    //[CPUTestFunctionality]
     public class CpuSimulator : ISimulator, ISimulatorTester
     {
         private readonly Worker _worker;
@@ -103,4 +109,5 @@ namespace Tutorial.Cs.examples.nbody
             }
         }
     }
+    //[/CPUTestFunctionality]
 }

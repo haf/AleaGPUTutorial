@@ -1,6 +1,7 @@
 ﻿(**
 Functionality common to the different implementations.
 *)
+(*** define:startCommon ***)
 [<AutoOpen>]
 module Tutorial.Fs.examples.NBody.Common
 
@@ -10,6 +11,7 @@ open FsUnit
 (**
 Abstract simulator type.
 *)
+(*** define:ISimulator ***)
 type ISimulator =
     abstract Description : string
     abstract Integrate : newPos:deviceptr<float4> -> oldPos:deviceptr<float4> -> vel:deviceptr<float4> -> numBodies:int -> deltaTime:float32 -> softeningSquared:float32 -> damping:float32 -> unit
@@ -17,6 +19,7 @@ type ISimulator =
 (**
 Abstract simulation testing type.
 *)
+(*** define:ISimulatorTester ***)
 type ISimulatorTester =
     abstract Description : string
     abstract Integrate : pos:float4[] -> vel:float4[] -> numBodies:int -> deltaTime:float32 -> softeningSquared:float32 -> damping:float32 -> steps:int -> unit
@@ -26,6 +29,7 @@ let float4Zero = float4(0.0f, 0.0f, 0.0f, 0.0f)
 (**
 Initialize particles randomly in a cube with random velocities but zero momentum.
 *)
+(*** define:initializeBodies1 ***)
 let initializeBodies1 clusterScale velocityScale numBodies = 
     let rng = System.Random(42)
     let random a b = rng.NextDouble()*a - b |> float32
@@ -49,6 +53,7 @@ let initializeBodies1 clusterScale velocityScale numBodies =
 (**
 Initialize particles randomly in two cubes with angular momentum, s.t. some galaxy similar patterns emerge. Total momentum is set to zero.
 *)
+(*** define:initializeBodies2 ***)
 let initializeBodies2 clusterScale velocityScale numBodies = 
     let rng = System.Random(42)
     let random a b = rng.NextDouble()*a - b |> float32
@@ -77,6 +82,7 @@ let initializeBodies2 clusterScale velocityScale numBodies =
 Initialize particles randomly in two cubes with random velocities angular momentum, s.t. some galaxy similar patterns emerge.
 Give different particles random mass. Do not set a seed for the random number generator, hence simulations will have different behavour each call. Total momentum is set to zero.
 *)
+(*** define:initializeBodies3 ***)
 let initializeBodies3 clusterScale velocityScale numBodies = 
     let rng = System.Random()
     let random a b = rng.NextDouble()*a - b |> float32
@@ -108,6 +114,7 @@ let initializeBodies3 clusterScale velocityScale numBodies =
 (**
 Testing if two simulations behave the same up to some tolerance.
 *)
+(*** define:commonTester ***)
 let test (expectedSimulator:ISimulatorTester) (actualSimulator:ISimulatorTester) numBodies =
     let clusterScale = 1.0f
     let velocityScale = 1.0f
@@ -141,6 +148,7 @@ let test (expectedSimulator:ISimulatorTester) (actualSimulator:ISimulatorTester)
 (**
 Measure the performence of a simulation method.
 *)
+(*** define:commonPerfTester ***)
 let performance (simulator:ISimulatorTester) numBodies =
     let clusterScale = 1.0f
     let velocityScale = 1.0f
@@ -173,6 +181,7 @@ note, we use artificial units where $G$ is set to 1.
 CUDA datatypes `float3` (acceleration) and `float4` (position, 4-th element is the particles mass) are used. 
 The function `__nv_rsqrtf` calculates $f(x) = \frac{1}{\sqrt{x}}$ faster and with less registers than calling the two functions seperately.
 *)
+(*** define:bodyBodyInteraction ***)
 [<ReflectedDefinition>]
 let bodyBodyInteraction softeningSquared (ai:float3) (bi:float4) (bj:float4) =
     // r_ij  [3 FLOPS]

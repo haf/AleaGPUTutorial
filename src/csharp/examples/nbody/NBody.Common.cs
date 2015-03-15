@@ -1,27 +1,34 @@
-﻿using System;
+﻿//[startCommon]
+using System;
 using Alea.CUDA;
 using NUnit.Framework;
 
 namespace Tutorial.Cs.examples.nbody
 {
+    //[/startCommon]
+
+    //[ISimulator]
     public interface ISimulator
     {
         string Description();
         void Integrate(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel, int numBodies, float deltaTime, float softeningSquared, float damping);
     }
+    //[/ISimulator]
 
+    //[ISimulatorTester]
     public interface ISimulatorTester
     {
         string Description();
         void Integrate(float4[] pos, float4[] vel, int numBodies, float deltaTime, float softeningSquared, float damping, int steps);
     }
+    //[/ISimulatorTester]
 
     public static class Common
     {
         delegate float Del(float a, float b);
         delegate float Deleg();
 
-        // random
+        //[initializeBodies1]
         public static Tuple<float4[], float4[]> InitializeBodies1(float clusterScale, float velocityScale, int numBodies)
         {
             var rng = new Random(42);
@@ -51,8 +58,9 @@ namespace Tutorial.Cs.examples.nbody
             }
             return (new Tuple<float4[], float4[]>(pos, vel));
         }
+        //[/initializeBodies1]
 
-        // galaxy
+        //[initializeBodies2]
         public static Tuple<float4[], float4[]> InitializeBodies2(float clusterScale, float velocityScale, int numBodies)
         {
             var rng = new Random(42);
@@ -88,8 +96,9 @@ namespace Tutorial.Cs.examples.nbody
             }
             return (new Tuple<float4[], float4[]>(pos, vel));
         }
+        //[/initializeBodies2]
 
-        // random galaxy, real random Random(), and also random mass
+        //[initializeBodies3]
         public static Tuple<float4[], float4[]> InitializeBodies3(float clusterScale, float velocityScale, int numBodies)
         {
             var rng = new Random(42);
@@ -127,7 +136,9 @@ namespace Tutorial.Cs.examples.nbody
             }
             return (new Tuple<float4[], float4[]>(pos, vel));
         }
+        //[/initializeBodies3]
 
+        //[commonTester]
         public static void Test(ISimulatorTester expectedSimulator, ISimulatorTester actualSimulator, int numBodies)
         {
             const float clusterScale = 1.0f;
@@ -184,7 +195,9 @@ namespace Tutorial.Cs.examples.nbody
                 }
             }
         }
+        //[/commonTester]
 
+        //[commonPerfTester]
         public static void Performance(ISimulatorTester simulator, int numBodies)
         {
             const float clusterScale = 1.0f;
@@ -201,7 +214,10 @@ namespace Tutorial.Cs.examples.nbody
             var vel = result.Item2;
             simulator.Integrate(pos, vel, numBodies, deltaTime, softeningSquared, damping, steps);
         }
+        //[/commonPerfTester]
 
+
+        //[bodyBodyInteraction]
         public static float3 BodyBodyInteraction(float softeningSquared, float3 ai, float4 bi, float4 bj) 
         {
             // r_ij  [3 FLOPS]
@@ -220,5 +236,6 @@ namespace Tutorial.Cs.examples.nbody
             // a_i =  a_i + s * r_ij [6 FLOPS]
             return(new float3(ai.x + r.x*s, ai.y + r.y*s, ai.z + r.z*s));
         }
+        //[/bodyBodyInteraction]
     }
 }
