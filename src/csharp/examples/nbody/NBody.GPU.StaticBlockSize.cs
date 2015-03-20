@@ -91,9 +91,9 @@ namespace Tutorial.Cs.examples.nbody
         //[/StaticPrepareAndLaunchKernel]
 
         //[StaticCreateInfrastructure]
-        string ISimulator.Description()
+        string ISimulator.Description
         {
-            return _description;
+            get { return _description; }
         }
 
         void ISimulator.Integrate(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel,
@@ -102,9 +102,9 @@ namespace Tutorial.Cs.examples.nbody
             IntegrateNbodySystem(newPos, oldPos, vel, numBodies, deltaTime, softeningSquared, damping);
         }
 
-        string ISimulatorTester.Description()
+        string ISimulatorTester.Description
         {
-            return _description;
+            get { return _description; }
         }
 
         void ISimulatorTester.Integrate(float4[] pos, float4[] vel, int numBodies, float deltaTime,

@@ -2,7 +2,7 @@
 Visualizing simulation using [OpenGL](https://www.opengl.org/) respectively [OpenTK](http://www.opentk.com/).
 *)
 (*** define:StartOpenGL ***)
-module Tutorial.Fs.examples.NBody.OpenGL
+module Tutorial.Fs.examples.nbody.OpenGL
 open System
 open System.Collections.Generic
 open System.Diagnostics

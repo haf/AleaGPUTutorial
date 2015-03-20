@@ -72,7 +72,7 @@ let main argv =
         | "examplesunboundscantest"              -> Tutorial.Fs.examples.unbound.Scan.deviceScanTest()
         | "examplesunboundblockrangescantest"    -> Tutorial.Fs.examples.unbound.BlockRageScan.blockRangeScanTest()
         | "examplesunboundrandomtest"            -> Tutorial.Fs.examples.unbound.Random.randomTest()
-        | "examplesnbodysimulation"              -> Tutorial.Fs.examples.NBody.OpenGL.runSim()
+        | "examplesnbodysimulation"              -> Tutorial.Fs.examples.nbody.OpenGL.runSim()
         | "examplesrandomforest"                 -> Tutorial.Fs.examples.RandomForest.RandomForestExample.``Speed of training random forests``()
         | "all"                                  -> Tutorial.Fs.quickStart.ParallelSquare.squareTest() 
                                                     Tutorial.Fs.advancedTechniques.GenericTransform.sinCosTest()
@@ -104,7 +104,7 @@ let main argv =
                                                     Tutorial.Fs.examples.unbound.Scan.deviceScanTest()
                                                     Tutorial.Fs.examples.unbound.BlockRageScan.blockRangeScanTest()
                                                     Tutorial.Fs.examples.unbound.Random.randomTest()
-                                                    Tutorial.Fs.examples.NBody.OpenGL.runSim()
+                                                    Tutorial.Fs.examples.nbody.OpenGL.runSim()
                                                     Tutorial.Fs.examples.RandomForest.RandomForestExample.``Speed of training random forests``()
 
         | "help"                                 -> help()

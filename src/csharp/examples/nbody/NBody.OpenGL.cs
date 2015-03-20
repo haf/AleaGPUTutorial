@@ -58,7 +58,7 @@ namespace Tutorial.Cs.examples.nbody
             var time = _stopwatch.ElapsedMilliseconds;
             var fps = ((float) _frameCounter)*1000.0/((float) time);
             Title = string.Format("bodies {0}, {1} {2} {3} cores, {4}, fps {5}", _numBodies, _worker.Device.Name,
-                _worker.Device.Arch, _worker.Device.Cores, _simulator.Description(), fps);
+                _worker.Device.Arch, _worker.Device.Cores, _simulator.Description, fps);
             _stopwatch.Restart();
         }
         //[/GLdescription]
@@ -195,9 +195,8 @@ namespace Tutorial.Cs.examples.nbody
             //[FinalizeGL]
             _vel = _worker.Malloc<float4>(_numBodies);
 
-            var h = Common.InitializeBodies2(clusterScale, velocityScale, _numBodies);
-            var hpos = h.Item1;
-            var hvel = h.Item2;
+            float4[] hpos, hvel;
+            BodyInitializer.Initialize(new BodyInitializer3(), clusterScale, velocityScale, _numBodies, out hpos, out hvel);
             _worker.Scatter(hvel, _vel.Ptr, Microsoft.FSharp.Core.FSharpOption<int>.None,
                 Microsoft.FSharp.Core.FSharpOption<int>.None);
             LockPos(
