@@ -58,7 +58,7 @@ namespace Tutorial.Cs.examples.nbody
             var time = _stopwatch.ElapsedMilliseconds;
             var fps = ((float) _frameCounter)*1000.0/((float) time);
             Title = string.Format("bodies {0}, {1} {2} {3} cores, {4}, fps {5}", _numBodies, _worker.Device.Name,
-                _worker.Device.Arch, _worker.Device.Cores, _simulator.Description(), fps);
+                _worker.Device.Arch, _worker.Device.Cores, _simulator.Description, fps);
             _stopwatch.Restart();
         }
         //[/GLdescription]

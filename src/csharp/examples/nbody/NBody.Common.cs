@@ -10,7 +10,7 @@ namespace Tutorial.Cs.examples.nbody
     //[ISimulator]
     public interface ISimulator
     {
-        string Description();
+        string Description { get; }
         void Integrate(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel, int numBodies, float deltaTime, float softeningSquared, float damping);
     }
     //[/ISimulator]
@@ -18,7 +18,7 @@ namespace Tutorial.Cs.examples.nbody
     //[ISimulatorTester]
     public interface ISimulatorTester
     {
-        string Description();
+        string Description { get; }
         void Integrate(float4[] pos, float4[] vel, int numBodies, float deltaTime, float softeningSquared, float damping, int steps);
     }
     //[/ISimulatorTester]
@@ -148,8 +148,8 @@ namespace Tutorial.Cs.examples.nbody
             const float damping = 0.9995f;
             const int steps = 5;
 
-            Console.WriteLine("Testing {0} against {1} with {2} bodies...", actualSimulator.Description(),
-                expectedSimulator.Description(), numBodies);
+            Console.WriteLine("Testing {0} against {1} with {2} bodies...", actualSimulator.Description,
+                expectedSimulator.Description, numBodies);
 
             var res = InitializeBodies1(clusterScale, velocityScale, numBodies);
             var expectedPos = res.Item1;
@@ -207,7 +207,7 @@ namespace Tutorial.Cs.examples.nbody
             const float damping = 0.9995f;
             const int steps = 10;
 
-            Console.WriteLine("Perfomancing {0} with {1} bodies...", simulator.Description(), numBodies);
+            Console.WriteLine("Perfomancing {0} with {1} bodies...", simulator.Description, numBodies);
 
             var result = InitializeBodies1(clusterScale, velocityScale, numBodies);
             var pos = result.Item1;

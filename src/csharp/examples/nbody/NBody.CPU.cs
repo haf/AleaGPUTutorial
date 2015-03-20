@@ -84,9 +84,9 @@ namespace Tutorial.Cs.examples.nbody
             _description = "CPU.Simple";
         }
 
-        string ISimulator.Description()
+        string ISimulator.Description
         {
-            return _description;
+            get { return _description; }
         }
 
         void ISimulator.Integrate(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel, int numBodies, float deltaTime, float softeningSquared, float damping)
@@ -96,9 +96,9 @@ namespace Tutorial.Cs.examples.nbody
             CpuIntegrator.IntegrateNbodySystem(_haccel, _hpos, _hvel, _numBodies, deltaTime, softeningSquared, damping);
         }
 
-        string ISimulatorTester.Description()
+        string ISimulatorTester.Description
         {
-            return _description;
+            get { return _description; }
         }
 
         void ISimulatorTester.Integrate(float4[] pos, float4[] vel, int numBodies, float deltaTime, float softeningSquared, float damping, int steps)
