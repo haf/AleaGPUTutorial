@@ -32,6 +32,7 @@ namespace Tutorial.Cs.examples.nbody
         public abstract float4 Position(int i);
         public abstract float4 Velocity(float4 position, int i);
 
+        //[adjustMomentum]
         static float4 Momentum(float4 velocity)
         {
             // we store mass in velocity.w
@@ -42,7 +43,6 @@ namespace Tutorial.Cs.examples.nbody
                               mass);
         }
 
-        //[adjustMomentum]
         static public void Initialize(BodyInitializer initializer, float clusterScale, float velocityScale, int numBodies,
             out float4[] positions, out float4[] velocities)
         {
@@ -228,7 +228,11 @@ namespace Tutorial.Cs.examples.nbody
     public static class Common
     {
         //[commonTester]
-        public static void Test(ISimulatorTester expectedSimulator, ISimulatorTester actualSimulator, int numBodies)
+        public static void Test(
+            BodyInitializer initializer,
+            ISimulatorTester expectedSimulator,
+            ISimulatorTester actualSimulator,
+            int numBodies)
         {
             const float clusterScale = 1.0f;
             const float velocityScale = 1.0f;
@@ -237,56 +241,38 @@ namespace Tutorial.Cs.examples.nbody
             const float damping = 0.9995f;
             const int steps = 5;
 
-            Console.WriteLine("Testing {0} against {1} with {2} bodies...", actualSimulator.Description,
-                expectedSimulator.Description, numBodies);
+            Console.WriteLine("Testing {0} against {1} with {2} bodies...",
+                actualSimulator.Description,
+                expectedSimulator.Description,
+                numBodies);
+            Console.WriteLine("Using body initializer {0}...", initializer);
 
+            float4[] expectedPos, expectedVel;
+            BodyInitializer.Initialize(initializer, clusterScale, velocityScale, numBodies, out expectedPos, out expectedVel);
+
+            for (var i = 0; i < steps; i++)
             {
-                float4[] expectedPos, expectedVel;
-                BodyInitializer.Initialize(new BodyInitializer1(), clusterScale, velocityScale, numBodies, out expectedPos, out expectedVel);
-
-                for (var i = 0; i < steps; i++)
+                const double tol = 1e-5;
+                var actualPos = new float4[numBodies];
+                var actualVel = new float4[numBodies];
+                Array.Copy(expectedPos, actualPos, numBodies);
+                Array.Copy(expectedVel, actualVel, numBodies);
+                expectedSimulator.Integrate(expectedPos, expectedVel, numBodies, deltaTime, softeningSquared, damping, 1);
+                actualSimulator.Integrate(actualPos, actualVel, numBodies, deltaTime, softeningSquared, damping, 1);
+                for (var j = 0; j < expectedPos.Length; j++)
                 {
-                    const double tol = 1e-5;
-                    var actualPos = new float4[numBodies];
-                    var actualVel = new float4[numBodies];
-                    Array.Copy(expectedPos, actualPos, numBodies);
-                    Array.Copy(expectedVel, actualVel, numBodies);
-                    expectedSimulator.Integrate(expectedPos, expectedVel, numBodies, deltaTime, softeningSquared, damping, 1);
-                    actualSimulator.Integrate(actualPos, actualVel, numBodies, deltaTime, softeningSquared, damping, 1);
-                    for (var j = 0; j < expectedPos.Length; j++)
-                    {
-                        Assert.AreEqual(actualPos[j].x, expectedPos[j].x, tol);
-                        Assert.AreEqual(actualPos[j].y, expectedPos[j].y, tol);
-                        Assert.AreEqual(actualPos[j].z, expectedPos[j].z, tol);
-                        Assert.AreEqual(actualPos[j].w, expectedPos[j].w, tol);
-                    }
+                    Assert.AreEqual(actualPos[j].x, expectedPos[j].x, tol);
+                    Assert.AreEqual(actualPos[j].y, expectedPos[j].y, tol);
+                    Assert.AreEqual(actualPos[j].z, expectedPos[j].z, tol);
+                    Assert.AreEqual(actualPos[j].w, expectedPos[j].w, tol);
                 }
             }
+        }
 
-            {
-                float4[] expectedPos, expectedVel;
-                BodyInitializer.Initialize(new BodyInitializer3(), clusterScale, velocityScale, numBodies,
-                    out expectedPos, out expectedVel);
-
-                for (var i = 0; i < steps; i++)
-                {
-                    const double tol = 1e-4;
-                    var actualPos = new float4[numBodies];
-                    var actualVel = new float4[numBodies];
-                    Array.Copy(expectedPos, actualPos, numBodies);
-                    Array.Copy(expectedVel, actualVel, numBodies);
-                    expectedSimulator.Integrate(expectedPos, expectedVel, numBodies, deltaTime, softeningSquared,
-                        damping, 1);
-                    actualSimulator.Integrate(actualPos, actualVel, numBodies, deltaTime, softeningSquared, damping, 1);
-                    for (var j = 0; j < expectedPos.Length; j++)
-                    {
-                        Assert.AreEqual(actualPos[j].x, expectedPos[j].x, tol);
-                        Assert.AreEqual(actualPos[j].y, expectedPos[j].y, tol);
-                        Assert.AreEqual(actualPos[j].z, expectedPos[j].z, tol);
-                        Assert.AreEqual(actualPos[j].w, expectedPos[j].w, tol);
-                    }
-                }
-            }
+        public static void Test(ISimulatorTester expectedSimulator, ISimulatorTester actualSimulator, int numBodies)
+        {
+            Test(new BodyInitializer1(), expectedSimulator, actualSimulator, numBodies);
+            Test(new BodyInitializer3(), expectedSimulator, actualSimulator, numBodies);
         }
         //[/commonTester]
 
