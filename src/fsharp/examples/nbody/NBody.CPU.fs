@@ -2,10 +2,10 @@
 CPU implementation of the NBody simulation. It is mainly given to test the GPU implementations and show the difference in performance.
 *)
 (*** define:StartCPU ***)
-module Tutorial.Fs.examples.NBody.Impl.CPU.Simple
+module Tutorial.Fs.examples.nbody.Impl.CPU.Simple
 
 open Alea.CUDA
-open Tutorial.Fs.examples.NBody.Common
+open Tutorial.Fs.examples.nbody.Common
 
 type SimulatorModule() =
 (**

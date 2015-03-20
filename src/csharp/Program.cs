@@ -1,5 +1,4 @@
 ﻿using System;
-using Tutorial.Cs.examples.nbody;
 
 namespace Tutorial.Cs
 {
@@ -95,7 +94,7 @@ namespace Tutorial.Cs
                         break;
 
                     case "examplesnbodysimulation":
-                        Run.Sim();
+                        examples.nbody.Run.Sim();
                         break;
 
                     case "all":
@@ -115,7 +114,7 @@ namespace Tutorial.Cs
                         examples.unbound.Test.Gemm1DArrayTest();
                         examples.unbound.Test.Gemm2DArrayTest();
                         examples.unbound.Test.BlockRangeScanTest();
-                        Run.Sim();
+                        examples.nbody.Run.Sim();
                         break;
 
                     default:

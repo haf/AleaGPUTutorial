@@ -3,7 +3,7 @@ Functionality common to the different implementations.
 *)
 (*** define:startCommon ***)
 [<AutoOpen>]
-module Tutorial.Fs.examples.NBody.Common
+module Tutorial.Fs.examples.nbody.Common
 
 open Alea.CUDA
 open FsUnit
