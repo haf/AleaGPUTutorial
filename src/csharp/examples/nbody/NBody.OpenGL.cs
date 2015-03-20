@@ -195,9 +195,8 @@ namespace Tutorial.Cs.examples.nbody
             //[FinalizeGL]
             _vel = _worker.Malloc<float4>(_numBodies);
 
-            var h = Common.InitializeBodies2(clusterScale, velocityScale, _numBodies);
-            var hpos = h.Item1;
-            var hvel = h.Item2;
+            float4[] hpos, hvel;
+            BodyInitializer.Initialize(new BodyInitializer3(), clusterScale, velocityScale, _numBodies, out hpos, out hvel);
             _worker.Scatter(hvel, _vel.Ptr, Microsoft.FSharp.Core.FSharpOption<int>.None,
                 Microsoft.FSharp.Core.FSharpOption<int>.None);
             LockPos(
