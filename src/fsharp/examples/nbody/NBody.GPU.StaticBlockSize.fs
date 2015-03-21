@@ -3,12 +3,12 @@ GPU implementation with static `blockSize`, i.e. the `blockSize` is known at com
 Infrastructure around kernel might be slightly more coplex, but the compiler can optimize the code better.
 *)
 (*** define:startStatic ***)
-module Tutorial.Fs.examples.NBody.Impl.GPU.StaticBlockSize
+module Tutorial.Fs.examples.nbody.Impl.GPU.StaticBlockSize
 
 open Alea.CUDA
 open Alea.CUDA.Utilities
 open NUnit.Framework
-open Tutorial.Fs.examples.NBody
+open Tutorial.Fs.examples.nbody
 
 type SimulatorModule(target, blockSize:int) =
     inherit GPUModule(target)

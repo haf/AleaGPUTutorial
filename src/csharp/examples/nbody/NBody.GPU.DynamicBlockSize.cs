@@ -109,9 +109,9 @@ namespace Tutorial.Cs.examples.nbody
             _description = string.Format("GPU.DynamicBlockSize({0})", _blockSize);
         }
 
-        string ISimulator.Description()
+        string ISimulator.Description
         {
-            return _description;
+            get { return _description; }
         }
 
         void ISimulator.Integrate(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel, int numBodies, float deltaTime, float softeningSquared, float damping)
@@ -119,9 +119,9 @@ namespace Tutorial.Cs.examples.nbody
             _simMod.IntegrateNbodySystem(newPos, oldPos, vel, numBodies, deltaTime, softeningSquared, damping, _blockSize);
         }
 
-        string ISimulatorTester.Description()
+        string ISimulatorTester.Description
         {
-            return _description;
+            get { return _description; }
         }
 
         void ISimulatorTester.Integrate(float4[] pos, float4[] vel, int numBodies, float deltaTime, float softeningSquared, float damping,

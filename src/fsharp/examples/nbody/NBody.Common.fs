@@ -3,7 +3,7 @@ Functionality common to the different implementations.
 *)
 (*** define:startCommon ***)
 [<AutoOpen>]
-module Tutorial.Fs.examples.NBody.Common
+module Tutorial.Fs.examples.nbody.Common
 
 open Alea.CUDA
 open FsUnit
@@ -27,6 +27,30 @@ type ISimulatorTester =
 let float4Zero = float4(0.0f, 0.0f, 0.0f, 0.0f)
 
 (**
+Adjust the velocity array to make the total momentum towards zero.
+*)
+(*** define:adjustMomentum ***)
+let adjustMomentum (vel:float4[]) =
+    // we assume the mass is stored in vel.w
+    let totalMomentum = vel |> Array.fold (fun (acc:float4) e -> 
+        float4(acc.x + e.x*e.w, acc.y + e.y*e.w, acc.z + e.z*e.w, acc.w + e.w)) float4Zero
+
+    printfn "total momentum and mass 0 = %A" totalMomentum
+
+    let vel = vel |> Array.map (fun e ->
+        float4(e.x - totalMomentum.x / totalMomentum.w,
+               e.y - totalMomentum.y / totalMomentum.w,
+               e.z - totalMomentum.z / totalMomentum.w,
+               e.w)) // initialize with total momentum = 0
+
+    let totalMomentum = vel |> Array.fold (fun (acc:float4) e -> 
+        float4(acc.x + e.x*e.w, acc.y + e.y*e.w, acc.z + e.z*e.w, acc.w + e.w)) float4Zero
+
+    printfn "total momentum and mass 1 = %A" totalMomentum
+
+    vel
+
+(**
 Initialize particles randomly in a cube with random velocities but zero momentum.
 *)
 (*** define:initializeBodies1 ***)
@@ -41,14 +65,8 @@ let initializeBodies1 clusterScale velocityScale numBodies =
 
     let pos = Array.init numBodies (fun _ -> float4(randomPos(), randomPos(), randomPos() + 50.0f, 1.0f))
     let vel = Array.init numBodies (fun _ -> float4(randomVel(), randomVel(), randomVel(), 1.0f))
-    let totalMomentum = vel |> Array.fold (fun (acc:float4) e -> 
-        float4(acc.x + e.x*e.w, acc.y + e.y*e.w, acc.z + e.z*e.w, acc.w + e.w)) float4Zero
 
-    pos, vel |> Array.map (fun e ->
-        float4(e.x - totalMomentum.x/totalMomentum.w/e.w,
-               e.y - totalMomentum.y/totalMomentum.w/e.w,
-               e.z - totalMomentum.z/totalMomentum.w/e.w,
-               e.w)) // initialize with total momentum = 0
+    pos, vel |> adjustMomentum
 
 (**
 Initialize particles randomly in two cubes with angular momentum, s.t. some galaxy similar patterns emerge. Total momentum is set to zero.
@@ -69,14 +87,8 @@ let initializeBodies2 clusterScale velocityScale numBodies =
     let vel = Array.init numBodies (fun i -> 
         if i < numBodies/2 then float4(randomVel(), randomVel() + 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), 1.0f)
         else float4(randomVel(), randomVel() - 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), 1.0f) )
-    let totalMomentum = vel |> Array.fold (fun (acc:float4) e -> 
-        float4(acc.x + e.x*e.w, acc.y + e.y*e.w, acc.z + e.z*e.w, acc.w + e.w)) float4Zero
 
-    pos, vel |> Array.map (fun e -> 
-        float4(e.x - totalMomentum.x/totalMomentum.w/e.w, 
-               e.y - totalMomentum.y/totalMomentum.w/e.w, 
-               e.z - totalMomentum.z/totalMomentum.w/e.w, 
-               e.w)) // initialize with total momentum = 0
+    pos, vel |> adjustMomentum
 
 (**
 Initialize particles randomly in two cubes with random velocities angular momentum, s.t. some galaxy similar patterns emerge.
@@ -100,16 +112,10 @@ let initializeBodies3 clusterScale velocityScale numBodies =
         if i < numBodies/2 then float4(randomPos() + 0.5f*scale, randomPos(), randomPos() + 50.0f, randomMass())
         else float4(randomPos() - 0.5f*scale, randomPos(), randomPos() + 50.0f, randomMass()) )
     let vel = Array.init numBodies (fun i -> 
-        if i < numBodies/2 then float4(randomVel(), randomVel() + 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), 1.0f)
-        else float4(randomVel(), randomVel() - 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), 1.0f) )
-    let totalMomentum = vel |> Array.fold (fun (acc:float4) e -> 
-        float4(acc.x + e.x*e.w, acc.y + e.y*e.w, acc.z + e.z*e.w, acc.w + e.w)) float4Zero
+        if i < numBodies/2 then float4(randomVel(), randomVel() + 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), pos.[i].w)
+        else float4(randomVel(), randomVel() - 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), pos.[i].w) )
 
-    pos, vel |> Array.map (fun e -> 
-        float4(e.w*e.x - totalMomentum.x/totalMomentum.w/e.w,
-               e.w*e.y - totalMomentum.y/totalMomentum.w/e.w, 
-               e.w*e.z - totalMomentum.z/totalMomentum.w/e.w, 
-               e.w)) // initialize with total momentum = 0
+    pos, vel |> adjustMomentum
 
 (**
 Testing if two simulations behave the same up to some tolerance.

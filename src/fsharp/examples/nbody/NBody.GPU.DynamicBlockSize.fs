@@ -3,12 +3,12 @@ GPU implementation with dynamic `blockSize`, i.e. the `blockSize` is not known a
 simpler, but might give away possible performance gains due to better optization possibilities by the compiler.
 *)
 (*** define:dynamicStart ***)
-module Tutorial.Fs.examples.NBody.Impl.GPU.DynamicBlockSize
+module Tutorial.Fs.examples.nbody.Impl.GPU.DynamicBlockSize
 
 open Alea.CUDA
 open Alea.CUDA.Utilities
 open NUnit.Framework
-open Tutorial.Fs.examples.NBody
+open Tutorial.Fs.examples.nbody
 
 (** 
 Start Class and make sure it is compiled ahead of time (AOT).
