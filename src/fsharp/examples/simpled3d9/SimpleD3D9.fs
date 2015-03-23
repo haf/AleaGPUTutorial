@@ -50,7 +50,7 @@ type VerticesUpdater(target) =
                 let freq = 4.0f
                 let w = sin(u * freq + time) * cos(v * freq + time) * 0.5f
 
-                Vector4(u, w, v, __nv_int_as_float(0xff00ff00)))
+                Vector4(u, w, v, __nv_int_as_float(0xff00ff00u)))
 
         vertices.Lock(0, 0, LockFlags.None).WriteRange(genwave time)
         vertices.Unlock()
@@ -69,7 +69,7 @@ type VerticesUpdater(target) =
         let freq = 4.0f
         let w = sin(u * freq + time) * cos(v * freq + time) * 0.5f
 
-        pos.[y * width + x] <- float4(u, w, v, __nv_int_as_float(0xff00ff00))
+        pos.[y * width + x] <- float4(u, w, v, __nv_int_as_float(0xff00ff00u))
 
     // Launch the kernel, by mapping the vertex buffer to device pointer.
     member this.Update(vbRes:CUgraphicsResource, time:float32) =
