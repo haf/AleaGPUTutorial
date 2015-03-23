@@ -3,24 +3,16 @@ source https://www.nuget.org/api/v2
 source http://nuget.aleacubase.com/nuget
 source http://alpha.aleacubase.com/nuget
 
-nuget Alea.CUDA 2.0.0.3218-rc
-nuget Alea.CUDA.Direct3D9 2.0.0.3218-rc
 nuget Alea.CUDA.Fody 2.0.0.3218-rc
-nuget Alea.CUDA.IL 2.0.0.3218-rc
 nuget Alea.CUDA.Unbound 2.0.0.3218-rc
-nuget Alea.IL 2.0.0.3218-rc
 nuget FSharp.Core
 nuget FSharp.Collections.ParallelSeq
 nuget Nuget.CommandLine
-nuget Fody
 nuget FsUnit
-nuget NUnit
 nuget FAKE
 nuget FSharp.Charting
-nuget Microsoft.AspNet.Razor
-nuget SharpDX 2.5.0
-nuget SharpDX.Direct3D9 2.5.0
-nuget SharpDX.RawInput 2.5.0
+nuget SharpDX.Direct3D9
+nuget SharpDX.RawInput
 nuget FSharp.Formatting 2.4.36
 nuget NUnit.Runners
 nuget openTK
