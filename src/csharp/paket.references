@@ -1,10 +1,7 @@
-Alea.CUDA
 Alea.CUDA.Fody
-Alea.CUDA.IL
 Alea.CUDA.Unbound
-Alea.IL
-Fody
 NUnit
 opentk
 FSharp.Core
 SharpDX.Direct3D9
+SharpDX.RawInput

@@ -94,7 +94,6 @@ let main argv =
                                                     Tutorial.Fs.examples.movingAverage.movingAverageDirectTest()
                                                     Tutorial.Fs.examples.tridiagSolver.Solver.triDiagSolverTest()
                                                     Tutorial.Fs.examples.heatPde.Solver.heatPdeTest()
-                                                    Tutorial.Fs.examples.heatPde.Direct3d.heatPdeDirect3d()
                                                     Tutorial.Fs.examples.unbound.MatrixMult.gpu.gemm1DArrayTest()
                                                     Tutorial.Fs.examples.unbound.MatrixMult.gpu.gemm2DArrayTest()
                                                     Tutorial.Fs.examples.cublas.Axpy.daxpyTest()
