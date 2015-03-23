@@ -13,7 +13,7 @@
 //#r "System.Configuration.dll"
 //#r "System.Windows.Forms"
 //#r "System.Windows.Forms.DataVisualization"
-module Particles
+module Tutorial.Fs.examples.particles.Particles
 
 open System
 open Microsoft.FSharp.Quotations

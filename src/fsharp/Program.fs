@@ -35,6 +35,7 @@ let main argv =
         printfn "        ExamplesMcBasketTest                 |"
         printfn "        ExamplesNbodySimulation              |"
         printfn "        ExamplesRandomForest                 |"
+        printfn "        ExamplesSimpleD3D9                   |"
         printfn "        All                                   "
         printfn "           ]"
 
@@ -73,6 +74,7 @@ let main argv =
         | "examplesunboundblockrangescantest"    -> Tutorial.Fs.examples.unbound.BlockRageScan.blockRangeScanTest()
         | "examplesunboundrandomtest"            -> Tutorial.Fs.examples.unbound.Random.randomTest()
         | "examplesnbodysimulation"              -> Tutorial.Fs.examples.nbody.OpenGL.runSim()
+        | "examplessimpled3d9"                   -> Tutorial.Fs.examples.simpled3d9.SimpleD3D9.main()
         | "examplesrandomforest"                 -> Tutorial.Fs.examples.RandomForest.RandomForestExample.``Speed of training random forests``()
         | "all"                                  -> Tutorial.Fs.quickStart.ParallelSquare.squareTest() 
                                                     Tutorial.Fs.advancedTechniques.GenericTransform.sinCosTest()

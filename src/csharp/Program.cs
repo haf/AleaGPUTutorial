@@ -23,6 +23,7 @@ namespace Tutorial.Cs
             Console.WriteLine("        ExamplesUnboundBlockRangeScanTest |");
             Console.WriteLine("        ExamplesUnboundMatrixTest         |");
             Console.WriteLine("        ExamplesNbodySimulation           |");
+            Console.WriteLine("        ExamplesSimpleD3D9                |");
             Console.WriteLine("        All ]                             ");
         }
 
@@ -95,6 +96,10 @@ namespace Tutorial.Cs
 
                     case "examplesnbodysimulation":
                         examples.nbody.Run.Sim();
+                        break;
+
+                    case "examplessimpled3d9":
+                        examples.simpled3d9.SimpleD3D9.Main();
                         break;
 
                     case "all":
