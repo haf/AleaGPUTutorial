@@ -353,7 +353,7 @@ module SurfacePlotter =
 
         member this.Elements = this.RowLength * this.ColLength
 
-    let animationLoop (ctx:ApplicationContext) (param:AnimationParam<'T>) =
+    let inline animationLoop (ctx:ApplicationContext) (param:AnimationParam<'T>) =
         use vb = createVertexBuffer ctx param.Elements
         use vd = createVertexDeclaration ctx
         let vbRes = ctx.RegisterGraphicsResource(vb)
