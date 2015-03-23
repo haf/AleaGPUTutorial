@@ -11,8 +11,8 @@ nuget Nuget.CommandLine
 nuget FsUnit
 nuget FAKE
 nuget FSharp.Charting
-nuget SharpDX.Direct3D9
-nuget SharpDX.RawInput
 nuget FSharp.Formatting 2.4.36
 nuget NUnit.Runners
+nuget SharpDX.Direct3D9 2.5.0
+nuget SharpDX.RawInput 2.5.0
 nuget openTK

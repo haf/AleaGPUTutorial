@@ -199,5 +199,4 @@
       </ItemGroup>
     </When>
   </Choose>
-  <Import Project="..\..\packages\SharpDX\build\SharpDX.targets" Condition="Exists('..\..\packages\SharpDX\build\SharpDX.targets')" Label="Paket" />
 </Project>
