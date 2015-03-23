@@ -108,6 +108,7 @@
     <Compile Include="examples\random_forest\RandomForest.fs" />
     <Compile Include="examples\random_forest\RandomForestExample.fs" />
     <Compile Include="examples\particles\Particles.fs" />
+    <Compile Include="examples\simpled3d9\SimpleD3D9.fs" />
     <Compile Include="Program.fs" />
     <None Include="..\app.config">
       <Link>app.config</Link>

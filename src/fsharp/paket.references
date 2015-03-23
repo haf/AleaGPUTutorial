@@ -11,3 +11,4 @@ FSharp.Charting
 opentk
 FSharp.Collections.ParallelSeq
 FSharp.Core
+SharpDX.Direct3D9

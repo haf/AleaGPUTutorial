@@ -7,3 +7,4 @@ Fody
 NUnit
 opentk
 FSharp.Core
+SharpDX.Direct3D9
