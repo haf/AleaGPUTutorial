@@ -79,7 +79,7 @@ type Matrix<'T> private (worker:Worker, matrixType) =
 
     member this.Scatter(host : 'T[]) =
         if host.Length <> nRows * nCols then invalidArg "host" "length does not match nRows * nCols"
-        deviceData.Scatter (host)
+        worker.Eval <| fun _ -> deviceData.Scatter (host)
 
     override this.ToString () =
         this.ToArray2D() |> sprintf "%A"

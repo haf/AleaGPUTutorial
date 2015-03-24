@@ -56,7 +56,30 @@ type EntropyOptimizationOptions =
         let mask = Array.create n false
         idcs |> Array.iter (fun idx -> mask.[idx] <- true)
         mask
-        
+
+type EntropyOptimizingProblem =
+    { labelMatrix : Cublas.Matrix<Label>
+      indexMatrix : Cublas.Matrix<int>
+      gpuWeights : Cublas.Matrix<int>
+      weightMatrix : Cublas.Matrix<int>
+      nonZeroIdcsPerFeature : Cublas.Matrix<int>
+      weightsPerFeatureAndClass : Cublas.Matrix<int>
+      entropyMatrix : Cublas.Matrix<float>
+      gpuMask : Cublas.Matrix<int>
+      numClasses : int
+      numFeatures : int
+      numSamples : int }
+
+    member this.Dispose() =
+        this.labelMatrix.Dispose()
+        this.indexMatrix.Dispose()
+        this.gpuWeights.Dispose()
+        this.weightMatrix.Dispose()
+        this.nonZeroIdcsPerFeature.Dispose()
+        this.weightsPerFeatureAndClass.Dispose()
+        this.entropyMatrix.Dispose()
+        this.gpuMask.Dispose()
+        ()
 
 
 [<AOTCompile>]
@@ -70,25 +93,25 @@ type EntropyOptimizer(target) as this =
 
     let minimzer = new MultiChannelReduce.MatrixRowOptimizer(target)
 
-    let mutable labelMatrix : Cublas.Matrix<_> option = None
-    let mutable indexMatrix : Cublas.Matrix<_> option = None
-    let mutable gpuWeights : Cublas.Matrix<_> option = None
-    let mutable weightMatrix  : Cublas.Matrix<_> option = None
-    let mutable nonZeroIdcsPerFeature : Cublas.Matrix<_> option = None
-    let mutable weightsPerFeatureAndClass : Cublas.Matrix<_> option = None
-    let mutable entropyMatrix : Cublas.Matrix<_> option = None
-    let mutable gpuMask : Cublas.Matrix<_> option = None
-    let mutable numClasses = 0
-    let mutable numFeatures = 0
-    let mutable numSamples = 0
+//    let mutable labelMatrix : Cublas.Matrix<_> option = None
+//    let mutable indexMatrix : Cublas.Matrix<_> option = None
+//    let mutable gpuWeights : Cublas.Matrix<_> option = None
+//    let mutable weightMatrix  : Cublas.Matrix<_> option = None
+//    let mutable nonZeroIdcsPerFeature : Cublas.Matrix<_> option = None
+//    let mutable weightsPerFeatureAndClass : Cublas.Matrix<_> option = None
+//    let mutable entropyMatrix : Cublas.Matrix<_> option = None
+//    let mutable gpuMask : Cublas.Matrix<_> option = None
+//    let mutable numClasses = 0
+//    let mutable numFeatures = 0
+//    let mutable numSamples = 0
 
-    let disposeOf (matrix : Cublas.Matrix<_> option) =
-        match matrix with
-        | None -> ()
-        | Some m -> m.Dispose()
+//    let disposeOf (matrix : Cublas.Matrix<_> option) =
+//        match matrix with
+//        | None -> ()
+//        | Some m -> m.Dispose()
 
-    let ptrOf (matrix : Cublas.Matrix<_> option) =
-        matrix.Value.DeviceData.Ptr
+    let ptrOf (matrix : Cublas.Matrix<_>) =
+        matrix.DeviceData.Ptr
 
     let summarizeWeights (weights : Weights) =
         let mutable sum = 0
@@ -99,35 +122,51 @@ type EntropyOptimizer(target) as this =
         sum, count
 
     [<Literal>]
-    let BLOCK_SIZE = 1024
+    let BLOCK_SIZE = 512
 
-    member this.BlockAndGridDim numCols =
+    static let instance = Lazy.Create <| fun _ -> new EntropyOptimizer(GPUModuleTarget.DefaultWorker)
+
+    static member Default = instance.Value
+
+    member this.BlockAndGridDim (problem:EntropyOptimizingProblem) numCols =
         let blockDim = dim3(BLOCK_SIZE)
-        let gridDim = dim3(divup numCols blockDim.x, numFeatures)
+        let gridDim = dim3(divup numCols blockDim.x, problem.numFeatures)
         blockDim, gridDim        
 
     member this.Init(numberOfClasses, labelsPerFeature : Labels[], indicesPerFeature : Indices[]) =
-        if labelMatrix.IsSome then failwith "multiple initializations are not supported"
-        labelMatrix <- new Cublas.Matrix<_>(this.GPUWorker, labelsPerFeature) |> Some
-        indexMatrix <- new Cublas.Matrix<_>(this.GPUWorker, indicesPerFeature) |> Some
-        numClasses <- numberOfClasses
-        numFeatures <- labelMatrix.Value.NumRows
-        numSamples <- labelMatrix.Value.NumCols
-        if numFeatures <> indexMatrix.Value.NumRows || numSamples <> indexMatrix.Value.NumCols then
+        let worker = this.GPUWorker
+        let labelMatrix = new Cublas.Matrix<_>(worker, labelsPerFeature)
+        let indexMatrix = new Cublas.Matrix<_>(worker, indicesPerFeature)
+        let numClasses = numberOfClasses
+        let numFeatures = labelMatrix.NumRows
+        let numSamples = labelMatrix.NumCols
+        if numFeatures <> indexMatrix.NumRows || numSamples <> indexMatrix.NumCols then
             failwith "Dimensions of labels and indices per feature must agree"
         // temporary space
-        gpuWeights <- new Cublas.Matrix<_>(this.GPUWorker, 1, numSamples) |> Some
-        weightMatrix <- new Cublas.Matrix<_>(this.GPUWorker, numFeatures, numSamples) |> Some
-        nonZeroIdcsPerFeature <- new Cublas.Matrix<_>(this.GPUWorker, numFeatures, numSamples) |> Some
-        weightsPerFeatureAndClass <- new Cublas.Matrix<_>(this.GPUWorker, numFeatures * numClasses, numSamples) |> Some
-        entropyMatrix <- new Cublas.Matrix<_>(this.GPUWorker, numFeatures, numSamples) |> Some
-        gpuMask <- new Cublas.Matrix<_>(this.GPUWorker, 1, numFeatures, Array.create numFeatures true) |> Some
+        let gpuWeights = new Cublas.Matrix<_>(worker, 1, numSamples)
+        let weightMatrix = new Cublas.Matrix<_>(worker, numFeatures, numSamples)
+        let nonZeroIdcsPerFeature = new Cublas.Matrix<_>(worker, numFeatures, numSamples)
+        let weightsPerFeatureAndClass = new Cublas.Matrix<_>(worker, numFeatures * numClasses, numSamples)
+        let entropyMatrix = new Cublas.Matrix<_>(worker, numFeatures, numSamples)
+        let gpuMask = new Cublas.Matrix<_>(worker, 1, numFeatures, Array.create numFeatures 1)
 
+        { labelMatrix = labelMatrix
+          indexMatrix = indexMatrix
+          gpuWeights = gpuWeights
+          weightMatrix = weightMatrix
+          nonZeroIdcsPerFeature = nonZeroIdcsPerFeature
+          weightsPerFeatureAndClass = weightsPerFeatureAndClass
+          entropyMatrix = entropyMatrix
+          gpuMask = gpuMask
+          numClasses = numClasses
+          numFeatures = numFeatures
+          numSamples = numSamples }
 
     [<Kernel;ReflectedDefinition>]
-    member private this.CumSumKernel numCols numValid (inputs:deviceptr<_>) =
+    member private this.CumSumKernel (numCols:int) (numValid:int) (inputs:deviceptr<int>) =
         let blockOffset = blockIdx.x * numCols
         primitive.Resource.BlockRangeScan blockOffset (blockOffset + numValid) inputs
+        ()
 
     member this.CumSums(matrix : Cublas.Matrix<_>, numValid) =
         let lp = LaunchParam(matrix.NumRows, primitive.Resource.BlockThreads)
@@ -156,8 +195,8 @@ type EntropyOptimizer(target) as this =
 
     [<Kernel;ReflectedDefinition>]
     member private this.WeightExpansionKernel 
-        (weightMatrix:deviceptr<_>) (labelMatrix:deviceptr<_>) (indexMatrix:deviceptr<_>)
-            (weights:deviceptr<_>) numSamples numClasses numValid (nonZeroIdcsMatrix:deviceptr<_>) =
+        (weightMatrix:deviceptr<_>) (labelMatrix:deviceptr<Label>) (indexMatrix:deviceptr<int>)
+            (weights:deviceptr<int>) numSamples numClasses numValid (nonZeroIdcsMatrix:deviceptr<_>) =
         let nonZeroIdx = blockIdx.x * blockDim.x + threadIdx.x
         let featureIdx = blockIdx.y
         let numFeatures = gridDim.y
@@ -166,48 +205,57 @@ type EntropyOptimizer(target) as this =
             let smallMatrixIdx = rowOffset + nonZeroIdx
             let sampleIdx = nonZeroIdcsMatrix.[smallMatrixIdx]
             let largeMatrixIdx = rowOffset + sampleIdx
-            let weight = weights.[indexMatrix.[largeMatrixIdx]]
-            let label = labelMatrix.[largeMatrixIdx]
+            //let weight = weights.[indexMatrix.[largeMatrixIdx]]
+            //let label = labelMatrix.[largeMatrixIdx]
             for classIdx = 0 to numClasses - 1 do
                 let classOffset = numFeatures * numSamples * classIdx
-                weightMatrix.[classOffset + smallMatrixIdx] <- if label = classIdx then weight else 0
+                weightMatrix.[classOffset + smallMatrixIdx] <- indexMatrix.[largeMatrixIdx]
+                //weightMatrix.[classOffset + smallMatrixIdx] <- if label = classIdx then weight else 0
 
-    member this.FindNonZeroIndices(weights:Weights) =
-        if weights.Length <> numSamples then failwith "InumValid number of weights"
+    member this.FindNonZeroIndices (problem:EntropyOptimizingProblem) (weights:Weights) =
+        if weights.Length <> problem.numSamples then failwith "InumValid number of weights"
 
-        let blockDim, gridDim = this.BlockAndGridDim numSamples
+        let blockDim, gridDim = this.BlockAndGridDim problem problem.numSamples
         let lp = LaunchParam(gridDim, blockDim)
 
-        gpuWeights.Value.Scatter(weights)
-        let weightsPtr = gpuWeights |> ptrOf
-        let weightMatrix = weightMatrix.Value
-        let nonZeroIdcsPerFeature = nonZeroIdcsPerFeature.Value
-        this.GPULaunch <@ this.LogicalWeightExpansionKernel @> lp (weightMatrix.DeviceData.Ptr) 
-            (indexMatrix |> ptrOf) weightsPtr numSamples
+        problem.gpuWeights.Scatter(weights)
+//        this.GPUWorker.Synchronize()
+        this.GPULaunch <@ this.LogicalWeightExpansionKernel @> lp (problem.weightMatrix.DeviceData.Ptr) 
+            (problem.indexMatrix.DeviceData.Ptr) (problem.gpuWeights.DeviceData.Ptr) problem.numSamples
+        this.GPUWorker.Eval <| fun _ ->
+
+//        let weightsPtr = problem.gpuWeights |> ptrOf
+//        let weightMatrix = problem.weightMatrix
+//        let nonZeroIdcsPerFeature = problem.nonZeroIdcsPerFeature
+//        this.GPULaunch <@ this.LogicalWeightExpansionKernel @> lp (weightMatrix.DeviceData.Ptr) 
+//            (problem.indexMatrix |> ptrOf) weightsPtr problem.numSamples
         
         // cum sums over the weight matrix        
-        this.CumSums(weightMatrix, numSamples)
+//        this.CumSums(problem.weightMatrix, problem.numSamples)
+            let lp1 = LaunchParam(problem.weightMatrix.NumRows, primitive.Resource.BlockThreads)
+            this.GPULaunch <@ this.CumSumKernel @> lp1 problem.weightMatrix.NumCols problem.numSamples (problem.weightMatrix.DeviceData.Ptr)
+//        this.GPUWorker.Synchronize()
+            this.GPULaunch <@ this.findNonZeroIndicesKernel @> lp (problem.nonZeroIdcsPerFeature.DeviceData.Ptr) 
+                (problem.weightMatrix.DeviceData.Ptr) problem.numSamples 
 
-        this.GPULaunch <@ this.findNonZeroIndicesKernel @> lp (nonZeroIdcsPerFeature.DeviceData.Ptr) 
-            (weightMatrix.DeviceData.Ptr) numSamples 
+//        if DEBUG then
+//            printfn "weight matrix:\n%A" (weightMatrix.ToArray2D())
+//            printfn "nonZeroIdcsPerFeature:\n%A" (nonZeroIdcsPerFeature.ToArray2D())
 
-        if DEBUG then
-            printfn "weight matrix:\n%A" (weightMatrix.ToArray2D())
-            printfn "nonZeroIdcsPerFeature:\n%A" (nonZeroIdcsPerFeature.ToArray2D())
-
-    member this.ExpandWeights numValid =
-        let blockDim, gridDim = this.BlockAndGridDim numValid
+    member this.ExpandWeights (problem:EntropyOptimizingProblem) numValid =
+        let blockDim, gridDim = this.BlockAndGridDim problem numValid
         let lp = LaunchParam(gridDim, blockDim)
-        this.GPULaunch <@ this.WeightExpansionKernel @> lp (weightsPerFeatureAndClass |> ptrOf) 
-            (labelMatrix |> ptrOf) (indexMatrix |> ptrOf) (gpuWeights |> ptrOf) numSamples numClasses numValid
-            (nonZeroIdcsPerFeature |> ptrOf)
+        this.GPULaunch <@ this.WeightExpansionKernel @> lp (problem.weightsPerFeatureAndClass |> ptrOf) 
+            (problem.labelMatrix |> ptrOf) (problem.indexMatrix |> ptrOf) (problem.gpuWeights |> ptrOf)
+            problem.numSamples problem.numClasses numValid
+            (problem.nonZeroIdcsPerFeature |> ptrOf)
 
         if DEBUG then
-            printfn "weightsPerFeatureAndClass:\n%A" (weightsPerFeatureAndClass.Value.ToArray2D())
+            printfn "weightsPerFeatureAndClass:\n%A" (problem.weightsPerFeatureAndClass.ToArray2D())
 
     [<Kernel;ReflectedDefinition>]
     member private this.EntropyKernel (entropyMatrix:deviceptr<_>) (cumSumsMatrix:deviceptr<_>) numValid 
-        numSamples numClasses minWeight roundingFactor (mask : deviceptr<_>) =
+        numSamples numClasses minWeight roundingFactor (mask : deviceptr<int>) =
 
         let totals = __shared__.ExternArray()
         let featureIdx = blockIdx.y
@@ -233,7 +281,7 @@ type EntropyOptimizer(target) as this =
         if sampleIdx <= upperBound then
             let matrixIdx = featureIdx * numSamples + sampleIdx
             entropyMatrix.[matrixIdx] <-
-                if mask.[featureIdx] then
+                if mask.[featureIdx] <> 0 then
                     let mutable leftEntropy = 0.0
                     let mutable rightEntropy = 0.0
                     let mutable leftTotal = 0
@@ -258,53 +306,57 @@ type EntropyOptimizer(target) as this =
     
 
     /// Returns a GPU matrix that the caller needs to dispose of
-    member this.Entropy (options : EntropyOptimizationOptions) totals numValid =
+    member this.Entropy (problem:EntropyOptimizingProblem) (options : EntropyOptimizationOptions) totals numValid =
         let roundingFactor = 10.0 ** (float options.Decimals)
-        let minWeight = options.MinWeight numClasses totals
+        let minWeight = options.MinWeight problem.numClasses totals
 
-        let cumSumsMatrix = weightsPerFeatureAndClass.Value
-        let entropyMatrix = entropyMatrix.Value
-        let blockDim, gridDim = this.BlockAndGridDim numValid
-        let lp = LaunchParam(gridDim, blockDim, numClasses * sizeof<int>)
+        let cumSumsMatrix = problem.weightsPerFeatureAndClass
+        let entropyMatrix = problem.entropyMatrix
+        let blockDim, gridDim = this.BlockAndGridDim problem numValid
+        let lp = LaunchParam(gridDim, blockDim, problem.numClasses * sizeof<int>)
         this.GPULaunch <@ this.EntropyKernel @> lp (entropyMatrix.DeviceData.Ptr) (cumSumsMatrix.DeviceData.Ptr) 
-            numValid numSamples numClasses minWeight roundingFactor (gpuMask |> ptrOf)
+            numValid problem.numSamples problem.numClasses minWeight roundingFactor (problem.gpuMask |> ptrOf)
 
-    member this.MinimumEntropy numValid =
+    member this.MinimumEntropy (problem:EntropyOptimizingProblem) numValid =
         // start kernel immediately
-        let optima = minimzer.MinAndArgMin(entropyMatrix.Value, nonZeroIdcsPerFeature.Value, numValid)
-        let fullEntropy = entropyMatrix.Value.Gather(0, numValid - 1)
+        let optima = minimzer.MinAndArgMin(problem.entropyMatrix, problem.nonZeroIdcsPerFeature, numValid)
+        let fullEntropy = problem.entropyMatrix.Gather(0, numValid - 1)
          
         if fullEntropy > 0.0 then
             optima
         else
-            Array.create numFeatures (0.0, numSamples - 1)
+            Array.create problem.numFeatures (0.0, problem.numSamples - 1)
 
-    member this.Optimize options (weights:Weights) = 
-        gpuMask.Value.Scatter(options.FeatureSelector numFeatures)
-        this.FindNonZeroIndices(weights)
-        let (sum, count) = summarizeWeights weights
-        this.ExpandWeights count
-        this.CumSums(weightsPerFeatureAndClass.Value, count)
-        this.Entropy options sum count
-        this.MinimumEntropy count
+    member this.Optimize (problem:EntropyOptimizingProblem) options (weights:Weights) = 
+        problem.gpuMask.Scatter(options.FeatureSelector problem.numFeatures |> Array.map (fun x -> if x then 1 else 0))
+        this.FindNonZeroIndices problem weights
+        let sum, count = summarizeWeights weights
+        this.ExpandWeights problem count
 
-    member this.LabelMatrix = labelMatrix.Value
-    member this.IndexMatrix = indexMatrix.Value
-    member this.NonZeroIndices = nonZeroIdcsPerFeature.Value
-    member this.WeightsPerFeatureAndClass = weightsPerFeatureAndClass.Value
-    member this.EntropyMatrix = entropyMatrix.Value
+        this.CumSums(problem.weightsPerFeatureAndClass, count)
+        this.Entropy problem options sum count
+        this.MinimumEntropy problem count
+//        this.GPUWorker.Eval <| fun _ ->
 
-    override this.Dispose(disposing) =
-        if disposing then
-            labelMatrix |> disposeOf
-            indexMatrix |> disposeOf
-            gpuWeights |> disposeOf
-            weightMatrix |> disposeOf
-            nonZeroIdcsPerFeature |> disposeOf
-            weightsPerFeatureAndClass |> disposeOf
-            entropyMatrix |> disposeOf
-            gpuMask |> disposeOf
-            minimzer.Dispose(disposing)
+    //        printfn "count=(%d)" count
 
-        base.Dispose(disposing)
+//    member this.LabelMatrix = labelMatrix.Value
+//    member this.IndexMatrix = indexMatrix.Value
+//    member this.NonZeroIndices = nonZeroIdcsPerFeature.Value
+//    member this.WeightsPerFeatureAndClass = weightsPerFeatureAndClass.Value
+//    member this.EntropyMatrix = entropyMatrix.Value
+//
+//    override this.Dispose(disposing) =
+//        if disposing then
+//            labelMatrix |> disposeOf
+//            indexMatrix |> disposeOf
+//            gpuWeights |> disposeOf
+//            weightMatrix |> disposeOf
+//            nonZeroIdcsPerFeature |> disposeOf
+//            weightsPerFeatureAndClass |> disposeOf
+//            entropyMatrix |> disposeOf
+//            gpuMask |> disposeOf
+//            minimzer.Dispose(disposing)
+//
+//        base.Dispose(disposing)
 

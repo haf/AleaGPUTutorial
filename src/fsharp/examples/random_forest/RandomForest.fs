@@ -273,7 +273,7 @@ type OptimizerSignature = (Weights -> (float * int)[])
 type DisposerSignature = unit -> unit
 
 type EntropyDevice = 
-    | GPU
+    | GPU of GpuSplitEntropy.EntropyOptimizer
     | CPU of mode : CpuMode
     | Cached of origin: EntropyDevice * optimizer : OptimizerSignature
     | Pooled of origin: EntropyDevice * optimizers : Collections.BlockingObjectPool<OptimizerSignature>
@@ -283,15 +283,14 @@ type EntropyDevice =
         let _, labelsPerFeature, indicesPerFeature = sortedTrainingSet |> Array.unzip3
         let emptyDisposer = (fun () -> ())
         match this with
-        | GPU -> 
-            let worker = Alea.CUDA.Worker.Create(Alea.CUDA.Device.Default)
-            use matrix = worker.Malloc<MultiChannelReduce.ValueAndIndex>(1) // work-around for bug in Alea.CUDA
-            let entropyOptimizer = new EntropyOptimizer(Alea.CUDA.GPUModuleTarget.Worker(worker))
-            entropyOptimizer.Init(numClasses, labelsPerFeature, indicesPerFeature)
-            entropyOptimizer.Optimize options, (fun () -> 
-                entropyOptimizer.Dispose()
-                worker.Dispose()
-            )
+        | GPU entropyOptimizer -> 
+            //let worker = Alea.CUDA.Worker.Create(Alea.CUDA.Device.Default)
+            //use matrix = worker.Malloc<MultiChannelReduce.ValueAndIndex>(1) // work-around for bug in Alea.CUDA
+            //let entropyOptimizer = new EntropyOptimizer(Alea.CUDA.GPUModuleTarget.Worker(worker))
+            let problem = entropyOptimizer.Init(numClasses, labelsPerFeature, indicesPerFeature)
+            let optimizer = entropyOptimizer.Optimize problem options
+            let dispose () = problem.Dispose()
+            optimizer, dispose
         | CPU mode -> 
             optimizeFeatures mode options numClasses labelsPerFeature indicesPerFeature, emptyDisposer
         | Cached (_, optimizer) -> optimizer, emptyDisposer
@@ -337,7 +336,7 @@ type TreeOptions =
     static member Default = 
         {
             MaxDepth = System.Int32.MaxValue
-            Device = GPU
+            Device = GPU GpuSplitEntropy.EntropyOptimizer.Default
             EntropyOptions = EntropyOptimizationOptions.Default
         }
 
