@@ -400,8 +400,7 @@ let ``Random forest on CPU Parallel vs GPU single threaded`` () =
 
 [<Test>]
 let ``Random forest on CPU thread pool vs GPU thread pool`` () =
-    use worker = Worker.CreateOnCurrentThread(Device.Default)
-    use gpuOptimizerModule = new GpuSplitEntropy.EntropyOptimizer(GPUModuleTarget.Worker(worker))
+    let gpuOptimizerModule = GpuSplitEntropy.EntropyOptimizer.Default
     let poolSize = 5
     let options = { TreeOptions.Default with MaxDepth = 4 }
     let trainingData = defaultTrainingData
@@ -463,8 +462,7 @@ let ``Random forest on CPU Parallel vs GPU thread pool`` () =
 
 [<Test>]
 let ``Speed of training random forests`` () =
-    use worker = Worker.CreateOnCurrentThread(Device.Default)
-    use gpuOptimizerModule = new GpuSplitEntropy.EntropyOptimizer(GPUModuleTarget.Worker(worker))
+    let gpuOptimizerModule = GpuSplitEntropy.EntropyOptimizer.Default
     let measureRandomForestTraining options numTrees trainingData = 
         let rnd = System.Random(0)
         let watch = System.Diagnostics.Stopwatch.StartNew()

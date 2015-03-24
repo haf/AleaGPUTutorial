@@ -205,12 +205,11 @@ type EntropyOptimizer(target) as this =
             let smallMatrixIdx = rowOffset + nonZeroIdx
             let sampleIdx = nonZeroIdcsMatrix.[smallMatrixIdx]
             let largeMatrixIdx = rowOffset + sampleIdx
-            //let weight = weights.[indexMatrix.[largeMatrixIdx]]
-            //let label = labelMatrix.[largeMatrixIdx]
+            let weight = weights.[indexMatrix.[largeMatrixIdx]]
+            let label = labelMatrix.[largeMatrixIdx]
             for classIdx = 0 to numClasses - 1 do
                 let classOffset = numFeatures * numSamples * classIdx
-                weightMatrix.[classOffset + smallMatrixIdx] <- indexMatrix.[largeMatrixIdx]
-                //weightMatrix.[classOffset + smallMatrixIdx] <- if label = classIdx then weight else 0
+                weightMatrix.[classOffset + smallMatrixIdx] <- if label = classIdx then weight else 0
 
     member this.FindNonZeroIndices (problem:EntropyOptimizingProblem) (weights:Weights) =
         if weights.Length <> problem.numSamples then failwith "InumValid number of weights"
@@ -219,28 +218,19 @@ type EntropyOptimizer(target) as this =
         let lp = LaunchParam(gridDim, blockDim)
 
         problem.gpuWeights.Scatter(weights)
-//        this.GPUWorker.Synchronize()
+
         this.GPULaunch <@ this.LogicalWeightExpansionKernel @> lp (problem.weightMatrix.DeviceData.Ptr) 
             (problem.indexMatrix.DeviceData.Ptr) (problem.gpuWeights.DeviceData.Ptr) problem.numSamples
-        this.GPUWorker.Eval <| fun _ ->
-
-//        let weightsPtr = problem.gpuWeights |> ptrOf
-//        let weightMatrix = problem.weightMatrix
-//        let nonZeroIdcsPerFeature = problem.nonZeroIdcsPerFeature
-//        this.GPULaunch <@ this.LogicalWeightExpansionKernel @> lp (weightMatrix.DeviceData.Ptr) 
-//            (problem.indexMatrix |> ptrOf) weightsPtr problem.numSamples
         
         // cum sums over the weight matrix        
-//        this.CumSums(problem.weightMatrix, problem.numSamples)
-            let lp1 = LaunchParam(problem.weightMatrix.NumRows, primitive.Resource.BlockThreads)
-            this.GPULaunch <@ this.CumSumKernel @> lp1 problem.weightMatrix.NumCols problem.numSamples (problem.weightMatrix.DeviceData.Ptr)
-//        this.GPUWorker.Synchronize()
-            this.GPULaunch <@ this.findNonZeroIndicesKernel @> lp (problem.nonZeroIdcsPerFeature.DeviceData.Ptr) 
-                (problem.weightMatrix.DeviceData.Ptr) problem.numSamples 
+        this.CumSums(problem.weightMatrix, problem.numSamples)
 
-//        if DEBUG then
-//            printfn "weight matrix:\n%A" (weightMatrix.ToArray2D())
-//            printfn "nonZeroIdcsPerFeature:\n%A" (nonZeroIdcsPerFeature.ToArray2D())
+        this.GPULaunch <@ this.findNonZeroIndicesKernel @> lp (problem.nonZeroIdcsPerFeature.DeviceData.Ptr) 
+            (problem.weightMatrix.DeviceData.Ptr) problem.numSamples 
+
+        if DEBUG then
+            printfn "weight matrix:\n%A" (problem.weightMatrix.ToArray2D())
+            printfn "nonZeroIdcsPerFeature:\n%A" (problem.nonZeroIdcsPerFeature.ToArray2D())
 
     member this.ExpandWeights (problem:EntropyOptimizingProblem) numValid =
         let blockDim, gridDim = this.BlockAndGridDim problem numValid
@@ -328,15 +318,14 @@ type EntropyOptimizer(target) as this =
             Array.create problem.numFeatures (0.0, problem.numSamples - 1)
 
     member this.Optimize (problem:EntropyOptimizingProblem) options (weights:Weights) = 
-        problem.gpuMask.Scatter(options.FeatureSelector problem.numFeatures |> Array.map (fun x -> if x then 1 else 0))
-        this.FindNonZeroIndices problem weights
-        let sum, count = summarizeWeights weights
-        this.ExpandWeights problem count
-
-        this.CumSums(problem.weightsPerFeatureAndClass, count)
-        this.Entropy problem options sum count
-        this.MinimumEntropy problem count
-//        this.GPUWorker.Eval <| fun _ ->
+        this.GPUWorker.Eval <| fun _ ->
+            problem.gpuMask.Scatter(options.FeatureSelector problem.numFeatures |> Array.map (fun x -> if x then 1 else 0))
+            this.FindNonZeroIndices problem weights
+            let sum, count = summarizeWeights weights
+            this.ExpandWeights problem count
+            this.CumSums(problem.weightsPerFeatureAndClass, count)
+            this.Entropy problem options sum count
+            this.MinimumEntropy problem count
 
     //        printfn "count=(%d)" count
 
