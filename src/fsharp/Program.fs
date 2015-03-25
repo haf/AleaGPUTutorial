@@ -112,10 +112,5 @@ let main argv =
 
         | "help"                                 -> help()
         | _ -> printfn "unknown sample name %s\n" name; help()
-    | _ -> 
-        Tutorial.Fs.examples.RandomForest.RandomForestExample.``CPU vs GPU optimizer``()
-        //help()
+    | _ -> help()
     printfn "Done."
-//    Tutorial.Fs.examples.nbody.Impl.GPU.StaticBlockSize.Performance()
-//    Tutorial.Fs.examples.nbody.Impl.GPU.DynamicBlockSize.Performance()
-    0

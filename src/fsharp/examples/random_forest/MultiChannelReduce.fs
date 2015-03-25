@@ -55,7 +55,7 @@ Matrix row scan resource.
 
 Using block range scan from Alea Unbound. 
 *)
-type private MultiChannelReducePrimitive(arch:DeviceArch) =
+type MultiChannelReducePrimitive(arch:DeviceArch) =
 
     let blockReduce = BlockReduce.WarpReductions<ValueAndIndex>(dim3 BLOCK_SIZE, arch)
 
@@ -161,8 +161,34 @@ type MatrixRowOptimizer(target) as this =
         primitive.Resource.OptAndArgOpt output numOutCols sign
             matrix numCols numValid indices true
 
-    member private this.OptAndArgOpt (minOrMax : MinOrMax) (matrix : DeviceMemory<'T>) numRows numCols numValid
-        (indices : DeviceMemory<_> option) =
+//    member private this.OptAndArgOptDouble (reducedOut:Matrix<ValueAndIndex>) (minOrMax:MinOrMax) (matrix:DeviceMemory<float>) numRows numCols numValid (indices:DeviceMemory<int> option) =
+//        if (numCols < numValid) then invalidArg "numValid" "numValid must be less or equal then numCols"
+//
+//        let numBlocks = divup numValid BLOCK_SIZE
+//        let gridSize = dim3(numRows, numBlocks)
+//        let lp = LaunchParam(gridSize, dim3 BLOCK_SIZE)
+//        let numOutputCols = (divup numCols BLOCK_SIZE)
+//        if (numOutputCols <> reducedOut.NumCols) then invalidArg "reducedOut" "reducedOut.Cols not agree"
+//
+//        let outputPtr = reducedOut.DeviceData.Ptr
+//        let sign = minOrMax.Sign
+//
+//        match  indices with
+//        | Some idcs -> 
+//            this.GPULaunch <@ this.OptAndArgOptKernelDoubleWithIdcs @> lp outputPtr numOutputCols sign matrix.Ptr numCols numValid idcs.Ptr
+//        | None -> 
+//            this.GPULaunch <@ this.OptAndArgOptKernelDouble @> lp outputPtr numOutputCols sign matrix.Ptr numCols numValid 
+//
+//        let valuesAndIndices = reducedOut.ToArray()
+//        disposer()
+//        let optima = Array.init numRows (fun _ -> minOrMax.DefaultValue)
+//        for rowIdx = 0 to numRows - 1 do
+//            let rowOffset = rowIdx * numOutputCols
+//            for colIdx = 0 to numBlocks - 1 do
+//                optima.[rowIdx] <- minOrMax.OptFun optima.[rowIdx] valuesAndIndices.[rowOffset + colIdx]
+//        optima |> Array.map (fun x -> (x.Value, x.Index))
+
+    member private this.OptAndArgOpt (minOrMax : MinOrMax) (matrix : DeviceMemory<'T>) numRows numCols numValid (indices : DeviceMemory<_> option) =
         if (numCols < numValid) then invalidArg "numValid" "numValid must be less or equal then numCols"
 
         let numBlocks = divup numValid BLOCK_SIZE
