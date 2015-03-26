@@ -546,7 +546,6 @@ let printFractionOfCorrectForcasts trainingData =
                                                        |> Array.average
     printfn "%f  of forecasts were correct (insample)" (fraction*100.0)
 
-[<Test>]
 let irisExample () =
     // read in data
     let path = @"C:\Users\Tobias\Documents\git\AleaGPUGitHubTutorial\src\fsharp\examples\random_forest\irisExample.csv"
@@ -569,7 +568,6 @@ let irisExample () =
 
     printFractionOfCorrectForcasts trainingData 
 
-[<Test>]
 let titanicExample () =
     // read in data
     let path = @"C:\Users\Tobias\Documents\git\AleaGPUGitHubTutorial\src\fsharp\examples\random_forest\titanicExample.csv"

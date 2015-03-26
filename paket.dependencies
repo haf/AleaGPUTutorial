@@ -20,4 +20,5 @@ nuget NUnit.Runners
 nuget SharpDX 2.5.0
 nuget SharpDX.Direct3D9 2.5.0
 nuget SharpDX.RawInput 2.5.0
+nuget fsharp.data
 nuget openTK
