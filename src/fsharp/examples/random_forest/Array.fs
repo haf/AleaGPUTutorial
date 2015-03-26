@@ -29,10 +29,10 @@ let projectIdcs (indices : _[]) (weights : _[]) =
 let permByIdcs (indices : _[]) (weights : _[]) =
     weights |> Array.permute (fun i -> indices.[i])
 
-let expandWeights indicesPerFeature weights = 
+let expandWeights indicesPerFeature weights =
     indicesPerFeature |> Array.Parallel.map (fun indices -> projectIdcs indices weights)
 
-let findNonZeroWeights (weightsPerFeature : Weights[])=
+let findNonZeroWeights (weightsPerFeature : Weights[]) =
     let countNonZero = weightsPerFeature.[0] |> Seq.filter (fun w -> w <> 0) |> Seq.length
     let nonZeroIdcsPerFeature = weightsPerFeature |> Array.Parallel.map (findNonZeroIdcs countNonZero)
     nonZeroIdcsPerFeature
@@ -40,5 +40,10 @@ let findNonZeroWeights (weightsPerFeature : Weights[])=
 let shuffle (rnd : System.Random) arr =
     arr |> Seq.sortBy (fun _ -> rnd.NextDouble())
 
+/// Returns array of length `k` with uniqe random integer numbers from 0 to `n` - 1.
 let randomSubIndices (rnd : System.Random) n k = 
     seq {0 .. n - 1} |> shuffle rnd |> Seq.take k |> Seq.toArray
+
+let randomlySplitUpArray x (rnd : System.Random) k = 
+    let shuffledSequence = x |> shuffle rnd |> Seq.toArray
+    shuffledSequence.[0..k-1], shuffledSequence.[k..]

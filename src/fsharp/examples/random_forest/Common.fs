@@ -2,6 +2,8 @@
 
 module MinMax = 
 
+    /// Returns value and position of minimum in a sequence. 
+    /// In case of multiple minima it returns the first occuring.
     let inline minAndArgMin (source: seq<'T>) : ('T * int) =
         use e = source.GetEnumerator() 
         if not (e.MoveNext()) then invalidArg "source" "empty sequence"
@@ -18,7 +20,9 @@ module MinMax =
                 acci <- i
 
         (accv, acci)
-            
+
+    /// Returns value and position of maximum in a sequence. 
+    /// In case of multiple maxima it returns the first occuring.
     let inline maxAndArgMax (source: seq<'T>) : ('T * int) =
         use e = source.GetEnumerator() 
         if not (e.MoveNext()) then invalidArg "source" "empty sequence"

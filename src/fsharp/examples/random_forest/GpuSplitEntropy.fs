@@ -132,6 +132,7 @@ type EntropyOptimizationOptions =
         let relativeMinWeight = min (total / (numClasses * this.RelMinDivisor)) this.RelMinBound
         max this.AbsMinWeight relativeMinWeight
 
+    /// Returns array of length `n` of booleans where randomly sqrt `n` are true.
     static member SquareRootFeatureSelector (rnd:System.Random) (n:int) =
         let k = float n |> sqrt |> int
         let idcs = Array.randomSubIndices rnd n k

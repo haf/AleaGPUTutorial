@@ -526,3 +526,64 @@ let ``Speed of training random forests`` () =
     let maxDepth = 1
     let gpuTime, cpuTime = measureGpuVsCpu numSamples numFeatures numClasses numTrees maxDepth 2
     printf "cpu time: %f, gpu time: %f" cpuTime gpuTime
+
+
+open FSharp.Data
+open Tutorial.Fs.examples.RandomForest.Array
+
+let printFractionOfCorrectForcasts trainingData =
+    // split up data in training and test data:
+    let trainingData, testData = randomlySplitUpArray trainingData (System.Random(42)) (50 * Array.length trainingData / 100)
+
+    // train model
+    let trainingData = LabeledSamples trainingData
+    let model = randomForestClassifier (System.Random(42)) TreeOptions.Default 100 trainingData
+    
+    // predict labels
+    let features, expectedLabels = Array.unzip testData
+    let forecastedLabels = Array.map (forecast model) features
+    let fraction = (forecastedLabels, expectedLabels) ||> Array.map2  (fun x y -> if x=y then 1.0 else 0.0)
+                                                       |> Array.average
+    printfn "%f  of forecasts were correct (insample)" (fraction*100.0)
+
+[<Test>]
+let irisExample () =
+    // read in data
+    let path = @"C:\Users\Tobias\Documents\git\AleaGPUGitHubTutorial\src\fsharp\examples\random_forest\irisExample.csv"
+    let data =  CsvFile.Load(path).Cache()
+ 
+    let trainingData = 
+        [| for row in data.Rows ->
+            [|
+                  row.GetColumn "Sepal length" |> float
+                  row.GetColumn "Sepal width" |> float
+                  row.GetColumn "Petal length" |> float
+                  row.GetColumn "Petal width" |> float
+            |],
+            row.GetColumn "Species" |> (fun x -> match x with
+                                                 | "I. setosa" -> 0
+                                                 | "I. versicolor" -> 1
+                                                 | "I. virginica" -> 2
+                                                 | x -> failwithf "should not happen %A" x)
+        |]
+
+    printFractionOfCorrectForcasts trainingData 
+
+[<Test>]
+let titanicExample () =
+    // read in data
+    let path = @"C:\Users\Tobias\Documents\git\AleaGPUGitHubTutorial\src\fsharp\examples\random_forest\titanicExample.csv"
+    let data =  CsvFile.Load(path).Cache()
+ 
+    let trainingData = 
+        [| for row in data.Rows ->
+            [|
+                  row.GetColumn "PassengerId" |> float
+                  row.GetColumn "Pclass" |> float
+                  row.GetColumn "Sex" |> (fun x -> if x = "male" then 1.0 else 0.0)
+                  row.GetColumn "Age" |> (fun x -> if x = "" then -1.0 else float x)
+            |],
+            row.GetColumn "Survived" |> int
+        |]
+
+    printFractionOfCorrectForcasts trainingData 

@@ -21,9 +21,13 @@ let sortAllFeatures labels domains =
     domains |> Array.Parallel.map (sortFeature labels)
 
 type LabeledFeatureSet =
+    /// Array LabeledSamples, LabeledSample: Array of features & a label.
     | LabeledSamples of LabeledSample[]
+    /// LabeledDomains might be seen as transposition of LabeledSamples.
     | LabeledDomains of Domains * Labels
-    | SortedFeatures of (Domain * Labels * int[])[]
+    /// Similar to Labeled domains, but every domain is sorted and has its own attached Label and an index in order to find back to initial ordering 
+    /// (elements in different index belong to the same sample).
+    | SortedFeatures of (Domain * Labels * Indices)[]
 
     member this.Labels = 
         this |> function
@@ -43,11 +47,12 @@ type LabeledFeatureSet =
             let numSamples = this.Length
             let samples, labels = trainingSet |> Array.unzip
             let domains = Array.init samples.[0].Length (fun i -> Array.init numSamples (fun j -> samples.[j].[i]))
-            SortedFeatures (domains |> sortAllFeatures labels)
+            SortedFeatures (sortAllFeatures labels domains)
         | LabeledDomains (domains, labels) -> 
-            SortedFeatures (domains |> sortAllFeatures labels)
+            SortedFeatures (sortAllFeatures labels domains)
         | SortedFeatures _ -> this
         
+/// Forcasts `label` of a given `sample` and decision-`tree`.
 let rec forecastTree (sample:Sample) (tree : Tree) =
     match tree with
     | Tree.Leaf label -> label
@@ -57,20 +62,22 @@ let rec forecastTree (sample:Sample) (tree : Tree) =
         else 
             forecastTree sample high
 
+/// Forcasts `label` of `sample` by majority voting in random forest `model`.
 let forecast (model : Model) (sample : Sample) : Label =
     match model with
     | RandomForest (trees, numClasses) ->
         (Array.zeroCreate numClasses, trees)
-        ||> Seq.fold (fun hist tree -> 
+        ||> Seq.fold (fun hist tree ->
             let label = forecastTree sample tree
             hist.[label] <- hist.[label] + 1
             hist
         )
         |> MinMax.maxAndArgMax |> snd
 
+/// Returns an array of histograms on `labels` weighted by `weights`.
 let cumHistograms (numClasses : int) (labels:Labels) (weights : Weights) : LabelHistogram seq =
     ((Array.zeroCreate numClasses, 0), seq { 0 .. weights.GetUpperBound(0) })
-    ||> Seq.scan (fun (hist, sum) i -> 
+    ||> Seq.scan (fun (hist, sum) i ->
             let weight = weights.[i]
             let label = labels.[i]
             hist.[label] <- hist.[label] + weight
@@ -78,6 +85,7 @@ let cumHistograms (numClasses : int) (labels:Labels) (weights : Weights) : Label
     )
     |> Seq.skip 1
 
+/// Returns a histogram on `labels` weighted by `weights`.
 let countTotals numClasses labels weights =
     Seq.last <| cumHistograms numClasses labels weights
 
@@ -100,6 +108,7 @@ let private entropyTermSum (node : LabelHistogram) =
         let sumLogs = (0.0, hist) ||> Seq.fold (fun e c -> e - (entropyTerm c))
         (sumLogs + entropyTerm total)
 
+/// Returns entropy as $\frac{1}{\rm{total} log 2} \sum_i - f_i * log(f_i/F)$.
 let entropy total (nodes : LabelHistogram seq) =
     if (total = 0) then
         0.0
@@ -107,15 +116,17 @@ let entropy total (nodes : LabelHistogram seq) =
         let entropySum = (0.0, nodes) ||> Seq.fold (fun e node -> e + (node |> entropyTermSum))
         entropySum / (float total * log_2)
 
+/// Returns the difference between `total`- and `left`-Histogram.
 let complementHist (total : LabelHistogram) (left : LabelHistogram) : LabelHistogram =
     let totalHist, totalCount = total
     let hist, count = left
     (totalHist, hist) ||> Array.map2 (-), totalCount - count
 
-let splitEntropies (mask : bool seq) (countsPerSplit : LabelHistogram seq) (totals : LabelHistogram) = 
+/// Calculates the entropy for all the possible splits in an ordered feature. Returning them in a sequence.
+let splitEntropies (mask : bool seq) (countsPerSplit : LabelHistogram seq) (totals : LabelHistogram) =
     let complement = complementHist totals
     let entropy = entropy (totals |> snd)
-    (mask, countsPerSplit) ||> Seq.map2 (fun isValid low -> 
+    (mask, countsPerSplit) ||> Seq.map2 (fun isValid low ->
         if isValid then
             let histograms = seq { yield low; yield complement low }
             entropy histograms
@@ -123,22 +134,26 @@ let splitEntropies (mask : bool seq) (countsPerSplit : LabelHistogram seq) (tota
             System.Double.PositiveInfinity
     )
 
+/// Returns Some(0.5*(`domain`[`splitIdx`] + `domain`[`splitIdx`+1])) if `domain`[`splitIdx`+1] exists, 
+/// else returns None.
 let domainThreshold weights (domain : _[]) splitIdx =
     let nextIdx = Array.findNextNonZeroIdx weights (splitIdx + 1)
     match nextIdx with
     | None ->
         None
-    | Some nextSplitIdx -> 
+    | Some nextSplitIdx ->
         Some ((domain.[splitIdx] + domain.[nextSplitIdx]) * 0.5)
 
+/// Returns a histogram from `weights` on `labels`.
 let countSamples (weights : Weights) numClasses (labels : Labels) =
     let hist = Array.zeroCreate numClasses
     for i = 0 to weights.GetUpperBound(0) do
         let weight = weights.[i]
         let label = labels.[i]
         hist.[label] <- hist.[label] + weight
-    hist 
+    hist
 
+/// Returns the `class`/`label` with the most `weight`.
 let findMajorityClass weights numClasses labels =
     countSamples weights numClasses labels
     |> MinMax.maxAndArgMax |> snd
@@ -191,12 +206,13 @@ type IEntropyOptimizer =
     inherit System.IDisposable
     abstract Optimize : Weights[] -> (float * int)[][]
 
+/// Returns best entropy to split and its corresponding index for every feature.   
 let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) numClasses (labelsPerFeature : Labels[]) (indicesPerFeature : Indices[]) weights =
     // remove zero weights
     let weightsPerFeature = Array.expandWeights indicesPerFeature weights
     let nonZeroIdcsPerFeature = Array.findNonZeroWeights weightsPerFeature
     
-    let mapper f =         
+    let mapper f =
         match mode with
         | Sequential -> Array.mapi f
         | Parallel   -> Array.Parallel.mapi f
