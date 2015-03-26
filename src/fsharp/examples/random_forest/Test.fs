@@ -8,95 +8,95 @@ open Tutorial.Fs.examples.RandomForest.DataModel
 open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
 open Tutorial.Fs.examples.RandomForest.RandomForest
 
-//[<Test>] 
-//let ``Transform training set``() =
-//    let trainingSamples = 
-//        LabeledSamples 
-//            [|
-//                [|0.4;0.5;0.1|], 0
-//                [|0.8;0.1;0.4|], 1
-//                [|0.2;0.7;0.5|], 1
-//                [|0.6;0.5;0.9|], 0
-//            |]
-//
-//    let expected = 
-//        [|
-//            [|0.2;0.4;0.6;0.8|], [|1;0;0;1|], [|2;0;3;1|] 
-//            [|0.1;0.5;0.5;0.7|], [|1;0;0;1|], [|1;0;3;2|]
-//            [|0.1;0.4;0.5;0.9|], [|0;1;1;0|], [|0;1;2;3|]
-//        |]
-//    
-//    let expectedDomains, expectedLabels, expectedIndices = expected |> Array.unzip3
-//
-//    match trainingSamples.Sorted with
-//    | SortedFeatures features ->
-//        let domains, labels, indices = features |> Array.unzip3
-//
-//        domains |> should equal expectedDomains
-//        labels |> should equal expectedLabels
-//        indices |> should equal expectedIndices
-//    | _ -> failwith "expected SortedFeatures"
-//
-//[<Test>] 
-//let ``Sort features``() =
-//    let featureValues = [|10.0;5.0;9.0;7.0;3.0;2.0|]
-//    let labels = [|1;1;0;0;1;0;|]
-//    let expectedFeatures = [|2.0;3.0;5.0;7.0;9.0;10.0|]
-//    let expectedLabels = [|0;1;1;0;0;1|]
-//    let expectedIdxs = [|5; 4; 1; 3; 2; 0|]
-//    let sortedFeatures, sortedLabels, idxs = (labels, featureValues) ||> sortFeature
-//    sortedFeatures |> should equal expectedFeatures
-//    sortedLabels |> should equal expectedLabels
-//    idxs |> should equal expectedIdxs
-//
-//[<Test>] 
-//let ``Min and max functions``() =
-//    let testData = [|2.0;1.0;3.0;10.0;9.0;5.0|]
-//    testData
-//    |> MinMax.minAndArgMin
-//    |> should equal (1.0,1)
-//    testData
-//    |> MinMax.maxAndArgMax
-//    |> should equal (10.0,3)
-//
-//[<Test>] 
-//let ``Threshold and labels``() =
-//    let numClasses = 2
-//    let domain = [|4.0;5.0;10.0;12.0|]
-//    let labels = [|1;0;0;1|]
-//    let weights = Array.init labels.Length (fun _ -> 1)
-//    let thresholdAndLabels splitIdx =
-//        let threshold = domainThreshold weights domain splitIdx
-//        let lowWeights = weights |> restrictBelow splitIdx
-//        let highWeights = weights |> restrictAbove (splitIdx + 1)
-//        let low = findMajorityClass lowWeights numClasses labels
-//        let high = findMajorityClass highWeights numClasses labels
-//        threshold, low, high
-//    thresholdAndLabels 0 |> should equal (Some 4.5, 1, 0)
-//    thresholdAndLabels 1 |> should equal (Some 7.5, 0, 0)
-//    thresholdAndLabels 2 |> should equal (Some 11.0, 0, 1)
-//    let threshold, _, _ = thresholdAndLabels 3
-//    threshold |> should equal None
-//
-//[<Test>] 
-//let ``Forecast random forest of stumps``() =
-//    let stump1 = Node (Leaf 0, Split.Create 0 5.0, Leaf 1) 
-//    let stump2 = Node (Leaf 0, Split.Create 0 7.0, Leaf 1) 
-//    let stumps = Array.init 100 (fun i -> if i%3=0 then stump2 else stump1)
-//    let model = RandomForest (stumps, 2)
-//    forecast model [|6.0|] |> should equal 1
-//    forecast model [|4.0|] |> should equal 0
-// 
-//let checkStump feature threshold low high (stump : Tree) = 
-//    match stump with
-//    | Leaf label -> 
-//        label |> should equal low
-//    | Node (left, split, right) ->
-//        split.Feature |> should equal feature
-//        split.Threshold |> should equal threshold
-//        left |> should equal (Tree.Leaf low)
-//        right |> should equal (Tree.Leaf high)
-//           
+[<Test>] 
+let ``Transform training set``() =
+    let trainingSamples = 
+        LabeledSamples 
+            [|
+                [|0.4;0.5;0.1|], 0
+                [|0.8;0.1;0.4|], 1
+                [|0.2;0.7;0.5|], 1
+                [|0.6;0.5;0.9|], 0
+            |]
+
+    let expected = 
+        [|
+            [|0.2;0.4;0.6;0.8|], [|1;0;0;1|], [|2;0;3;1|] 
+            [|0.1;0.5;0.5;0.7|], [|1;0;0;1|], [|1;0;3;2|]
+            [|0.1;0.4;0.5;0.9|], [|0;1;1;0|], [|0;1;2;3|]
+        |]
+    
+    let expectedDomains, expectedLabels, expectedIndices = expected |> Array.unzip3
+
+    match trainingSamples.Sorted with
+    | SortedFeatures features ->
+        let domains, labels, indices = features |> Array.unzip3
+
+        domains |> should equal expectedDomains
+        labels |> should equal expectedLabels
+        indices |> should equal expectedIndices
+    | _ -> failwith "expected SortedFeatures"
+
+[<Test>] 
+let ``Sort features``() =
+    let featureValues = [|10.0;5.0;9.0;7.0;3.0;2.0|]
+    let labels = [|1;1;0;0;1;0;|]
+    let expectedFeatures = [|2.0;3.0;5.0;7.0;9.0;10.0|]
+    let expectedLabels = [|0;1;1;0;0;1|]
+    let expectedIdxs = [|5; 4; 1; 3; 2; 0|]
+    let sortedFeatures, sortedLabels, idxs = (labels, featureValues) ||> sortFeature
+    sortedFeatures |> should equal expectedFeatures
+    sortedLabels |> should equal expectedLabels
+    idxs |> should equal expectedIdxs
+
+[<Test>] 
+let ``Min and max functions``() =
+    let testData = [|2.0;1.0;3.0;10.0;9.0;5.0|]
+    testData
+    |> MinMax.minAndArgMin
+    |> should equal (1.0,1)
+    testData
+    |> MinMax.maxAndArgMax
+    |> should equal (10.0,3)
+
+[<Test>] 
+let ``Threshold and labels``() =
+    let numClasses = 2
+    let domain = [|4.0;5.0;10.0;12.0|]
+    let labels = [|1;0;0;1|]
+    let weights = Array.init labels.Length (fun _ -> 1)
+    let thresholdAndLabels splitIdx =
+        let threshold = domainThreshold weights domain splitIdx
+        let lowWeights = weights |> restrictBelow splitIdx
+        let highWeights = weights |> restrictAbove (splitIdx + 1)
+        let low = findMajorityClass lowWeights numClasses labels
+        let high = findMajorityClass highWeights numClasses labels
+        threshold, low, high
+    thresholdAndLabels 0 |> should equal (Some 4.5, 1, 0)
+    thresholdAndLabels 1 |> should equal (Some 7.5, 0, 0)
+    thresholdAndLabels 2 |> should equal (Some 11.0, 0, 1)
+    let threshold, _, _ = thresholdAndLabels 3
+    threshold |> should equal None
+
+[<Test>] 
+let ``Forecast random forest of stumps``() =
+    let stump1 = Node (Leaf 0, Split.Create 0 5.0, Leaf 1) 
+    let stump2 = Node (Leaf 0, Split.Create 0 7.0, Leaf 1) 
+    let stumps = Array.init 100 (fun i -> if i%3=0 then stump2 else stump1)
+    let model = RandomForest (stumps, 2)
+    forecast model [|6.0|] |> should equal 1
+    forecast model [|4.0|] |> should equal 0
+ 
+let checkStump feature threshold low high (stump : Tree) = 
+    match stump with
+    | Leaf label -> 
+        label |> should equal low
+    | Node (left, split, right) ->
+        split.Feature |> should equal feature
+        split.Threshold |> should equal threshold
+        left |> should equal (Tree.Leaf low)
+        right |> should equal (Tree.Leaf high)
+           
 //[<Test>]
 //let ``Train simple stump`` () =
 //    use worker = Worker.CreateOnCurrentThread(Device.Default)
