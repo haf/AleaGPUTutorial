@@ -354,7 +354,8 @@ let rec trainTree depth (optimizer:IEntropyOptimizer) numClasses (sortedTraining
             trees0.[originIdx] <- Some tree, None, None, None
         trees()
 
-//let trainStump = trainTree 1
+let trainStump optimizer numClasses sortedTrainingSet weights =
+    trainTree 1 optimizer numClasses sortedTrainingSet weights
 
 type EntropyDevice = 
     | GPU of mode : GpuMode * provider:GpuModuleProvider
@@ -482,27 +483,8 @@ let bootstrappedForestClassifier (options:TreeOptions) (weightsPerBootstrap:Weig
 
     use optimizer = options.Device.Create options.EntropyOptions numClasses sortedFeatures
     let trainer = trainTree options.MaxDepth optimizer numClasses sortedFeatures
-//    let mapper f =         
-//        match options.Device with
-//        | Pooled (_, optimizers) -> 
-//            PSeq.mapi (fun i x -> (i, f x))
-//            >> PSeq.withDegreeOfParallelism (optimizers.Size) 
-//            >> Array.ofSeq
-//            >> Array.sortBy fst
-//            >> Array.map snd
-//        | _ -> Seq.map f >> Array.ofSeq
-
     let trees = trainer weightsPerBootstrap
-
     if trees.Length <> weightsPerBootstrap.Length then failwith "length not match!"
-
-//    let trees = 
-//        weightsPerBootstrap 
-//        |> mapper (fun weights ->
-//            if (Array.length weights) <> numSamples then
-//                failwith "Invalid number of weights"
-//            weights |> trainer )
-
     RandomForest(trees, numClasses)
 
 let bootstrappedStumpsClassifier weights = 
