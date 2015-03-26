@@ -167,7 +167,7 @@ type EntropyOptimizationMemories =
         this.entropyMatrix.Dispose()
         this.reducedOutput.Dispose()
 
-[<AOTCompile>]
+[<AOTCompile(SpecificArchs="sm20;sm30;sm35")>]
 type EntropyOptimizationModule(target) as this =
     inherit GPUModule(target)
 
@@ -200,6 +200,23 @@ type EntropyOptimizationModule(target) as this =
     static let instance = Lazy.Create <| fun _ -> new EntropyOptimizationModule(GPUModuleTarget.DefaultWorker)
 
     static member Default = instance.Value
+
+    // launching function cache, because we have many small kernel, and will
+    // launch them many times, so it is good to do a lazy cache, set then in OnLoad() function.
+    [<DefaultValue>] val mutable LaunchOptAndArgOptKernelDoubleWithIdcs : Lazy<LaunchParam -> deviceptr<ValueAndIndex> -> int -> int -> deviceptr<float> -> int -> int -> deviceptr<int> -> unit>
+    [<DefaultValue>] val mutable LaunchCumSumKernel : Lazy<LaunchParam -> int -> int -> deviceptr<int> -> unit>
+    [<DefaultValue>] val mutable LaunchLogicalWeightExpansionKernel : Lazy<LaunchParam -> deviceptr<int> -> deviceptr<int> -> deviceptr<int> -> int -> unit>
+    [<DefaultValue>] val mutable LaunchFindNonZeroIndicesKernel : Lazy<LaunchParam -> deviceptr<int> -> deviceptr<int> -> int -> unit>
+    [<DefaultValue>] val mutable LaunchWeightExpansionKernel : Lazy<LaunchParam -> deviceptr<int> -> deviceptr<Label> -> deviceptr<int> -> deviceptr<int> -> int -> int -> int -> deviceptr<int> -> unit>
+    [<DefaultValue>] val mutable LaunchEntropyKernel : Lazy<LaunchParam -> deviceptr<float> -> deviceptr<int> -> int -> int -> int -> int -> float -> deviceptr<int> -> unit>
+
+    override this.OnLoad(program) =
+        this.LaunchOptAndArgOptKernelDoubleWithIdcs <- lazy this.GPULaunch<deviceptr<ValueAndIndex>, int, int, deviceptr<float>, int, int, deviceptr<int>> <@ this.OptAndArgOptKernelDoubleWithIdcs @>
+        this.LaunchCumSumKernel <- lazy this.GPULaunch<int, int, deviceptr<int>> <@ this.CumSumKernel @>
+        this.LaunchLogicalWeightExpansionKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<int>, deviceptr<int>, int> <@ this.LogicalWeightExpansionKernel @>
+        this.LaunchFindNonZeroIndicesKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<int>, int> <@ this.FindNonZeroIndicesKernel @>
+        this.LaunchWeightExpansionKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<Label>, deviceptr<int>, deviceptr<int>, int, int, int, deviceptr<int>> <@ this.WeightExpansionKernel @>
+        this.LaunchEntropyKernel <- lazy this.GPULaunch<deviceptr<float>, deviceptr<int>, int, int, int, int, float, deviceptr<int>> <@ this.EntropyKernel @>
 
     override this.Dispose(disposing) =
         if disposing then
@@ -280,7 +297,7 @@ type EntropyOptimizationModule(target) as this =
 
     member this.CumSum(matrix:Cublas.Matrix<int>, numValid) =
         let lp = LaunchParam(matrix.NumRows, primitiveScan.Resource.BlockThreads)
-        this.GPULaunch <@ this.CumSumKernel @> lp matrix.NumCols numValid (matrix.DeviceData.Ptr)
+        this.LaunchCumSumKernel.Value lp matrix.NumCols numValid (matrix.DeviceData.Ptr)
 
     [<Kernel;ReflectedDefinition>]
     member private this.LogicalWeightExpansionKernel (weightMatrix:deviceptr<int>)
@@ -295,7 +312,7 @@ type EntropyOptimizationModule(target) as this =
             weightMatrix.[matrixIdx] <- min weight 1
 
     [<Kernel;ReflectedDefinition>]
-    member private this.findNonZeroIndicesKernel (indexMatrix:deviceptr<int>)
+    member private this.FindNonZeroIndicesKernel (indexMatrix:deviceptr<int>)
                                                  (cumWeightMatrix:deviceptr<int>)
                                                  (numSamples:int) =
         let sampleIdx = blockIdx.x * blockDim.x + threadIdx.x
@@ -333,7 +350,7 @@ type EntropyOptimizationModule(target) as this =
     member this.FindNonZeroIndices(problem:EntropyOptimizationProblem, memories:EntropyOptimizationMemories) =
         let lp = lp problem.numFeatures problem.numSamples
 
-        this.GPULaunch <@ this.LogicalWeightExpansionKernel @> lp
+        this.LaunchLogicalWeightExpansionKernel.Value lp
             memories.weightMatrix.DeviceData.Ptr 
             problem.indexMatrix.DeviceData.Ptr
             memories.gpuWeights.DeviceData.Ptr
@@ -342,7 +359,7 @@ type EntropyOptimizationModule(target) as this =
         // cum sums over the weight matrix        
         this.CumSum(memories.weightMatrix, problem.numSamples)
 
-        this.GPULaunch <@ this.findNonZeroIndicesKernel @> lp
+        this.LaunchFindNonZeroIndicesKernel.Value lp
             memories.nonZeroIdcsPerFeature.DeviceData.Ptr
             memories.weightMatrix.DeviceData.Ptr
             problem.numSamples 
@@ -354,7 +371,7 @@ type EntropyOptimizationModule(target) as this =
     member this.FindNonZeroIndices(problem:EntropyOptimizationProblem, param:(Stream * EntropyOptimizationMemories)[]) =
         let lp = lp problem.numFeatures problem.numSamples
 
-        let launch = this.GPULaunch <@ this.LogicalWeightExpansionKernel @>
+        let launch = this.LaunchLogicalWeightExpansionKernel.Value
         param |> Array.iter (fun (stream, memories) ->
             launch (lp.NewWithStream(stream))
                 memories.weightMatrix.DeviceData.Ptr 
@@ -362,7 +379,7 @@ type EntropyOptimizationModule(target) as this =
                 memories.gpuWeights.DeviceData.Ptr
                 problem.numSamples )
         
-        let launch = this.GPULaunch <@ this.CumSumKernel @>
+        let launch = this.LaunchCumSumKernel.Value
         param |> Array.iter (fun (stream, memories) ->
             // cum sums over the weight matrix   
             let matrix = memories.weightMatrix
@@ -370,7 +387,7 @@ type EntropyOptimizationModule(target) as this =
             let lp = LaunchParam(matrix.NumRows, primitiveScan.Resource.BlockThreads, 0, stream)
             launch lp matrix.NumCols numValid matrix.DeviceData.Ptr )
 
-        let launch = this.GPULaunch <@ this.findNonZeroIndicesKernel @>
+        let launch = this.LaunchFindNonZeroIndicesKernel.Value
         param |> Array.iter (fun (stream, memories) ->
             launch (lp.NewWithStream(stream))
                 memories.nonZeroIdcsPerFeature.DeviceData.Ptr
@@ -380,7 +397,7 @@ type EntropyOptimizationModule(target) as this =
     member this.ExpandWeights(problem:EntropyOptimizationProblem, memories:EntropyOptimizationMemories, numValid:int) =
         let lp = lp problem.numFeatures numValid
 
-        this.GPULaunch <@ this.WeightExpansionKernel @> lp
+        this.LaunchWeightExpansionKernel.Value lp
             memories.weightsPerFeatureAndClass.DeviceData.Ptr
             problem.labelMatrix.DeviceData.Ptr
             problem.indexMatrix.DeviceData.Ptr
@@ -394,7 +411,7 @@ type EntropyOptimizationModule(target) as this =
             printfn "weightsPerFeatureAndClass:\n%A" (memories.weightsPerFeatureAndClass.ToArray2D())
 
     member this.ExpandWeights(problem:EntropyOptimizationProblem, param:(Stream * EntropyOptimizationMemories)[], numValids:int[]) =
-        let launch = this.GPULaunch <@ this.WeightExpansionKernel @>
+        let launch = this.LaunchWeightExpansionKernel.Value
         param |> Array.iteri (fun i (stream, memories) -> 
             let numValid = numValids.[i]
             let lp = lp problem.numFeatures numValid
@@ -471,7 +488,7 @@ type EntropyOptimizationModule(target) as this =
         let minWeight = options.MinWeight problem.numClasses totals
         let cumSumsMatrix = memories.weightsPerFeatureAndClass
         let lp = (lp problem.numFeatures numValid).NewWithSharedMemorySize(problem.numClasses * sizeof<int>)
-        this.GPULaunch <@ this.EntropyKernel @> lp
+        this.LaunchEntropyKernel.Value lp
             memories.entropyMatrix.DeviceData.Ptr
             cumSumsMatrix.DeviceData.Ptr
             numValid
@@ -483,7 +500,7 @@ type EntropyOptimizationModule(target) as this =
 
     member this.Entropy(problem:EntropyOptimizationProblem, param:(Stream * EntropyOptimizationMemories)[], options:EntropyOptimizationOptions, totals:int[], numValids:int[]) =
         let roundingFactor = 10.0 ** (float options.Decimals)
-        let launch = this.GPULaunch <@ this.EntropyKernel @>
+        let launch = this.LaunchEntropyKernel.Value
         param |> Array.iteri (fun i (stream, memories) ->
             let totals = totals.[i]
             let numValid = numValids.[i]
@@ -517,7 +534,7 @@ type EntropyOptimizationModule(target) as this =
             let idcs = memories.nonZeroIdcsPerFeature
             let reducedOut = memories.reducedOutput
 
-            this.GPULaunch <@ this.OptAndArgOptKernelDoubleWithIdcs @> lp
+            this.LaunchOptAndArgOptKernelDoubleWithIdcs.Value lp
                 reducedOut.DeviceData.Ptr
                 numOutputCols
                 sign
@@ -551,7 +568,7 @@ type EntropyOptimizationModule(target) as this =
         let numOutputCols = divup numCols REDUCE_BLOCK_SIZE
         let sign = minOrMax.Sign
 
-        let launch = this.GPULaunch <@ this.OptAndArgOptKernelDoubleWithIdcs @>
+        let launch = this.LaunchOptAndArgOptKernelDoubleWithIdcs.Value
         param |> Array.iteri (fun i (stream, memories) ->
             if results.[i].IsNone then 
                 let numValid = numValids.[i]
@@ -625,7 +642,7 @@ type EntropyOptimizationModule(target) as this =
 
             this.ExpandWeights(problem, param, counts)
 
-            let launch = this.GPULaunch <@ this.CumSumKernel @>
+            let launch = this.LaunchCumSumKernel.Value
             param |> Array.iteri (fun i (stream, memories) ->
                 // cum sums over the weight matrix   
                 let matrix = memories.weightsPerFeatureAndClass
