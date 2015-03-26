@@ -4,7 +4,6 @@ open FSharp.Collections.ParallelSeq
 
 open Tutorial.Fs.examples.RandomForest.DataModel
 open Tutorial.Fs.examples.RandomForest.Common
-open Tutorial.Fs.examples.RandomForest.Cuda
 open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
 
 [<Literal>]

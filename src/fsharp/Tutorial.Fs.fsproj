@@ -110,7 +110,6 @@
     <Compile Include="examples\random_forest\DataModel.fs" />
     <Compile Include="examples\random_forest\Common.fs" />
     <Compile Include="examples\random_forest\Cublas.fs" />
-    <Compile Include="examples\random_forest\MultiChannelReduce.fs" />
     <Compile Include="examples\random_forest\Array.fs" />
     <Compile Include="examples\random_forest\GpuSplitEntropy.fs" />
     <Compile Include="examples\random_forest\RandomForest.fs" />

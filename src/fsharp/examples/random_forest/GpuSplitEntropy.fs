@@ -3,11 +3,12 @@
 #nowarn "9"
 #nowarn "51"
 
+open System.Runtime.InteropServices
+
 open Alea.CUDA
 open Alea.CUDA.Utilities
 open Alea.CUDA.Unbound
 
-open Tutorial.Fs.examples.RandomForest.Cuda
 open Tutorial.Fs.examples.RandomForest.DataModel
 
 [<Literal>]
@@ -152,14 +153,17 @@ type EntropyOptimizationProblem =
         this.gpuMask.Dispose()
 
 type EntropyOptimizationMemories =
-    { gpuWeights                    : Cublas.Matrix<int>
-      weightMatrix                  : Cublas.Matrix<int>
-      nonZeroIdcsPerFeature         : Cublas.Matrix<int>
-      weightsPerFeatureAndClass     : Cublas.Matrix<int>
-      entropyMatrix                 : Cublas.Matrix<float>
-      reducedOutput                 : Cublas.Matrix<ValueAndIndex> }
+    { gpuWeights                        : Cublas.Matrix<int>
+      weightMatrix                      : Cublas.Matrix<int>
+      nonZeroIdcsPerFeature             : Cublas.Matrix<int>
+      weightsPerFeatureAndClass         : Cublas.Matrix<int>
+      entropyMatrix                     : Cublas.Matrix<float>
+      reducedOutput                     : Cublas.Matrix<ValueAndIndex>
+      valuesAndIndices                  : ValueAndIndex[]
+      mutable valuesAndIndicesHandle    : GCHandle option }
 
     member this.Dispose() =
+        if this.valuesAndIndicesHandle.IsSome then failwith "BUG"
         this.gpuWeights.Dispose()
         this.weightMatrix.Dispose()
         this.nonZeroIdcsPerFeature.Dispose()
@@ -266,13 +270,16 @@ type EntropyOptimizationModule(target) as this =
         let weightsPerFeatureAndClass = new Cublas.Matrix<_>(worker, numFeatures * numClasses, numSamples)
         let entropyMatrix = new Cublas.Matrix<_>(worker, numFeatures, numSamples)
         let reducedOutput = new Cublas.Matrix<_>(worker, numFeatures, divup numSamples REDUCE_BLOCK_SIZE)
+        let valuesAndIndices = Array.zeroCreate (numFeatures * (divup numSamples REDUCE_BLOCK_SIZE))
 
         { gpuWeights = gpuWeights
           weightMatrix = weightMatrix
           nonZeroIdcsPerFeature = nonZeroIdcsPerFeature
           weightsPerFeatureAndClass = weightsPerFeatureAndClass
           entropyMatrix = entropyMatrix
-          reducedOutput = reducedOutput }
+          reducedOutput = reducedOutput
+          valuesAndIndices = valuesAndIndices
+          valuesAndIndicesHandle = None }
 
     [<ReflectedDefinition;Kernel>]
     member private this.OptAndArgOptKernelSingle output numOutCols sign (matrix:deviceptr<float32>)  numCols numValid =
@@ -543,8 +550,9 @@ type EntropyOptimizationModule(target) as this =
                 numValid
                 idcs.DeviceData.Ptr
 
-            let valuesAndIndices = reducedOut.DeviceData.Gather()
-            let optima = Array.init numRows (fun _ -> minOrMax.DefaultValue)
+            let valuesAndIndices = memories.valuesAndIndices
+            this.GPUWorker.Gather(reducedOut.DeviceData.Ptr, valuesAndIndices)
+            let optima = Array.create numRows minOrMax.DefaultValue
             for rowIdx = 0 to numRows - 1 do
                 let rowOffset = rowIdx * numOutputCols
                 for colIdx = 0 to numBlocks - 1 do
@@ -554,24 +562,22 @@ type EntropyOptimizationModule(target) as this =
         else Array.create problem.numFeatures (0.0, problem.numSamples - 1)
 
     member this.MinimumEntropy(problem:EntropyOptimizationProblem, param:(Stream * EntropyOptimizationMemories)[], numValids:int[]) =
-        let results = param |> Array.mapi (fun i (_, memories) ->
-            let numValid = numValids.[i]
-            let offset = nativeint ( (numValid - 1) * sizeof<float> )
-            let mutable fullEntropy = -1.0
-            cuSafeCall(cuMemcpyDtoH(&&fullEntropy |> NativeInterop.NativePtr.toNativeInt, memories.entropyMatrix.DeviceData.Ptr.Handle + offset, sizeof<float> |> nativeint))
-            if fullEntropy > 0.0 then None
-            else Some (Array.create problem.numFeatures (0.0, problem.numSamples - 1)))
-
         let minOrMax = MinOrMax.Min
         let numRows = problem.numFeatures
         let numCols = problem.numSamples
         let numOutputCols = divup numCols REDUCE_BLOCK_SIZE
         let sign = minOrMax.Sign
 
+        let size = sizeof<float> |> nativeint
         let launch = this.LaunchOptAndArgOptKernelDoubleWithIdcs.Value
-        param |> Array.iteri (fun i (stream, memories) ->
-            if results.[i].IsNone then 
-                let numValid = numValids.[i]
+        let results = param |> Array.mapi (fun i (stream, memories) ->
+            let numValid = numValids.[i]
+            let offset = nativeint ( (numValid - 1) * sizeof<float> )
+            let mutable fullEntropy = nan
+            cuSafeCall(cuMemcpyDtoHAsync(&&fullEntropy |> NativeInterop.NativePtr.toNativeInt, memories.entropyMatrix.DeviceData.Ptr.Handle + offset, size, stream.Handle))
+            cuSafeCall(cuStreamSynchronize(stream.Handle))
+
+            if fullEntropy > 0.0 then
                 let numBlocks = divup numValid REDUCE_BLOCK_SIZE
                 let gridSize = dim3(numRows, numBlocks)
                 let lp = LaunchParam(gridSize, dim3 REDUCE_BLOCK_SIZE, 0, stream)
@@ -587,34 +593,33 @@ type EntropyOptimizationModule(target) as this =
                     matrix.DeviceData.Ptr
                     numCols
                     numValid
-                    idcs.DeviceData.Ptr )
+                    idcs.DeviceData.Ptr
+
+                None
+
+            else Some (Array.create problem.numFeatures (0.0, problem.numSamples - 1)))
 
         let size = numRows * numOutputCols * sizeof<ValueAndIndex> |> nativeint
-        let output = param |> Array.mapi (fun i (stream, memories) ->
+        param |> Array.iteri (fun i (stream, memories) ->
             if results.[i].IsNone then
-                let array = Array.zeroCreate<ValueAndIndex> (numRows * numOutputCols)
-                let handle = System.Runtime.InteropServices.GCHandle.Alloc(array, System.Runtime.InteropServices.GCHandleType.Pinned)
+                let handle = GCHandle.Alloc(memories.valuesAndIndices, GCHandleType.Pinned)
                 cuSafeCall(cuMemcpyDtoHAsync(handle.AddrOfPinnedObject(), memories.reducedOutput.DeviceData.Ptr.Handle, size, stream.Handle))
-                Some (array, handle)
-            else None )
+                memories.valuesAndIndicesHandle <- Some handle )
 
         param |> Array.iteri (fun i (stream, memories) ->
             if results.[i].IsNone then
                 let numValid = numValids.[i]
                 let numBlocks = divup numValid REDUCE_BLOCK_SIZE
-                let optima = Array.init numRows (fun _ -> minOrMax.DefaultValue)
+                let optima = Array.create numRows minOrMax.DefaultValue
                 cuSafeCall(cuStreamSynchronize(stream.Handle))
-                let valuesAndIndices, _ = output.[i].Value
+                memories.valuesAndIndicesHandle.Value.Free()
+                memories.valuesAndIndicesHandle <- None
+                let valuesAndIndices = memories.valuesAndIndices
                 for rowIdx = 0 to numRows - 1 do
                     let rowOffset = rowIdx * numOutputCols
                     for colIdx = 0 to numBlocks - 1 do
                         optima.[rowIdx] <- minOrMax.OptFun optima.[rowIdx] valuesAndIndices.[rowOffset + colIdx]
                 results.[i] <- Some (optima |> Array.map (fun x -> (x.Value, x.Index))))
-
-        output |> Array.iter (fun output ->
-            match output with
-            | Some (_, handle) -> handle.Free()
-            | _ -> ())
 
         results |> Array.choose id
 
