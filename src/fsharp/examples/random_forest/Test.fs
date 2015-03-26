@@ -362,6 +362,7 @@ let compareForests options1 options2 =
     let trainingData = defaultTrainingData
 
     let numTrees = 100
+    //let numTrees = 4
     let rnd = System.Random(0)
     let weights = Array.init numTrees (fun _ -> randomWeights rnd trainingData.Length)
     let classifier options = bootstrappedForestClassifier options weights
@@ -369,11 +370,15 @@ let compareForests options1 options2 =
     let model1 = classifier options1 defaultTrainingData
     let (RandomForest (trees1, _)) = model1
 
-    let rnd = System.Random(0)
+    //printfn "-------------------------------------"
+
     let model2 = classifier options2 trainingData
     let (RandomForest (trees2, _)) = model2
-    
+
     Array.iteri2 (fun i tree1 tree2 -> 
+        //printfn "tree1\n%O" tree1
+        //printfn "tree2\n%O" tree2
+    
         try
             tree1 |> should equal tree2
         with 
@@ -393,50 +398,57 @@ let ``Random forest on CPU Parallel vs GPU single threaded`` () =
     compareForests { options with Device = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule) }
                    { options with Device = CPU Parallel }
 
-//[<Test>]
-//let ``Random forest on CPU thread pool vs GPU thread pool`` () =
-//    let gpuOptimizerModule = GpuSplitEntropy.EntropyOptimizer.Default
-//    let poolSize = 5
-//    let options = { TreeOptions.Default with MaxDepth = 4 }
-//    let trainingData = defaultTrainingData
-//    let numClasses = trainingData.NumClasses
-//    match trainingData with
-//    | SortedFeatures sortedData ->
-//        let createPool (device : EntropyDevice) = device.CreatePool poolSize options.EntropyOptions numClasses sortedData
-//        let cpuPool, cpuDisposers = createPool (CPU Sequential)
-//        let gpuPool, gpuDisposers = createPool (GPU gpuOptimizerModule)
-//        compareForests  { options with Device = cpuPool } { options with Device = gpuPool }
-//        let callAll disposers = disposers |> Array.iter (fun disposer -> disposer())
-//        callAll cpuDisposers
-//        callAll gpuDisposers
-//    | _ -> failwith "expected SortedFeatures"
-//
-//let addSquareRootFeatureSelector options =
-//    let rnd = System.Random()
-//    let featureSelector = EntropyOptimizationOptions.SquareRootFeatureSelector rnd
-//    let entropyOptions = {options.EntropyOptions with FeatureSelector = featureSelector}
-//    { options with EntropyOptions = entropyOptions }
-//
-//[<Test>]
-//let ``Features subselection`` () =
-//    let gpuOptimizerModule = GpuSplitEntropy.EntropyOptimizer.Default
-//    let poolSize = 2
-//    let options = { TreeOptions.Default with MaxDepth = 4 }
-//    let trainingData = defaultTrainingData
-//    let numClasses = trainingData.NumClasses
-//    match trainingData with
-//    | SortedFeatures sortedData ->
-//        let createPool (device : EntropyDevice) = device.CreatePool poolSize options.EntropyOptions numClasses sortedData
-//        let cpuPool, cpuDisposers = createPool (CPU Sequential)
-//        let gpuPool, gpuDisposers = createPool (GPU gpuOptimizerModule)
-//        compareForests  
-//            ({ options with Device = cpuPool } |> addSquareRootFeatureSelector)
-//            ({ options with Device = gpuPool } |> addSquareRootFeatureSelector)
-//        let callAll disposers = disposers |> Array.iter (fun disposer -> disposer())
-//        callAll cpuDisposers
-//        callAll gpuDisposers
-//    | _ -> failwith "expected SortedFeatures"
-//
+[<Test>]
+let ``Random forest on CPU thread pool vs GPU thread pool`` () =
+    use worker2 = Worker.Create(Device.Default)
+    use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2))
+    let gpuDevice1 = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
+    let gpuDevice2 = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
+    let gpuDevice = Pool(PoolMode.EqualPartition, [gpuDevice1; gpuDevice2])
+
+    let cpuDevice = Pool(PoolMode.EqualPartition, List.init 5 (fun i -> CPU(CpuMode.Sequential)))
+
+    let options = { TreeOptions.Default with MaxDepth = 4 }
+    let trainingData = defaultTrainingData
+    let numClasses = trainingData.NumClasses
+
+    match trainingData with
+    | SortedFeatures sortedData ->
+        compareForests  { options with Device = cpuDevice } { options with Device = gpuDevice }
+    | _ -> failwith "expected SortedFeatures"
+
+let addSquareRootFeatureSelector seed options =
+    let rnd = System.Random(seed)
+    let featureSelector = EntropyOptimizationOptions.SquareRootFeatureSelector rnd
+//    let featureSelector n =
+//        let r = featureSelector n
+//        printfn "%A" r
+//        r
+    let entropyOptions = {options.EntropyOptions with FeatureSelector = featureSelector}
+    { options with EntropyOptions = entropyOptions }
+
+[<Test>]
+let ``Features subselection`` () =
+    use worker2 = Worker.Create(Device.Default)
+    use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2))
+    let gpuDevice1 = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
+    let gpuDevice2 = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
+    //let gpuDevice = Pool(PoolMode.EqualPartition, [gpuDevice1; gpuDevice2])
+    let gpuDevice = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
+
+    //let cpuDevice = Pool(PoolMode.EqualPartition, List.init 2 (fun i -> CPU(CpuMode.Sequential)))
+    let cpuDevice = CPU(CpuMode.Sequential)
+
+    let options = { TreeOptions.Default with MaxDepth = 4 }
+    let trainingData = defaultTrainingData
+    let numClasses = trainingData.NumClasses
+    match trainingData with
+    | SortedFeatures sortedData ->
+        compareForests  
+            ({ options with Device = gpuDevice } |> addSquareRootFeatureSelector 50)
+            ({ options with Device = cpuDevice } |> addSquareRootFeatureSelector 50)
+    | _ -> failwith "expected SortedFeatures"
+
 //[<Test>]
 //let ``Random forest on CPU Parallel vs GPU thread pool`` () =
 ////    use worker = Worker.CreateOnCurrentThread(Device.Default)

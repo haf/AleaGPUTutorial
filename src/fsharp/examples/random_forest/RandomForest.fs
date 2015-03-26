@@ -2,6 +2,9 @@
 
 open FSharp.Collections.ParallelSeq
 
+open Alea.CUDA
+open Alea.CUDA.Utilities
+
 open Tutorial.Fs.examples.RandomForest.DataModel
 open Tutorial.Fs.examples.RandomForest.Common
 open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
@@ -170,14 +173,19 @@ type CpuMode =
 
 type GpuModuleProvider =
     | DefaultModule
+    | Specified of gpuModule:GpuSplitEntropy.EntropyOptimizationModule
 
     member this.GetModule() =
         match this with
         | DefaultModule -> GpuSplitEntropy.EntropyOptimizationModule.Default
+        | Specified gpuModule -> gpuModule
 
 type GpuMode =
     | SingleWeight
     | SingleWeightWithStream of numStreams:int
+
+type PoolMode =
+    | EqualPartition
 
 type IEntropyOptimizer =
     inherit System.IDisposable
@@ -235,51 +243,56 @@ let restrictBelow idx (source : _[]) =
 let restrictAbove idx (source : _[]) = 
     source |> restrict idx (source.Length - idx)
 
-/// [Old] Domains need to be sorted in ascending order
-//let rec trainTree depth (optimizer : Weights -> (float * int)[]) 
-//    numClasses (sortedTrainingSet : (Domain * Labels * Indices)[]) (weights : Weights) =
-//    let entropy, splitIdx, featureIdx =
-//        if depth = 0 then
-//            nan, weights.GetUpperBound(0), 0
-//        else
-//            optimizer weights
-//            |> Array.mapi (fun i (entropy, splitIdx) -> (entropy, splitIdx, i))
-//            |> Array.minBy (fun (entropy, _, _) -> entropy)
-//
-//    let domain, labels, indices = sortedTrainingSet.[featureIdx]
-//    let sortedWeights = weights |> Array.projectIdcs indices
-//    let threshold = domainThreshold sortedWeights domain splitIdx
-//
-//    if DEBUG then
-//        printfn "depth: %A, entropy: %A, splitIdx: %A, featureIdx: %A" depth entropy splitIdx featureIdx
-//        printf "Labels:\n["
-//        (sortedWeights, labels) ||> Array.iteri2 (fun i weight label ->
-//            if weight <> 0 then
-//                printf " (%A * %A) " label weight
-//            if (i = splitIdx) then printf "|"
-//        )
-//        printfn "]"
-//
-//    match threshold with
-//    | Some num ->
-//        // set weights to 0 for elements which aren't included in left and right branches respectively
-//        let lowWeights  = sortedWeights |> restrictBelow splitIdx
-//        let highWeights = sortedWeights |> restrictAbove (splitIdx + 1)
-//        if DEBUG then
-//            printfn "Low  counts: %A" (countSamples lowWeights numClasses labels)
-//            printfn "High counts: %A" (countSamples highWeights numClasses labels)
-//        let trainTree weights = 
-//            trainTree (depth - 1) optimizer numClasses sortedTrainingSet (weights |> Array.permByIdcs indices)
-//        let low  = trainTree lowWeights
-//        let high = trainTree highWeights
-//        match (low, high) with
-//        | (Leaf lowLabel, Leaf highLabel) when lowLabel = highLabel -> 
-//            Tree.Leaf lowLabel
-//        | (_, _) ->
-//            Tree.Node (low, {Feature = featureIdx; Threshold = num}, high)
-//    | None -> 
-//        let label = findMajorityClass sortedWeights numClasses labels
-//        Tree.Leaf label
+// [Old] Domains need to be sorted in ascending order
+let trainTree' depth (optimizer:IEntropyOptimizer) numClasses sortedTrainingSet (weights:Weights[]) =
+    let rec trainTree depth (optimizer : Weights -> (float * int)[]) 
+        numClasses (sortedTrainingSet : (Domain * Labels * Indices)[]) (weights : Weights) =
+        let entropy, splitIdx, featureIdx =
+            if depth = 0 then
+                nan, weights.GetUpperBound(0), 0
+            else
+                optimizer weights
+                |> Array.mapi (fun i (entropy, splitIdx) -> (entropy, splitIdx, i))
+                |> Array.minBy (fun (entropy, _, _) -> entropy)
+
+        let domain, labels, indices = sortedTrainingSet.[featureIdx]
+        let sortedWeights = weights |> Array.projectIdcs indices
+        let threshold = domainThreshold sortedWeights domain splitIdx
+
+        if DEBUG then
+            printfn "depth: %A, entropy: %A, splitIdx: %A, featureIdx: %A" depth entropy splitIdx featureIdx
+            printf "Labels:\n["
+            (sortedWeights, labels) ||> Array.iteri2 (fun i weight label ->
+                if weight <> 0 then
+                    printf " (%A * %A) " label weight
+                if (i = splitIdx) then printf "|"
+            )
+            printfn "]"
+
+        match threshold with
+        | Some num ->
+            // set weights to 0 for elements which aren't included in left and right branches respectively
+            let lowWeights  = sortedWeights |> restrictBelow splitIdx
+            let highWeights = sortedWeights |> restrictAbove (splitIdx + 1)
+            if DEBUG then
+                printfn "Low  counts: %A" (countSamples lowWeights numClasses labels)
+                printfn "High counts: %A" (countSamples highWeights numClasses labels)
+            let trainTree weights = 
+                trainTree (depth - 1) optimizer numClasses sortedTrainingSet (weights |> Array.permByIdcs indices)
+            let low  = trainTree lowWeights
+            let high = trainTree highWeights
+            match (low, high) with
+            | (Leaf lowLabel, Leaf highLabel) when lowLabel = highLabel -> 
+                Tree.Leaf lowLabel
+            | (_, _) ->
+                Tree.Node (low, {Feature = featureIdx; Threshold = num}, high)
+        | None -> 
+            let label = findMajorityClass sortedWeights numClasses labels
+            Tree.Leaf label
+
+    let optimizer weights = optimizer.Optimize([|weights|]).[0]
+
+    weights |> Array.map (fun weights -> trainTree depth optimizer numClasses sortedTrainingSet weights)
         
 /// Domains need to be sorted in ascending order
 let rec trainTree depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainingSet:(Domain * Labels * Indices)[]) (weights:Weights[]) =
@@ -358,10 +371,9 @@ let trainStump optimizer numClasses sortedTrainingSet weights =
     trainTree 1 optimizer numClasses sortedTrainingSet weights
 
 type EntropyDevice = 
-    | GPU of mode : GpuMode * provider:GpuModuleProvider
-    | CPU of mode : CpuMode
-//    | Cached of origin:EntropyDevice * optimizer:IEntropyOptimizer
-//    | Pooled of origin: EntropyDevice * optimizers : Collections.BlockingObjectPool<OptimizerSignature>
+    | GPU of mode:GpuMode * provider:GpuModuleProvider
+    | CPU of mode:CpuMode
+    | Pool of mode:PoolMode * devices:EntropyDevice seq
 
     member this.Create options numClasses (sortedTrainingSet:(_ * Labels * Indices)[]) : IEntropyOptimizer =
         let _, labelsPerFeature, indicesPerFeature = sortedTrainingSet |> Array.unzip3
@@ -375,7 +387,6 @@ type EntropyDevice =
                 let problem, memories = worker.Eval <| fun _ ->
                     let problem = gpuModule.CreateProblem(numClasses, labelsPerFeature, indicesPerFeature)
                     let memories = gpuModule.CreateMemories(problem)
-                    problem.gpuMask.Scatter(options.FeatureSelector problem.numFeatures)
                     problem, memories
 
                 { new IEntropyOptimizer with
@@ -396,7 +407,6 @@ type EntropyDevice =
                         let stream = gpuModule.BorrowStream()
                         let memories = gpuModule.CreateMemories(problem)
                         stream, memories)
-                    problem.gpuMask.Scatter(options.FeatureSelector problem.numFeatures)
                     problem, param
 
                 { new IEntropyOptimizer with
@@ -430,35 +440,29 @@ type EntropyDevice =
               interface System.IDisposable with
                 member this.Dispose() = () }
 
-//        | Cached (_, optimizer) -> optimizer, emptyDisposer
-//        | Pooled (_, optimizers) -> 
-//            let optimize weights = 
-//                let optimizer = optimizers.Acquire()
-//                let result = optimizer weights
-//                optimizers.Release(optimizer)
-//                result
-//            optimize, emptyDisposer
+        | Pool (mode, devices) ->
+            let optimizers = devices |> Seq.map (fun dev -> dev.Create options numClasses sortedTrainingSet) |> Array.ofSeq
+            match mode with
+            | PoolMode.EqualPartition ->
 
-//    member this.ToCached options numClasses sortedTrainingSet =
-//        match this with
-//        | Cached _ -> failwith "already cached"
-//        | Pooled _ -> failwith "cannot cache a pool"
-//        | _ ->
-//            let (optimizer, disposer) = this.Create options numClasses sortedTrainingSet
-//            Cached (this, optimizer), disposer
-//
-//    member this.CreatePool poolSize options numClasses sortedTrainingSet =
-//        match this with
-//        | Cached _ -> failwith "cannot pool a cached optimizer"
-//        | Pooled _ -> failwith "already pooled"
-//        | _ ->
-//            let (devices, disposers) = 
-//                Array.init poolSize (fun _ -> this.ToCached options numClasses sortedTrainingSet) |> Array.unzip
-//            let optimizers = devices |> Array.map (function 
-//                | Cached (_, optimizer) -> optimizer
-//                | _ -> failwith "not cached"
-//            )
-//            Pooled (this, Collections.BlockingObjectPool<_>(optimizers)), disposers
+                { new IEntropyOptimizer with
+                    member this.Optimize(weights) =
+                        let batchSize = divup weights.Length optimizers.Length
+                        optimizers
+                        |> Array.mapi (fun i optimizer ->
+                            let offset = i * batchSize
+                            if offset < weights.Length then
+                                let length = min batchSize (weights.Length - offset)
+                                let weights = Array.sub weights offset length
+                                async { return optimizer.Optimize(weights) }
+                            else async { return Array.empty } )
+                        |> Async.Parallel
+                        |> Async.RunSynchronously
+                        |> Array.concat
+                                        
+                  interface System.IDisposable with
+                    member this.Dispose() =
+                        optimizers |> Array.iter (fun opt -> opt.Dispose()) }
 
     member this.CreateDefaultOptions numClasses (sortedTrainingSet : (_ * Labels * Indices)[]) = 
         this.Create EntropyOptimizationOptions.Default numClasses sortedTrainingSet
