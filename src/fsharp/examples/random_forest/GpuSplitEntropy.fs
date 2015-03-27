@@ -35,7 +35,9 @@ type ValueAndIndex =
     [<ReflectedDefinition>]
     static member inline Opt sign (a:ValueAndIndex) (b:ValueAndIndex) =
 //        if a.Value = b.Value then
-//            if a.Index > b.Index then b else a
+//            if a.Value = 0.0 then 
+//                if a.Index > b.Index then b else a
+//            else a
 //        else 
             let comparison = if (a.Value > b.Value) then sign else -sign
             if comparison > 0 then a else b
@@ -495,7 +497,7 @@ type EntropyOptimizationModule(target) as this =
                     let rawEntropy = (leftEntropy + rightEntropy) / (float (leftTotal + rightTotal))
                     let condition = sampleIdx = upperBound || (minWeight <= leftTotal && minWeight <= rightTotal)
                 
-                    if condition then (__nv_round (rawEntropy * roundingFactor)) / roundingFactor else infinity
+                    if condition then (__nv_nearbyint (rawEntropy * roundingFactor)) / roundingFactor else infinity
                 else infinity
 
     /// Returns a GPU matrix that the caller needs to dispose of

@@ -247,7 +247,7 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
     )
 
     let r = labelsPerFeature |> mapper mapping
-    //printfn "%A" r
+//    printfn "%A" r
     r
 
 let restrict startIdx count (source : _[]) = 

@@ -444,7 +444,7 @@ let ``Features subselection`` () =
     match trainingData with
     | SortedFeatures sortedData ->
         compareForests  
-            ({ options with Device = gpuDevice2 } |> addSquareRootFeatureSelector 50)
+            ({ options with Device = gpuDevice1 } |> addSquareRootFeatureSelector 50)
             ({ options with Device = cpuDevice } |> addSquareRootFeatureSelector 50)
     | _ -> failwith "expected SortedFeatures"
 
