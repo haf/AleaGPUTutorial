@@ -546,13 +546,24 @@ let ``Speed of training random forests`` () =
 open FSharp.Data
 open Tutorial.Fs.examples.RandomForest.Array
 
-let printFractionOfCorrectForcasts trainingData =
+let printFractionOfCorrectForcasts trainingData device =
     // split up data in training and test data:
-    let trainingData, testData = randomlySplitUpArray trainingData (System.Random(42)) (50 * Array.length trainingData / 100)
+    let trainingData, testData = randomlySplitUpArray trainingData (System.Random()) (50 * Array.length trainingData / 100)
+
+
+//    let options = GpuSplitEntropy.EntropyOptimizationOptions.Default
+    let options = { GpuSplitEntropy.EntropyOptimizationOptions.Default with
+                        FeatureSelector = GpuSplitEntropy.EntropyOptimizationOptions.SquareRootFeatureSelector (System.Random()) }
+
+    let options = { TreeOptions.Default with
+                        Device = device
+                        EntropyOptions = options }
+
+    printfn "%A" options
 
     // train model
     let trainingData = LabeledSamples trainingData
-    let model = randomForestClassifier (System.Random(42)) TreeOptions.Default 100 trainingData
+    let model = randomForestClassifier (System.Random()) options 100 trainingData
     
     // predict labels
     let features, expectedLabels = Array.unzip testData
@@ -561,9 +572,10 @@ let printFractionOfCorrectForcasts trainingData =
                                                        |> Array.average
     printfn "%f  of forecasts were correct (insample)" (fraction*100.0)
 
+[<Test>]
 let irisExample () =
     // read in data
-    let path = @"C:\Users\Tobias\Documents\git\AleaGPUGitHubTutorial\src\fsharp\examples\random_forest\irisExample.csv"
+    let path = @"C:\Users\Xiang\Desktop\aaa.csv"
     let data =  CsvFile.Load(path).Cache()
  
     let trainingData = 
@@ -581,7 +593,11 @@ let irisExample () =
                                                  | x -> failwithf "should not happen %A" x)
         |]
 
-    printFractionOfCorrectForcasts trainingData 
+    let cpuDevice = CPU(CpuMode.Parallel)
+    let gpuDevice = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
+
+    printFractionOfCorrectForcasts trainingData cpuDevice
+    printFractionOfCorrectForcasts trainingData gpuDevice
 
 let titanicExample () =
     // read in data
