@@ -8,38 +8,40 @@ open Tutorial.Fs.examples.RandomForest.RandomForest
 open Tutorial.Fs.examples.RandomForest.Array
 
 (***
-Make scatter-plots of the iris data. 
+The [Iris flower data set](http://en.wikipedia.org/wiki/Iris_flower_data_set) contains four features (length and the width of both: 
+[sepals and petals](http://en.wikipedia.org/wiki/Sepal#/media/File:Petal-sepal.jpg) ) of three species 
+[Iris setosa](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Kosaciec_szczecinkowaty_Iris_setosa.jpg), 
+[Iris virginica](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_virginica.jpg) and  
+[Iris versicolor](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_versicolor_3.jpg). 
+It is not the typical dataset for random forests, but as it only has few features it gives small trees ideal for an examples.
 
-<img src="../content/images/Sepal-length_Sepal-width.png" width="500" alt="parallel square result"> 
-<img src="../content/images/Sepal-Width_Petal-length.png" width="500" alt="parallel square result"> 
-<img src="../content/images/Petal-length_Petal-width.png" width="500" alt="parallel square result"> 
+In order to get a feeling for the data, we do three scatterplots of the different features:
+
+<img src="../content/images/Sepal-length_Sepal-width.png" width="500" alt="scatter plot: sepal length vs. sepal width"> 
+<img src="../content/images/Sepal-Width_Petal-length.png" width="500" alt="scatter plot: sepal width vs. petal length"> 
+<img src="../content/images/Petal-length_Petal-width.png" width="500" alt="scatter plot: petal length vs. petal widht"> 
 *)
-
 let irisScatterPlot (trainingData : DataModel.LabeledSample[]) =
-
-    let createPoints (trainingData : DataModel.LabeledSample[]) filter choose =
-        trainingData |> Array.filter filter 
-                     |> Array.map fst
-                     |> Array.map choose
 
     let setosaFilter = (fun e -> snd e = 0)
     let versicolorFilter = (fun e -> snd e = 1)
     let virginicaFilter = (fun e -> snd e = 2)
 
-    let chooseSepalLengthWidth (x:_[]) = x.[0], x.[1] // (fun x -> x.[0], x.[1])
+    let chooseSepalLengthWidth (x:_[]) = x.[0], x.[1]
     let chooseSepalWidthPetalLenght (x:_[]) = x.[1], x.[2]
     let choosePetalLenghtPetalWidth (x:_[]) = x.[2], x.[3]
 
-    let createChart (choose : float[] -> float*float) filename =
-        let chart =  Chart.Combine( [  Chart.Point(createPoints trainingData setosaFilter choose, "setosa")
-                                       Chart.Point(createPoints trainingData versicolorFilter choose, "versicolor")
-                                       Chart.Point(createPoints trainingData virginicaFilter choose, "virginica") ])
-//                                       |> Chart.WithYAxis(Min=1.5, Max=4.5)
-//                                       |> Chart.WithXAxis(Min=4.0, Max=8.0)
-                                       |> Chart.WithLegend(true)
-                                       |> Chart.WithTitle(filename)
-//                                       |> Chart.WithXAxis(Enabled=false)
-//                                       |> Chart.WithYAxis(Enabled=false)
+    let createChart (chooseFeatures : float[] -> float*float) filename =
+        let extractPoints (trainingData : DataModel.LabeledSample[]) filterLabel chooseFeature =
+            trainingData |> Array.filter filterLabel 
+                         |> Array.map fst
+                         |> Array.map chooseFeature
+        let chart =  Chart.Combine([  Chart.Point(extractPoints trainingData setosaFilter chooseFeatures, "setosa")
+                                      Chart.Point(extractPoints trainingData versicolorFilter chooseFeatures, "versicolor")
+                                      Chart.Point(extractPoints trainingData virginicaFilter chooseFeatures, "virginica") 
+                                   ])
+                        |> Chart.WithLegend(true)
+                        |> Chart.WithTitle(filename)
         chart.ShowChart() |> ignore
         chart.SaveChartAs(filename + ".png", ChartTypes.ChartImageFormat.Png)
 
@@ -97,7 +99,7 @@ let irisExample () =
                                                  | x -> failwithf "should not happen %A" x)
         |]
 
-    plotData trainingData
+    irisScatterPlot trainingData
 
     let cpuDevice = CPU(CpuMode.Parallel)
     let gpuDevice = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
