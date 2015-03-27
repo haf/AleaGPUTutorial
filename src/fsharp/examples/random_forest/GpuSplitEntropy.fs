@@ -9,6 +9,7 @@ open Alea.CUDA
 open Alea.CUDA.Utilities
 open Alea.CUDA.Unbound
 
+open Tutorial.Fs.examples.RandomForest.Common
 open Tutorial.Fs.examples.RandomForest.DataModel
 
 [<Literal>]
@@ -651,27 +652,7 @@ type EntropyOptimizationModule(target) as this =
             this.ExpandWeights(problem, memories, count)
             this.CumSum(memories.weightsPerFeatureAndClass, count)
             this.Entropy(problem, memories, options, sum, count)
-            let result = this.MinimumEntropy(problem, memories, count, masks)
-
-//            if true then
-//                let weightsPerFeature = Array.expandWeights problem.indicesPerFeature weights
-//                let nonZeroIdcsPerFeature = Array.findNonZeroWeights weightsPerFeature
-//                let mapper f = Array.Parallel.mapi f
-//                let projector (sources : _[][]) =
-//                    sources |> mapper (fun i source -> source |> Array.projectIdcs nonZeroIdcsPerFeature.[i])
-//                let weightsPerFeature = projector weightsPerFeature
-//                let labelsPerFeature  = projector problem.labelsPerFeature
-//                let upperBoundNonZero = nonZeroIdcsPerFeature.[0].GetUpperBound(0)
-//                let upperBoundWeights = weights.GetUpperBound(0)
-//                let translator featureIdx (x, i) = 
-//                    if i = upperBoundNonZero then x, upperBoundWeights else x, nonZeroIdcsPerFeature.[featureIdx].[i]
-//
-//                result |> Array.mapi (fun featureIdx (entropy, index) ->
-//                    if entropy > 0.0 then entropy, index
-//                    else translator featureIdx (entropy, index))
-//
-//            else result
-            result
+            this.MinimumEntropy(problem, memories, count, masks)
 
     member this.Optimize(problem:EntropyOptimizationProblem, param:(Stream * EntropyOptimizationMemories)[], options:EntropyOptimizationOptions, weights:Weights[]) =
         this.GPUWorker.Eval <| fun _ ->
