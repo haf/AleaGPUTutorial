@@ -18,7 +18,7 @@ let private DEBUG = false
 let BLOCK_SIZE = 128
 
 [<Literal>]
-let REDUCE_BLOCK_SIZE = 1024
+let REDUCE_BLOCK_SIZE = 512
 
 [<Struct;Align(8)>]
 type ValueAndIndex =
@@ -186,7 +186,7 @@ type EntropyOptimizationModule(target) as this =
             cuda { return MultiChannelReducePrimitive(options.MinimalArch) }
         |> this.GPUDefineResource
 
-    let summarizeWeights (weights : Weights) =
+    let summarizeWeights (weights:Weights) =
         let mutable sum = 0
         let mutable count = 0
         for weight in weights do
@@ -270,7 +270,6 @@ type EntropyOptimizationModule(target) as this =
         let entropyMatrix = new Cublas.Matrix<_>(worker, numFeatures, numSamples)
         let reducedOutput = new Cublas.Matrix<_>(worker, numFeatures, divup numSamples REDUCE_BLOCK_SIZE)
         let valuesAndIndices = Array.zeroCreate (numFeatures * (divup numSamples REDUCE_BLOCK_SIZE))
-        //let gpuMask = new Cublas.Matrix<_>(worker, 1, numFeatures, Array.create numFeatures 1)
         let gpuMask = new Cublas.Matrix<_>(worker, 1, numFeatures)
 
         { gpuWeights = gpuWeights
@@ -526,83 +525,46 @@ type EntropyOptimizationModule(target) as this =
                 roundingFactor
                 memories.gpuMask.DeviceData.Ptr )
 
-    member this.MinimumEntropyTemp(problem:EntropyOptimizationProblem, memories:EntropyOptimizationMemories, numValid:int) =
-        let fullEntropy = memories.entropyMatrix.Gather(0, numValid - 1)
-        if fullEntropy > 0.0 then
-            let minOrMax = MinOrMax.Min
-            let numRows = problem.numFeatures
-            let numCols = problem.numSamples
-            let numOutputCols = divup numCols REDUCE_BLOCK_SIZE
-            let sign = minOrMax.Sign
+    member this.MinimumEntropy(problem:EntropyOptimizationProblem, memories:EntropyOptimizationMemories, numValid:int, masks:int[]) =
+        let minOrMax = MinOrMax.Min
+        let numRows = problem.numFeatures
+        let numCols = problem.numSamples
+        let numOutputCols = divup numCols REDUCE_BLOCK_SIZE
+        let sign = minOrMax.Sign
 
-            let numBlocks = divup numValid REDUCE_BLOCK_SIZE
-            let gridSize = dim3(numRows, numBlocks)
-            let lp = LaunchParam(gridSize, dim3 REDUCE_BLOCK_SIZE)
+        let numBlocks = divup numValid REDUCE_BLOCK_SIZE
+        let gridSize = dim3(numRows, numBlocks)
+        let lp = LaunchParam(gridSize, dim3 REDUCE_BLOCK_SIZE)
 
-            let matrix = memories.entropyMatrix
-            let idcs = memories.nonZeroIdcsPerFeature
-            let reducedOut = memories.reducedOutput
+        let matrix = memories.entropyMatrix
+        let idcs = memories.nonZeroIdcsPerFeature
+        let reducedOut = memories.reducedOutput
 
-            this.LaunchOptAndArgOptKernelDoubleWithIdcs.Value lp
-                reducedOut.DeviceData.Ptr
-                numOutputCols
-                sign
-                matrix.DeviceData.Ptr
-                numCols
-                numValid
-                idcs.DeviceData.Ptr
+        this.LaunchOptAndArgOptKernelDoubleWithIdcs.Value lp
+            reducedOut.DeviceData.Ptr
+            numOutputCols
+            sign
+            matrix.DeviceData.Ptr
+            numCols
+            numValid
+            idcs.DeviceData.Ptr
 
-            let valuesAndIndices = memories.valuesAndIndices
-            this.GPUWorker.Gather(reducedOut.DeviceData.Ptr, valuesAndIndices)
-            let optima = Array.create numRows minOrMax.DefaultValue
-            for rowIdx = 0 to numRows - 1 do
-                let rowOffset = rowIdx * numOutputCols
-                for colIdx = 0 to numBlocks - 1 do
-                    optima.[rowIdx] <- minOrMax.OptFun optima.[rowIdx] valuesAndIndices.[rowOffset + colIdx]
-            optima |> Array.map (fun x -> (x.Value, x.Index))
+        let valuesAndIndices = memories.valuesAndIndices
+        this.GPUWorker.Gather(reducedOut.DeviceData.Ptr, valuesAndIndices)
+        let optima = Array.create numRows (ValueAndIndex.ofDouble System.Double.PositiveInfinity (problem.numSamples - 1))
+        for rowIdx = 0 to numRows - 1 do
+            let rowOffset = rowIdx * numOutputCols
+            for colIdx = 0 to numBlocks - 1 do
+                optima.[rowIdx] <- minOrMax.OptFun optima.[rowIdx] valuesAndIndices.[rowOffset + colIdx]
 
-        else Array.create problem.numFeatures (0.0, problem.numSamples - 1)
+        let fullEntropy =
+            (optima, masks)
+            ||> Seq.zip
+            |> Seq.filter (fun (_, mask) -> mask <> 0)
+            |> Seq.sumBy (fun (entropy, _) -> entropy.Value)
 
-    member this.MinimumEntropy(problem:EntropyOptimizationProblem, memories:EntropyOptimizationMemories, numValid:int) =
-
-        let optima() =
-            let minOrMax = MinOrMax.Min
-            let numRows = problem.numFeatures
-            let numCols = problem.numSamples
-            let numOutputCols = divup numCols REDUCE_BLOCK_SIZE
-            let sign = minOrMax.Sign
-
-            let numBlocks = divup numValid REDUCE_BLOCK_SIZE
-            let gridSize = dim3(numRows, numBlocks)
-            let lp = LaunchParam(gridSize, dim3 REDUCE_BLOCK_SIZE)
-
-            let matrix = memories.entropyMatrix
-            let idcs = memories.nonZeroIdcsPerFeature
-            let reducedOut = memories.reducedOutput
-
-            this.LaunchOptAndArgOptKernelDoubleWithIdcs.Value lp
-                reducedOut.DeviceData.Ptr
-                numOutputCols
-                sign
-                matrix.DeviceData.Ptr
-                numCols
-                numValid
-                idcs.DeviceData.Ptr
-
-            //let valuesAndIndices = memories.valuesAndIndices
-            let valuesAndIndices = Array.zeroCreate (numRows * numOutputCols)
-            this.GPUWorker.Gather(reducedOut.DeviceData.Ptr, valuesAndIndices)
-            let optima = Array.create numRows minOrMax.DefaultValue
-            for rowIdx = 0 to numRows - 1 do
-                let rowOffset = rowIdx * numOutputCols
-                for colIdx = 0 to numBlocks - 1 do
-                    optima.[rowIdx] <- minOrMax.OptFun optima.[rowIdx] valuesAndIndices.[rowOffset + colIdx]
-            optima |> Array.map (fun x -> (x.Value, x.Index))
-
-        let optima = optima()
-        let fullEntropy = memories.entropyMatrix.Gather(0, numValid - 1)
-        if fullEntropy > 0.0 then optima
-        else Array.create problem.numFeatures (0.0, problem.numSamples - 1)
+        if fullEntropy > 0.0 then optima |> Array.map (fun x -> x.Value, x.Index)
+        else optima |> Array.map (fun x -> x.Value, problem.numSamples - 1)
 
     member this.MinimumEntropy(problem:EntropyOptimizationProblem, param:(Stream * EntropyOptimizationMemories)[], numValids:int[]) =
         let minOrMax = MinOrMax.Min
@@ -668,14 +630,15 @@ type EntropyOptimizationModule(target) as this =
 
     member this.Optimize(problem:EntropyOptimizationProblem, memories:EntropyOptimizationMemories, options:EntropyOptimizationOptions, weights:Weights) = 
         this.GPUWorker.Eval <| fun _ ->
-            memories.gpuMask.Scatter(options.FeatureSelector problem.numFeatures)
+            let masks = options.FeatureSelector problem.numFeatures
+            memories.gpuMask.Scatter(masks)
             memories.gpuWeights.Scatter(weights)
             this.FindNonZeroIndices(problem, memories)
             let sum, count = summarizeWeights weights
             this.ExpandWeights(problem, memories, count)
             this.CumSum(memories.weightsPerFeatureAndClass, count)
             this.Entropy(problem, memories, options, sum, count)
-            this.MinimumEntropy(problem, memories, count)
+            this.MinimumEntropy(problem, memories, count, masks)
 
     member this.Optimize(problem:EntropyOptimizationProblem, param:(Stream * EntropyOptimizationMemories)[], options:EntropyOptimizationOptions, weights:Weights[]) =
         this.GPUWorker.Eval <| fun _ ->

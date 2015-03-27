@@ -246,7 +246,17 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
             (infinity, upperBoundWeights)
     )
 
-    labelsPerFeature |> mapper mapping
+    let result = labelsPerFeature |> mapper mapping
+
+    let fullEntropy = 
+        (result, mask)
+        ||> Seq.zip
+        |> Seq.filter (fun (_, mask) -> mask <> 0)
+        |> Seq.sumBy (fun ((entropy,_),_) -> entropy)
+
+    if fullEntropy > 0.0 then result
+    else result |> Array.map (fun (x, _) -> x, upperBoundWeights)
+//    result
 
 let restrict startIdx count (source : _[]) = 
     let target  = Array.zeroCreate source.Length
@@ -260,7 +270,7 @@ let restrictAbove idx (source : _[]) =
     source |> restrict idx (source.Length - idx)
 
 // [Old] Domains need to be sorted in ascending order
-let trainTree' depth (optimizer:IEntropyOptimizer) numClasses sortedTrainingSet (weights:Weights[]) =
+let trainTree depth (optimizer:IEntropyOptimizer) numClasses sortedTrainingSet (weights:Weights[]) =
     let rec trainTree depth (optimizer : Weights -> (float * int)[]) 
         numClasses (sortedTrainingSet : (Domain * Labels * Indices)[]) (weights : Weights) =
         let entropy, splitIdx, featureIdx =
@@ -311,9 +321,7 @@ let trainTree' depth (optimizer:IEntropyOptimizer) numClasses sortedTrainingSet 
     weights |> Array.map (fun weights -> trainTree depth optimizer numClasses sortedTrainingSet weights)
         
 /// Domains need to be sorted in ascending order
-let rec trainTree depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainingSet:(Domain * Labels * Indices)[]) (weights:Weights[]) =
-    //printfn "train tree %A depth=%d trees=%d" optimizer depth weights.Length
-
+let rec trainTree' depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainingSet:(Domain * Labels * Indices)[]) (weights:Weights[]) =
     let triples = 
         if depth = 0 then
             weights |> Array.map (fun weights -> nan, weights.GetUpperBound(0), 0)
@@ -500,7 +508,6 @@ let bootstrappedForestClassifier (options:TreeOptions) (weightsPerBootstrap:Weig
         match trainingSet.Sorted with
         | SortedFeatures features -> features
         | _ -> failwith "features are unsorted"
-
     use optimizer = options.Device.Create options.EntropyOptions numClasses sortedFeatures
     let trainer = trainTree options.MaxDepth optimizer numClasses sortedFeatures
     let trees = trainer weightsPerBootstrap
