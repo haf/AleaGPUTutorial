@@ -1,4 +1,15 @@
-﻿module Tutorial.Fs.examples.RandomForest.IrisExample
+﻿(**
+The [Iris flower data set](http://en.wikipedia.org/wiki/Iris_flower_data_set) contains four features (length and the width of both: 
+[sepals and petals](http://en.wikipedia.org/wiki/Sepal#/media/File:Petal-sepal.jpg) ) of three species:
+
+ - [Iris setosa](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Kosaciec_szczecinkowaty_Iris_setosa.jpg), 
+ - [Iris virginica](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_virginica.jpg) and  
+ - [Iris versicolor](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_versicolor_3.jpg). 
+
+It is not the typical dataset for random forests, but as it only has few features it gives small trees ideal for an examples.
+*)
+
+module Tutorial.Fs.examples.RandomForest.IrisExample
 
 open FSharp.Data
 open FSharp.Charting
@@ -7,14 +18,7 @@ open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
 open Tutorial.Fs.examples.RandomForest.RandomForest
 open Tutorial.Fs.examples.RandomForest.Array
 
-(***
-The [Iris flower data set](http://en.wikipedia.org/wiki/Iris_flower_data_set) contains four features (length and the width of both: 
-[sepals and petals](http://en.wikipedia.org/wiki/Sepal#/media/File:Petal-sepal.jpg) ) of three species 
-[Iris setosa](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Kosaciec_szczecinkowaty_Iris_setosa.jpg), 
-[Iris virginica](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_virginica.jpg) and  
-[Iris versicolor](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_versicolor_3.jpg). 
-It is not the typical dataset for random forests, but as it only has few features it gives small trees ideal for an examples.
-
+(**
 In order to get a feeling for the data, we do three scatterplots of the different features:
 
 <img src="../content/images/Sepal-length_Sepal-width.png" width="500" alt="scatter plot: sepal length vs. sepal width"> 
@@ -51,8 +55,13 @@ let irisScatterPlot (trainingData : DataModel.LabeledSample[]) =
 
     System.Windows.Forms.Application.Run()
 
+(**
+    Randomly split up data into training and testdata
+    Select parameters for Splitting
+    train Model on trainingdata
+    predict testData using model
+*)
 let printFractionOfCorrectForcasts trainingData device =
-
     // split up data in training and test data:
     let trainingData, testData = randomlySplitUpArray trainingData (System.Random()) (70 * Array.length trainingData / 100)
 
@@ -78,7 +87,10 @@ let printFractionOfCorrectForcasts trainingData device =
     printfn "%f  of forecasts were correct (out of sample)" (fraction*100.0)
 
 
-// see: http://archive.ics.uci.edu/ml/ for more machine learning datasets
+(**
+    Read in iris data set from csv-file using csv-type-provider.
+    and call the above functions for CPU as well as for GPU.
+*)
 let irisExample () =
     // read in data
     let path = @"..\src\fsharp\examples\random_forest\irisExample.csv"
@@ -106,21 +118,3 @@ let irisExample () =
 
     printFractionOfCorrectForcasts trainingData cpuDevice
     printFractionOfCorrectForcasts trainingData gpuDevice
-
-let titanicExample () =
-    // read in data
-    let path = @"..\src\fsharp\examples\random_forest\titanicExample.csv"
-    let data =  CsvFile.Load(path).Cache()
- 
-    let trainingData = 
-        [| for row in data.Rows ->
-            [|
-                  row.GetColumn "PassengerId" |> float
-                  row.GetColumn "Pclass" |> float
-                  row.GetColumn "Sex" |> (fun x -> if x = "male" then 1.0 else 0.0)
-                  row.GetColumn "Age" |> (fun x -> if x = "" then -1.0 else float x)
-            |],
-            row.GetColumn "Survived" |> int
-        |]
-
-    printFractionOfCorrectForcasts trainingData 
