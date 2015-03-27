@@ -114,3 +114,6 @@ let main argv =
         | _ -> printfn "unknown sample name %s\n" name; help()
     | _ -> help()
     printfn "Done."
+
+
+    0
