@@ -366,9 +366,11 @@ let compareForests options1 options2 =
     let weights = Array.init numTrees (fun _ -> randomWeights rnd trainingData.Length)
     let classifier options = bootstrappedForestClassifier options weights
 
+    printfn "GPU--------------"
     let model1 = classifier options1 defaultTrainingData
     let (RandomForest (trees1, _)) = model1
 
+    printfn "CPU--------------"
     let model2 = classifier options2 trainingData
     let (RandomForest (trees2, _)) = model2
 

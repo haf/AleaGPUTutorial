@@ -246,17 +246,9 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
             (infinity, upperBoundWeights)
     )
 
-    let result = labelsPerFeature |> mapper mapping
-
-    let fullEntropy = 
-        (result, mask)
-        ||> Seq.zip
-        |> Seq.filter (fun (_, mask) -> mask <> 0)
-        |> Seq.sumBy (fun ((entropy,_),_) -> entropy)
-
-    if fullEntropy > 0.0 then result
-    else result |> Array.map (fun (x, _) -> x, upperBoundWeights)
-//    result
+    let r = labelsPerFeature |> mapper mapping
+    //printfn "%A" r
+    r
 
 let restrict startIdx count (source : _[]) = 
     let target  = Array.zeroCreate source.Length
@@ -270,7 +262,7 @@ let restrictAbove idx (source : _[]) =
     source |> restrict idx (source.Length - idx)
 
 // [Old] Domains need to be sorted in ascending order
-let trainTree depth (optimizer:IEntropyOptimizer) numClasses sortedTrainingSet (weights:Weights[]) =
+let trainTree' depth (optimizer:IEntropyOptimizer) numClasses sortedTrainingSet (weights:Weights[]) =
     let rec trainTree depth (optimizer : Weights -> (float * int)[]) 
         numClasses (sortedTrainingSet : (Domain * Labels * Indices)[]) (weights : Weights) =
         let entropy, splitIdx, featureIdx =
@@ -321,7 +313,7 @@ let trainTree depth (optimizer:IEntropyOptimizer) numClasses sortedTrainingSet (
     weights |> Array.map (fun weights -> trainTree depth optimizer numClasses sortedTrainingSet weights)
         
 /// Domains need to be sorted in ascending order
-let rec trainTree' depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainingSet:(Domain * Labels * Indices)[]) (weights:Weights[]) =
+let rec trainTree depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainingSet:(Domain * Labels * Indices)[]) (weights:Weights[]) =
     let triples = 
         if depth = 0 then
             weights |> Array.map (fun weights -> nan, weights.GetUpperBound(0), 0)
@@ -339,15 +331,15 @@ let rec trainTree' depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainin
         let sortedWeights = weights |> Array.projectIdcs indices
         let threshold = domainThreshold sortedWeights domain splitIdx
 
-        if DEBUG then
-            printfn "depth: %A, entropy: %A, splitIdx: %A, featureIdx: %A" depth entropy splitIdx featureIdx
-            printf "Labels:\n["
-            (sortedWeights, labels) ||> Array.iteri2 (fun i weight label ->
-                if weight <> 0 then
-                    printf " (%A * %A) " label weight
-                if (i = splitIdx) then printf "|"
-            )
-            printfn "]"
+//        if true then
+//            printfn "depth: %A, entropy: %A, splitIdx: %A, featureIdx: %A" depth entropy splitIdx featureIdx
+//            printf "Labels:\n["
+//            (sortedWeights, labels) ||> Array.iteri2 (fun i weight label ->
+//                if weight <> 0 then
+//                    printf " (%A * %A) " label weight
+//                if (i = splitIdx) then printf "|"
+//            )
+//            printfn "]"
 
         match threshold with
         | Some num ->
@@ -499,6 +491,7 @@ type TreeOptions =
     static member Default = 
         { MaxDepth = System.Int32.MaxValue
           Device = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
+          //Device = CPU(CpuMode.Sequential)
           EntropyOptions = EntropyOptimizationOptions.Default }
 
 let bootstrappedForestClassifier (options:TreeOptions) (weightsPerBootstrap:Weights[]) (trainingSet:LabeledFeatureSet) : Model =
