@@ -3,7 +3,7 @@
 open NUnit.Framework
 open FsUnit
 open Alea.CUDA
-open Tutorial.Fs.examples.RandomForest.Common
+open Tutorial.Fs.examples.RandomForest.Array
 open Tutorial.Fs.examples.RandomForest.DataModel
 open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
 open Tutorial.Fs.examples.RandomForest.RandomForest
@@ -53,10 +53,10 @@ let ``Sort features``() =
 let ``Min and max functions``() =
     let testData = [|2.0;1.0;3.0;10.0;9.0;5.0|]
     testData
-    |> MinMax.minAndArgMin
+    |> minAndArgMin
     |> should equal (1.0,1)
     testData
-    |> MinMax.maxAndArgMax
+    |> maxAndArgMax
     |> should equal (10.0,3)
 
 [<Test>] 
@@ -66,7 +66,7 @@ let ``Threshold and labels``() =
     let labels = [|1;0;0;1|]
     let weights = Array.init labels.Length (fun _ -> 1)
     let thresholdAndLabels splitIdx =
-        let threshold = domainThreshold weights domain splitIdx
+        let threshold = featureArrayThreshold weights domain splitIdx
         let lowWeights = weights |> restrictBelow splitIdx
         let highWeights = weights |> restrictAbove (splitIdx + 1)
         let low = findMajorityClass lowWeights numClasses labels
@@ -133,7 +133,7 @@ let ``Sort domains labels and weights`` () =
     let reverseDomain = Array.init numSamples (fun i -> float (numSamples - i - 1))
     let skewedWeights = Array.init numSamples (fun i -> if i < 2 then numSamples / 2 else 0)
     let singleElementClass = Array.init numSamples (fun i -> if i = 0 then 1 else 0)
-    let trainigSet = LabeledDomains ([|reverseDomain|], singleElementClass)
+    let trainigSet = LabeledFeatures ([|reverseDomain|], singleElementClass)
     let model = bootstrappedStumpsClassifier [|skewedWeights|] trainigSet
     match model with
     | RandomForest (stumps, _) -> stumps |> Seq.head |> checkStump 0 8.5f 0 1
@@ -254,7 +254,7 @@ let ``CPU vs GPU optimizer`` () =
     let numTrees = 10
     let domains = Array.init numFeatures (fun _ -> Array.init numSamples (fun _ -> rnd.NextDouble()))
     let labels = Array.init numSamples (fun i -> i % numClasses)
-    let trainingSet = LabeledDomains (domains, labels)
+    let trainingSet = LabeledFeatures (domains, labels)
     let cpuDevice = EntropyDevice.CPU(CpuMode.Parallel)
 
     let test (gpuDevice:EntropyDevice) =
@@ -288,7 +288,7 @@ let ``Tree with one feature`` () =
     let device = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
     let labels = [| 0; 0; 1; 1; 0; 0; 1; 1 |]
     let domain = Array.init labels.Length (fun x -> float x)
-    let trainingSet = LabeledFeatureSet.LabeledDomains ([| domain |], labels)
+    let trainingSet = LabeledFeatureSet.LabeledFeatures ([| domain |], labels)
     [|
         (1, Node (Leaf 0, { Feature = 0; Threshold = 1.5 }, Leaf 1))
         (2, Node (Leaf 0, { Feature = 0; Threshold = 1.5 },
@@ -335,7 +335,7 @@ let ``Tree with two features`` () =
             Node (Leaf 1, { Feature = 0; Threshold = 1.5 }, Leaf 0)                                               
     |]
     |> Array.iter (fun (domainA, domainB, expectedTree) ->
-        let trainingSet = LabeledFeatureSet.LabeledDomains ([| domainA; domainB |], labels)
+        let trainingSet = LabeledFeatureSet.LabeledFeatures ([| domainA; domainB |], labels)
         let tree = treeClassfier options trainingSet
         tree |> should equal expectedTree
     )
@@ -348,14 +348,14 @@ let ``Tree with weights`` () =
     let weights = [|1; 0; 2|]
     let options = { TreeOptions.Default with Device = device }
     let expectedTree = Leaf 0
-    let trainingSet = LabeledFeatureSet.LabeledDomains ([| domain |], labels)
+    let trainingSet = LabeledFeatureSet.LabeledFeatures ([| domain |], labels)
     let tree = weightedTreeClassifier options trainingSet weights
     tree |> should equal expectedTree
 
 let randomTrainingData (rnd:System.Random) numSamples numFeatures numClasses =
     let domains = Array.init numFeatures (fun _ -> Array.init numSamples (fun _ -> rnd.NextDouble()))
     let labels = Array.init numSamples (fun _ -> rnd.Next(numClasses))
-    LabeledDomains (domains, labels)
+    LabeledFeatures (domains, labels)
 
 let defaultTrainingData = 
     let numSamples = 1000
@@ -470,7 +470,7 @@ let ``Speed of training random forests`` () =
         let rnd = System.Random(0)
         printfn "Options:\n%A" options
         let watch = System.Diagnostics.Stopwatch.StartNew()
-        randomForestClassifier rnd options numTrees trainingData |> ignore
+        randomForestClassifier options rnd numTrees trainingData |> ignore
         watch.Stop()
         let elapsed = watch.Elapsed
         printfn "Total time elapsed: %A" elapsed

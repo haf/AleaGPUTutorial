@@ -1,4 +1,7 @@
-﻿module Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
+﻿(**
+GPU functionality for training a random forest.
+*)
+module Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
 
 #nowarn "9"
 #nowarn "51"
@@ -9,7 +12,6 @@ open Alea.CUDA
 open Alea.CUDA.Utilities
 open Alea.CUDA.Unbound
 
-open Tutorial.Fs.examples.RandomForest.Common
 open Tutorial.Fs.examples.RandomForest.DataModel
 
 [<Literal>]
@@ -279,8 +281,8 @@ type EntropyOptimizationModule(target) as this =
         let weightsPerFeatureAndClass = new Cublas.Matrix<_>(worker, numFeatures * numClasses, numSamples)
         let entropyMatrix = new Cublas.Matrix<_>(worker, numFeatures, numSamples)
         let reducedOutput = new Cublas.Matrix<_>(worker, numFeatures, divup numSamples REDUCE_BLOCK_SIZE)
-        let valuesAndIndices = Array.zeroCreate (numFeatures * (divup numSamples REDUCE_BLOCK_SIZE))
         let gpuMask = new Cublas.Matrix<_>(worker, 1, numFeatures)
+        let valuesAndIndices = Array.zeroCreate (numFeatures * (divup numSamples REDUCE_BLOCK_SIZE))
 
         { gpuWeights = gpuWeights
           weightMatrix = weightMatrix
@@ -291,18 +293,6 @@ type EntropyOptimizationModule(target) as this =
           gpuMask = gpuMask
           valuesAndIndices = valuesAndIndices
           valuesAndIndicesHandle = None }
-
-    [<ReflectedDefinition;Kernel>]
-    member private this.OptAndArgOptKernelSingle output numOutCols sign (matrix:deviceptr<float32>)  numCols numValid =
-        primitiveReduce.Resource.OptAndArgOpt output numOutCols sign matrix numCols numValid (__null()) false
-
-    [<ReflectedDefinition;Kernel>]
-    member private this.OptAndArgOptKernelDouble output numOutCols sign (matrix:deviceptr<float>) numCols numValid =
-        primitiveReduce.Resource.OptAndArgOpt output numOutCols sign matrix numCols numValid (__null()) false
-
-    [<ReflectedDefinition;Kernel>]
-    member private this.OptAndArgOptKernelSingleWithIdcs output numOutCols sign (matrix:deviceptr<float32>) numCols numValid indices =
-        primitiveReduce.Resource.OptAndArgOpt output numOutCols sign matrix numCols numValid indices true
 
     [<ReflectedDefinition;Kernel>]
     member private this.OptAndArgOptKernelDoubleWithIdcs output numOutCols sign (matrix:deviceptr<float>) numCols numValid indices =

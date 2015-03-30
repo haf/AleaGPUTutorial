@@ -108,7 +108,6 @@
     <Compile Include="examples\nbody\NBody.GPU.StaticBlockSize.fs" />
     <Compile Include="examples\nbody\NBody.OpenGL.fs" />
     <Compile Include="examples\random_forest\DataModel.fs" />
-    <Compile Include="examples\random_forest\Common.fs" />
     <Compile Include="examples\random_forest\Cublas.fs" />
     <Compile Include="examples\random_forest\Array.fs" />
     <Compile Include="examples\random_forest\GpuSplitEntropy.fs" />

@@ -1,18 +1,18 @@
-﻿module Tutorial.Fs.examples.RandomForest.RandomForest
+﻿(**
+Functionality for training a random forest and using a random forest for forcasting.
+*)
+module Tutorial.Fs.examples.RandomForest.RandomForest
 
-open FSharp.Collections.ParallelSeq
-
-open Alea.CUDA
 open Alea.CUDA.Utilities
 
 open Tutorial.Fs.examples.RandomForest.DataModel
-open Tutorial.Fs.examples.RandomForest.Common
 open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
+open Tutorial.Fs.examples.RandomForest.Array
 
 [<Literal>]
 let private DEBUG = false
 
-let sortFeature (labels : Labels) (featureValues : Domain) =
+let sortFeature (labels : Labels) (featureValues : FeatureArray) =
     let tupleArray = featureValues |> Array.mapi (fun i value -> (value, labels.[i], i))
     tupleArray |> Array.sortInPlace
     tupleArray |> Array.unzip3
@@ -20,19 +20,22 @@ let sortFeature (labels : Labels) (featureValues : Domain) =
 let sortAllFeatures labels domains =
     domains |> Array.Parallel.map (sortFeature labels)
 
+(**
+The `LabeledFeatureSet` contains the traing data which can be saved in three different ways:
+
+1. As `LabeledSamples`, i.e. an array containing touples of feature vectors & a label and is the most caonical way for entering a dataset.
+2. As `LabeledFeatures`, i.e. a tuple of a FeatureArray (where instead of having a features of a sample together, all features of different samples are saved in an array) and an array of Labels.
+3. As `SortedFeatures`, where for every feature all the values are sorted in ascending order as well as labelled and completed with the index before sorting. It is mainly used for finding the best split.
+*)
 type LabeledFeatureSet =
-    /// Array LabeledSamples, LabeledSample: Array of features & a label.
     | LabeledSamples of LabeledSample[]
-    /// LabeledDomains might be seen as transposition of LabeledSamples.
-    | LabeledDomains of Domains * Labels
-    /// Similar to Labeled domains, but every domain is sorted and has its own attached Label and an index in order to find back to initial ordering 
-    /// (elements in different index belong to the same sample).
-    | SortedFeatures of (Domain * Labels * Indices)[]
+    | LabeledFeatures of FeatureArrays * Labels
+    | SortedFeatures of (FeatureArray * Labels * Indices)[]
 
     member this.Labels = 
         this |> function
         | LabeledSamples trainingSet -> trainingSet |> Array.unzip |> snd
-        | LabeledDomains (_, labels) -> labels
+        | LabeledFeatures (_, labels) -> labels
         | SortedFeatures features -> features.[0] |> (fun (_, x, _) -> x)
 
     member this.Length = 
@@ -48,12 +51,14 @@ type LabeledFeatureSet =
             let samples, labels = trainingSet |> Array.unzip
             let domains = Array.init samples.[0].Length (fun i -> Array.init numSamples (fun j -> samples.[j].[i]))
             SortedFeatures (sortAllFeatures labels domains)
-        | LabeledDomains (domains, labels) -> 
+        | LabeledFeatures (domains, labels) -> 
             SortedFeatures (sortAllFeatures labels domains)
         | SortedFeatures _ -> this
         
-/// Forcasts `label` of a given `sample` and decision-`tree`.
-let rec forecastTree (sample:Sample) (tree : Tree) =
+(**
+Forecasts the label of a `sample` by traversing the `tree`.
+*)
+let rec forecastTree (sample:Sample) tree =
     match tree with
     | Tree.Leaf label -> label
     | Tree.Node (low, split, high) ->
@@ -62,8 +67,10 @@ let rec forecastTree (sample:Sample) (tree : Tree) =
         else 
             forecastTree sample high
 
-/// Forcasts `label` of `sample` by majority voting in random forest `model`.
-let forecast (model : Model) (sample : Sample) : Label =
+(**
+Forecasts the label of a `sample` by mojority voting on labels received by trees in `model`.
+*)
+let forecast model sample : Label =
     match model with
     | RandomForest (trees, numClasses) ->
         (Array.zeroCreate numClasses, trees)
@@ -72,10 +79,13 @@ let forecast (model : Model) (sample : Sample) : Label =
             hist.[label] <- hist.[label] + 1
             hist
         )
-        |> MinMax.maxAndArgMax |> snd
+        |> maxAndArgMax |> snd
 
+(**
+Functionality needed for training a random forest:
+*)
 /// Returns an array of histograms on `labels` weighted by `weights`.
-let cumHistograms (numClasses : int) (labels:Labels) (weights : Weights) : LabelHistogram seq =
+let cumHistograms numClasses (labels:Labels) (weights : Weights) : LabelHistogram seq =
     ((Array.zeroCreate numClasses, 0), seq { 0 .. weights.GetUpperBound(0) })
     ||> Seq.scan (fun (hist, sum) i ->
             let weight = weights.[i]
@@ -100,7 +110,7 @@ let private entropyTerm (x : int) =
     else
         failwith "undefined"
 
-let private entropyTermSum (node : LabelHistogram) =
+let private entropyTermSum node =
     let hist, total = node
     if (total = 0) then
         0.0
@@ -134,15 +144,15 @@ let splitEntropies (mask : bool seq) (countsPerSplit : LabelHistogram seq) (tota
             System.Double.PositiveInfinity
     )
 
-/// Returns Some(0.5*(`domain`[`splitIdx`] + `domain`[`splitIdx`+1])) if `domain`[`splitIdx`+1] exists, 
+/// Returns value in the middle between `splidIdx` and next non-empty index if it exists,
 /// else returns None.
-let domainThreshold weights (domain : _[]) splitIdx =
+let featureArrayThreshold weights (featureArray : _[]) splitIdx =
     let nextIdx = Array.findNextNonZeroIdx weights (splitIdx + 1)
     match nextIdx with
     | None ->
         None
     | Some nextSplitIdx ->
-        Some ((domain.[splitIdx] + domain.[nextSplitIdx]) * 0.5)
+        Some ((featureArray.[splitIdx] + featureArray.[nextSplitIdx]) * 0.5)
 
 /// Returns a histogram from `weights` on `labels`.
 let countSamples (weights : Weights) numClasses (labels : Labels) =
@@ -156,7 +166,7 @@ let countSamples (weights : Weights) numClasses (labels : Labels) =
 /// Returns the `class`/`label` with the most `weight`.
 let findMajorityClass weights numClasses labels =
     countSamples weights numClasses labels
-    |> MinMax.maxAndArgMax |> snd
+    |> maxAndArgMax |> snd
 
 let entropyMask (weights : _[]) (labels : _[]) totalWeight absMinWeight =
     let findNextWeight = Array.findNextNonZeroIdx weights
@@ -241,7 +251,7 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
             let countsPerSplit = cumHistograms numClasses labels featureWeights
             let mask = entropyMask featureWeights labels total combinedMinWeight
             let entropyPerSplit = splitEntropies mask countsPerSplit totals
-            entropyPerSplit |> Seq.map rounding |> MinMax.minAndArgMin |> translator featureIdx
+            entropyPerSplit |> Seq.map rounding |> minAndArgMin |> translator featureIdx
         else
             (infinity, upperBoundWeights)
     )
@@ -261,59 +271,8 @@ let restrictBelow idx (source : _[]) =
 let restrictAbove idx (source : _[]) = 
     source |> restrict idx (source.Length - idx)
 
-// [Old] Domains need to be sorted in ascending order
-let trainTree' depth (optimizer:IEntropyOptimizer) numClasses sortedTrainingSet (weights:Weights[]) =
-    let rec trainTree depth (optimizer : Weights -> (float * int)[]) 
-        numClasses (sortedTrainingSet : (Domain * Labels * Indices)[]) (weights : Weights) =
-        let entropy, splitIdx, featureIdx =
-            if depth = 0 then
-                nan, weights.GetUpperBound(0), 0
-            else
-                optimizer weights
-                |> Array.mapi (fun i (entropy, splitIdx) -> (entropy, splitIdx, i))
-                |> Array.minBy (fun (entropy, _, _) -> entropy)
-
-        let domain, labels, indices = sortedTrainingSet.[featureIdx]
-        let sortedWeights = weights |> Array.projectIdcs indices
-        let threshold = domainThreshold sortedWeights domain splitIdx
-
-        if DEBUG then
-            printfn "depth: %A, entropy: %A, splitIdx: %A, featureIdx: %A" depth entropy splitIdx featureIdx
-            printf "Labels:\n["
-            (sortedWeights, labels) ||> Array.iteri2 (fun i weight label ->
-                if weight <> 0 then
-                    printf " (%A * %A) " label weight
-                if (i = splitIdx) then printf "|"
-            )
-            printfn "]"
-
-        match threshold with
-        | Some num ->
-            // set weights to 0 for elements which aren't included in left and right branches respectively
-            let lowWeights  = sortedWeights |> restrictBelow splitIdx
-            let highWeights = sortedWeights |> restrictAbove (splitIdx + 1)
-            if DEBUG then
-                printfn "Low  counts: %A" (countSamples lowWeights numClasses labels)
-                printfn "High counts: %A" (countSamples highWeights numClasses labels)
-            let trainTree weights = 
-                trainTree (depth - 1) optimizer numClasses sortedTrainingSet (weights |> Array.permByIdcs indices)
-            let low  = trainTree lowWeights
-            let high = trainTree highWeights
-            match (low, high) with
-            | (Leaf lowLabel, Leaf highLabel) when lowLabel = highLabel -> 
-                Tree.Leaf lowLabel
-            | (_, _) ->
-                Tree.Node (low, {Feature = featureIdx; Threshold = num}, high)
-        | None -> 
-            let label = findMajorityClass sortedWeights numClasses labels
-            Tree.Leaf label
-
-    let optimizer weights = optimizer.Optimize([|weights|]).[0]
-
-    weights |> Array.map (fun weights -> trainTree depth optimizer numClasses sortedTrainingSet weights)
-        
-/// Domains need to be sorted in ascending order
-let rec trainTree depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainingSet:(Domain * Labels * Indices)[]) (weights:Weights[]) =
+/// FeatureArrays need to be sorted in ascending order
+let rec trainTrees depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainingSet:(FeatureArray * Labels * Indices)[]) (weights:Weights[]) =
     let triples = 
         if depth = 0 then
             weights |> Array.map (fun weights -> nan, weights.GetUpperBound(0), 0)
@@ -327,9 +286,9 @@ let rec trainTree depth (optimizer:IEntropyOptimizer) numClasses (sortedTraining
     let trees0 = triples |> Array.mapi (fun i (entropy, splitIdx, featureIdx) ->
         let weights = weights.[i]
 
-        let domain, labels, indices = sortedTrainingSet.[featureIdx]
+        let featureArray, labels, indices = sortedTrainingSet.[featureIdx]
         let sortedWeights = weights |> Array.projectIdcs indices
-        let threshold = domainThreshold sortedWeights domain splitIdx
+        let threshold = featureArrayThreshold sortedWeights featureArray splitIdx
 
 //        if true then
 //            printfn "depth: %A, entropy: %A, splitIdx: %A, featureIdx: %A" depth entropy splitIdx featureIdx
@@ -372,8 +331,8 @@ let rec trainTree depth (optimizer:IEntropyOptimizer) numClasses (sortedTraining
 
     if lowWeights.Length = 0 then trees()
     else
-        let lowTrees = trainTree (depth - 1) optimizer numClasses sortedTrainingSet lowWeights
-        let highTrees = trainTree (depth - 1) optimizer numClasses sortedTrainingSet highWeights
+        let lowTrees = trainTrees (depth - 1) optimizer numClasses sortedTrainingSet lowWeights
+        let highTrees = trainTrees (depth - 1) optimizer numClasses sortedTrainingSet highWeights
         let setFuncs = trees0 |> Array.choose (fun (_, _, _, set) -> set)
         for i = 0 to lowTrees.Length - 1 do
             let set = setFuncs.[i]
@@ -384,7 +343,7 @@ let rec trainTree depth (optimizer:IEntropyOptimizer) numClasses (sortedTraining
         trees()
 
 let trainStump optimizer numClasses sortedTrainingSet weights =
-    trainTree 1 optimizer numClasses sortedTrainingSet weights
+    trainTrees 1 optimizer numClasses sortedTrainingSet weights
 
 type EntropyDevice = 
     | GPU of mode:GpuMode * provider:GpuModuleProvider
@@ -483,6 +442,13 @@ type EntropyDevice =
     member this.CreateDefaultOptions numClasses (sortedTrainingSet : (_ * Labels * Indices)[]) = 
         this.Create EntropyOptimizationOptions.Default numClasses sortedTrainingSet
 
+(**
+Options for Tree:
+
+- `MaxDepth` : maximal number of tree-layers.
+- `Device` : Decide between CPU and GPU implementation.
+- `EntropyOptions`
+*)
 type TreeOptions = 
     { MaxDepth : int
       Device : EntropyDevice
@@ -495,14 +461,13 @@ type TreeOptions =
           EntropyOptions = EntropyOptimizationOptions.Default }
 
 let bootstrappedForestClassifier (options:TreeOptions) (weightsPerBootstrap:Weights[]) (trainingSet:LabeledFeatureSet) : Model =
-    let numSamples = trainingSet.Length
     let numClasses = trainingSet.NumClasses
     let sortedFeatures = 
         match trainingSet.Sorted with
         | SortedFeatures features -> features
         | _ -> failwith "features are unsorted"
     use optimizer = options.Device.Create options.EntropyOptions numClasses sortedFeatures
-    let trainer = trainTree options.MaxDepth optimizer numClasses sortedFeatures
+    let trainer = trainTrees options.MaxDepth optimizer numClasses sortedFeatures
     let trees = trainer weightsPerBootstrap
     if trees.Length <> weightsPerBootstrap.Length then failwith "length not match!"
     RandomForest(trees, numClasses)
@@ -514,26 +479,28 @@ let bootstrappedStumpsClassifier weights =
 let weightedTreeClassifier (options : TreeOptions) (trainingSet : LabeledFeatureSet) (weights : Weights) =
     let model = bootstrappedForestClassifier options [| weights |] trainingSet
     match model with
-    | RandomForest(trees, numClasses) -> trees |> Seq.head
+    | RandomForest(trees, _) -> trees |> Seq.head
 
 let treeClassfier options (trainingSet : LabeledFeatureSet) = 
     Array.create trainingSet.Length 1 |> weightedTreeClassifier options trainingSet
 
-let randomWeights (rnd:System.Random) (length:int) : Weights =
+let randomWeights (rnd:System.Random) length : Weights =
     let hist = Array.zeroCreate length
     for i = 1 to length do
         let index = rnd.Next(length)
         hist.[index] <- hist.[index] + 1
     hist
 
-/// Trains a random forest
-let randomForestClassifier (rnd : System.Random) options numTrees (trainingSet : LabeledFeatureSet) =
+(**
+Create a random forest from a `trainingSet`
+*)
+let randomForestClassifier options (rnd : System.Random) numTrees (trainingSet : LabeledFeatureSet) =
     let numSamples = trainingSet.Length
-    //let weights = (Seq.init numTrees <| fun _ -> randomWeights rnd numSamples) |> Seq.bufferedAsync 10
     let weights = Array.init numTrees (fun _ -> randomWeights rnd numSamples)
     bootstrappedForestClassifier options weights trainingSet
 
-/// Trains a random forest of stumps
-let randomStumpsClassifier (rnd : System.Random) numStumps =
-    let options = { TreeOptions.Default with MaxDepth = 1}
-    randomForestClassifier (rnd : System.Random) options numStumps 
+(**
+Only train stumps, i.e. a random forest with trees of depth 1.
+*)
+let randomStumpsClassifier : (System.Random -> int -> LabeledFeatureSet -> Model) =
+    randomForestClassifier { TreeOptions.Default with MaxDepth = 1}

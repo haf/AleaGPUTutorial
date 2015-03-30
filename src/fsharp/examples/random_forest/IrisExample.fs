@@ -6,7 +6,7 @@ The [Iris flower data set](http://en.wikipedia.org/wiki/Iris_flower_data_set) co
  - [Iris virginica](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_virginica.jpg) and  
  - [Iris versicolor](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_versicolor_3.jpg). 
 
-It is not the typical dataset for random forests, but as it only has few features it gives small trees ideal for an examples.
+It is not the typical dataset for random forests, but as it only has few features it gives small trees ideal as an example.
 *)
 
 module Tutorial.Fs.examples.RandomForest.IrisExample
@@ -21,9 +21,9 @@ open Tutorial.Fs.examples.RandomForest.Array
 (**
 In order to get a feeling for the data, we do three scatterplots of the different features:
 
-<img src="../content/images/Sepal-length_Sepal-width.png" width="500" alt="scatter plot: sepal length vs. sepal width"> 
-<img src="../content/images/Sepal-Width_Petal-length.png" width="500" alt="scatter plot: sepal width vs. petal length"> 
-<img src="../content/images/Petal-length_Petal-width.png" width="500" alt="scatter plot: petal length vs. petal widht"> 
+<img src="../../content/images/Sepal-length_Sepal-width.png" width="500" alt="scatter plot: sepal length vs. sepal width"> 
+<img src="../../content/images/Sepal-Width_Petal-length.png" width="500" alt="scatter plot: sepal width vs. petal length"> 
+<img src="../../content/images/Petal-length_Petal-width.png" width="500" alt="scatter plot: petal length vs. petal widht"> 
 *)
 let irisScatterPlot (trainingData : DataModel.LabeledSample[]) =
 
@@ -49,47 +49,51 @@ let irisScatterPlot (trainingData : DataModel.LabeledSample[]) =
         chart.ShowChart() |> ignore
         chart.SaveChartAs(filename + ".png", ChartTypes.ChartImageFormat.Png)
 
-    createChart chooseSepalLengthWidth "Sepal-length_Sepal-width"
-    createChart chooseSepalWidthPetalLenght "Sepal-Width_Petal-length"
-    createChart choosePetalLenghtPetalWidth "Petal-length_Petal-width"
+    createChart chooseSepalLengthWidth "Sepal-length Sepal-width"
+    createChart chooseSepalWidthPetalLenght "Sepal-Width Petal-length"
+    createChart choosePetalLenghtPetalWidth "Petal-length Petal-width"
 
     System.Windows.Forms.Application.Run()
+//    ()
 
 (**
-    Randomly split up data into training and testdata
-    Select parameters for Splitting
-    train Model on trainingdata
-    predict testData using model
+Train random forest and to an out of sample test.
+
+1. Randomly split up dat in `training` and `test` set.
+2. Create set of Parameters for random forest.
+3. Train the model using the `training` - set.
+4. predict labels of `test` - set and calculate the fraction of correct predictions.
 *)
 let printFractionOfCorrectForcasts trainingData device =
     // split up data in training and test data:
-    let trainingData, testData = randomlySplitUpArray trainingData (System.Random()) (70 * Array.length trainingData / 100)
+    let trainingData, testData = randomlySplitUpArray trainingData (System.Random(42)) (70 * Array.length trainingData / 100)
 
 //    let options = GpuSplitEntropy.EntropyOptimizationOptions.Default
     let options = { GpuSplitEntropy.EntropyOptimizationOptions.Default with
                         FeatureSelector = GpuSplitEntropy.EntropyOptimizationOptions.SquareRootFeatureSelector (System.Random()) }
 
-    let options = { TreeOptions.Default with
+    let parameters = { TreeOptions.Default with
                         Device = device
                         EntropyOptions = options }
 
-    printfn "%A" options
+    printfn "%A" parameters
 
     // train model
     let trainingData = LabeledSamples trainingData
-    let model = randomForestClassifier (System.Random()) options 100 trainingData
+    let model = randomForestClassifier  parameters (System.Random(42)) 100 trainingData
     
     // predict labels
     let features, expectedLabels = Array.unzip testData
     let forecastedLabels = Array.map (forecast model) features
     let fraction = (forecastedLabels, expectedLabels) ||> Array.map2  (fun x y -> if x=y then 1.0 else 0.0)
                                                        |> Array.average
-    printfn "%f  of forecasts were correct (out of sample)" (fraction*100.0)
+    printfn "%f %% of forecasts were correct (out of sample)" (fraction*100.0)
 
 
 (**
-    Read in iris data set from csv-file using csv-type-provider.
-    and call the above functions for CPU as well as for GPU.
+Read in the Iris data set from csv-file using csv-type-provider
+and call the above functions for CPU as well as for GPU.
+Prediction-accuracy is between 95% and 100%.
 *)
 let irisExample () =
     // read in data
