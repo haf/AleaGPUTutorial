@@ -1,12 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.FSharp.Core;
 
 namespace Tutorial.Cs.examples.generic_reduce
 {
-    class ReduceApi
+    using InitFunc = Func<Unit, dynamic>;
+    using ReductionOp = Func<dynamic, dynamic, dynamic>;
+    using TransformFunc = Func<dynamic, dynamic>;
+
+    public static class ReduceApi<T>
     {
+        //public static RawGeneric()
+        //{
+            
+        //}
     }
 }
