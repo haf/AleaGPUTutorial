@@ -5,13 +5,10 @@ using Microsoft.FSharp.Core;
 
 namespace Tutorial.Cs.examples.generic_reduce
 {
-    using InitFunc = Func<Unit, dynamic>;
-    using ReductionOp = Func<dynamic, dynamic, dynamic>;
-    using TransformFunc = Func<dynamic, dynamic>;
-
-    public class Reduce<T> : ILGPUModule
+    
+    public class ReduceModule<T> : ILGPUModule
     {
-        public static Func<int, T, T> MultiReduce(InitFunc initFunc, ReductionOp reductionOp, int numWarps,
+        public static Func<int, T, T> MultiReduce(Func<Unit, T> initFunc, Func<T, T, T> reductionOp, int numWarps,
             int logNumWarps)
         {
             var warpStride = Const.WARP_SIZE + Const.WARP_SIZE/2 + 1;
@@ -81,14 +78,14 @@ namespace Tutorial.Cs.examples.generic_reduce
                 };
         }
 
-        private readonly InitFunc _initFunc;
-        private readonly ReductionOp _reductionOp;
-        private readonly TransformFunc _transform;
-        private Plan _plan;
+        private readonly Func<Unit, T> _initFunc;
+        private readonly Func<T,T,T> _reductionOp;
+        private readonly Func<T,T> _transform;
+        public Plan _plan;
         private readonly int _numThreads;
         private readonly Func<int, T, T> _multiReduce;
 
-        public Reduce(GPUModuleTarget target, InitFunc initFunc, ReductionOp reductionOp, TransformFunc transform,
+        public ReduceModule(GPUModuleTarget target, Func<Unit, T> initFunc, Func<T, T, T> reductionOp, Func<T, T> transform,
             Plan plan) : base(target)
         {
             _initFunc = initFunc;
