@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Linq;
 using Alea.CUDA;
+using Microsoft.FSharp.Core;
 using NUnit.Framework;
 using OpenTK.Graphics.ES20;
+using SharpDX.Direct3D9;
 
 namespace Tutorial.Cs.examples.generic_reduce
 {
@@ -9,12 +12,12 @@ namespace Tutorial.Cs.examples.generic_reduce
     {
 
 
-        public int[] GenInts(int n)
+        public double[] Gen(int n)
         {
-            var vals = new int[n];
+            var vals = new double[n];
             var rng = new Random();
             for (var i = 0; i < n; i++)
-                vals[i] = rng.Next();
+                vals[i] = rng.NextDouble();
             return vals;
         }
 
@@ -22,10 +25,13 @@ namespace Tutorial.Cs.examples.generic_reduce
         public void Sum()
         {
             var nums = new[]{1,2,8,128,100,1024};
-            var reduce = new Reduce<int>(GPUModuleTarget.DefaultWorker, x => x, (x, y) => x + y, x => x, Plan.Plan32());
+            Func<double, double, double> sum = (x, y) => x + y;
             foreach (int n in nums)
             {
-                reduce.   
+                var values = Gen(n);
+                var dr = ReduceApi.Sum(values);
+                var hr = values.Aggregate(sum);
+                Assert.AreEqual(dr, hr);
             }
         }
     }
