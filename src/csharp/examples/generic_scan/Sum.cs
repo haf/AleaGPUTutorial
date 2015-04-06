@@ -10,7 +10,7 @@ namespace Tutorial.Cs.examples.generic_scan
 {
     public class Sum<T> : ILGPUModule
     {
-        public Func<int, T, dynamic, T> MultiScan(int numWarps, int logNumWarps)
+        public Func<int, T, T, T> MultiScan(int numWarps, int logNumWarps, Func<T,T,T> sum)
         {
             var warpStride = Const.WARP_SIZE + Const.WARP_SIZE/2 + 1;
             return
@@ -23,12 +23,12 @@ namespace Tutorial.Cs.examples.generic_scan
                     var shared =
                         Intrinsic.__ptr_volatile(
                             Intrinsic.__array_to_ptr(
-                                __shared__.Array<dynamic>(numWarps * warpStride)));
+                                __shared__.Array<T>(numWarps * warpStride)));
 
                     var totalsShared =
                         Intrinsic.__ptr_volatile(
                             Intrinsic.__array_to_ptr(
-                                __shared__.Array<dynamic>(2*numWarps)));
+                                __shared__.Array<T>(2*numWarps)));
 
                     var warpShared = (shared + warp*warpStride).Volatile();
                     var s = (warpShared + lane + Const.WARP_SIZE/2).Volatile();
@@ -40,7 +40,7 @@ namespace Tutorial.Cs.examples.generic_scan
                     for (var i = 0; i < Const.LOG_WARP_SIZE; i++)
                     {
                         var offset = 1 << i;
-                        scan += s[offset];
+                        scan = sum(scan, s[-offset]);
                         if (i < Const.LOG_WARP_SIZE - 1)
                             s[0] = scan;
                     }
@@ -63,7 +63,7 @@ namespace Tutorial.Cs.examples.generic_scan
                         for (var i = 0; i < logNumWarps; i++)
                         {
                             var offset = 1 << i;
-                            totalsScan += ss[-offset];
+                            totalsScan = sum(totalsScan, ss[-offset]);
                             ss[0] = totalsScan;
                         }
 
@@ -78,7 +78,7 @@ namespace Tutorial.Cs.examples.generic_scan
                     totalRef = totalsShared[2*numWarps - 1];
 
                     // Add the block scan to the inclusive scan for the block.
-                    return scan + totalsShared[warp];
+                    return sum(scan, totalsShared[warp]);
                 };
         } 
 
