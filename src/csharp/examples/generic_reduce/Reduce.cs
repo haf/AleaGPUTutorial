@@ -135,6 +135,12 @@ namespace Tutorial.Cs.examples.generic_reduce
                 dRangeTotals[0] = total;
         }
 
+
+        public void Upsweep(LaunchParam lp, deviceptr<T> dValues, deviceptr<int> dRanges, deviceptr<T> dRangeTotals)
+        {
+            GPULaunch(Upsweep, lp, dValues, dRanges, dRangeTotals);
+        }
+
         public T Apply(T[] values)
         {
             var n = values.Length;

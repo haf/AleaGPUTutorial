@@ -168,13 +168,20 @@ namespace Tutorial.Cs.examples.generic_scan
         private readonly Func<T, T, T> _scanOp;
         private readonly Func<T, T> _transform;
         public Plan Plan;
-        private int _numThreads;
-        private readonly int _numValues;
-        private readonly int _valuesPerThread;
-        private readonly int _valuesPerWarp;
-        private readonly int _size;
-        private readonly Func<int, T, FSharpRef<T>, T> _multiScan;
-        private readonly Func<int, T, FSharpRef<T>, T> _multiScanExcl;
+        // ScanReduce values
+        private int _numThreadsScanReduce;
+        private readonly int _numWarpsScanReduce;
+        private int _logNumWarpsScanReduce;
+        private Func<int, T, FSharpRef<T>, T> _multiScan; 
+        
+        // Downsweep values
+        private int _numWarpsDownsweep;
+        private int _numValues;
+        private int _valuesPerThread;
+        private int _valuesPerWarp;
+        private int _logNumWarpsDownsweep;
+        private int _size;
+        private Func<int, T, FSharpRef<T>, T> _multiScanExcl;
         private ReduceModule<T> _reduceModule; 
         
         public ScanModule(GPUModuleTarget target, Func<T> init, Func<T,T,T> scanOp, Func<T,T> transform, Plan plan) : base(target)
@@ -183,15 +190,22 @@ namespace Tutorial.Cs.examples.generic_scan
             _scanOp = scanOp;
             _transform = transform;
             Plan = plan;
-            _numThreads = plan.NumThreadsReduction;
-            var numWarps = plan.NumWarpsReduction;
+
+            // ScanReduce values
+            _numThreadsScanReduce = plan.NumThreadsReduction;
+            _numWarpsScanReduce = plan.NumWarpsReduction;
+            _logNumWarpsScanReduce = Alea.CUDA.Utilities.Common.log2(_numWarpsScanReduce);
+            _multiScan = MultiScan(init, scanOp, _numWarpsScanReduce, _logNumWarpsScanReduce);
+
+            // Downsweep values
+            _numWarpsDownsweep = plan.NumWarps;
             _numValues = plan.NumValues;
             _valuesPerThread = plan.ValuesPerThread;
             _valuesPerWarp = plan.ValuesPerWarp;
-            var logNumWarps = Alea.CUDA.Utilities.Common.log2(numWarps);
-            _size = numWarps*_valuesPerThread*(Const.WARP_SIZE + 1);
-            _multiScan = MultiScan(init, scanOp, numWarps, logNumWarps);
-            _multiScanExcl = MultiScanExcl(init, scanOp, numWarps, logNumWarps);
+            _logNumWarpsDownsweep = Alea.CUDA.Utilities.Common.log2(_numWarpsDownsweep);
+            _size = _numWarpsDownsweep*_valuesPerThread*(Const.WARP_SIZE + 1);
+            _multiScanExcl = MultiScanExcl(init, scanOp, _numWarpsDownsweep, _logNumWarpsDownsweep);
+
             _reduceModule = new ReduceModule<T>(target, init, scanOp, transform, plan);
         }
 
@@ -243,9 +257,9 @@ namespace Tutorial.Cs.examples.generic_scan
 
                 for (var i = 0; i < _valuesPerThread; i++)
                 {
-                    var source = rangeX + index + i*Const.WARP_SIZE;
+                    var source = rangeX + index + i * Const.WARP_SIZE;
                     var x = (source < rangeY) ? _transform(dValuesIn[source]) : _init();
-                    threadShared[i*(Const.WARP_SIZE + 1)] = x;
+                    threadShared[i * (Const.WARP_SIZE + 1)] = x;
                 }
 
                 // Transpose into thread order by reading from transposeValues.
@@ -278,8 +292,8 @@ namespace Tutorial.Cs.examples.generic_scan
                 // Store the scan back to global memory.
                 for (var i = 0; i < _valuesPerThread; i++)
                 {
-                    var x = threadShared[i*(Const.WARP_SIZE + 1)];
-                    var target = rangeX + index + i*Const.WARP_SIZE;
+                    var x = threadShared[i * (Const.WARP_SIZE + 1)];
+                    var target = rangeX + index + i * Const.WARP_SIZE;
                     if (target < rangeY)
                         dValuesOut[target] = x;
                 }
@@ -292,12 +306,7 @@ namespace Tutorial.Cs.examples.generic_scan
             }
         }
 
-        public T[] Apply(
-            T[] input, 
-            Action<deviceptr<T>,deviceptr<int>,deviceptr<T>> upsweep,
-            Action<int,deviceptr<T>> reduce,
-            Action<deviceptr<T>,deviceptr<T>,deviceptr<T>,deviceptr<int>,int> downsweep,
-            bool inclusive)
+        public T[] Apply(T[] input, bool inclusive)
         {
             var n = input.Length;
             var numSm = GPUWorker.Device.Attributes.MULTIPROCESSOR_COUNT;
@@ -312,26 +321,15 @@ namespace Tutorial.Cs.examples.generic_scan
             var _inclusive = inclusive ? 1 : 0;
 
             using(var dRanges = GPUWorker.Malloc(ranges))
-            using(var dRangeTotals = GPUWorker.Malloc<T>(numRanges))
+            using(var dRangeTotals = GPUWorker.Malloc<T>(numRanges + 1))
             using(var dInput = GPUWorker.Malloc(input))
             using (var dOutput = GPUWorker.Malloc(input))
             {
-                GPUWorker.EvalAction(
-                    () =>
-                    {
-                        GPULaunch(upsweep, lpUpsweep, dInput.Ptr, dRanges.Ptr, dRangeTotals.Ptr);
-                        GPULaunch(reduce, lpReduce, numRanges, dRangeTotals.Ptr);
-                        GPULaunch(downsweep, lpDownsweep, dInput.Ptr, dOutput.Ptr, dRangeTotals.Ptr, dRanges.Ptr,
-                            _inclusive);
-
-                    });
+                _reduceModule.Upsweep(lpUpsweep, dInput.Ptr, dRanges.Ptr, dRangeTotals.Ptr);
+                GPULaunch(ScanReduce, lpReduce, numRanges, dRangeTotals.Ptr);
+                GPULaunch(Downsweep, lpDownsweep, dInput.Ptr, dOutput.Ptr, dRangeTotals.Ptr, dRanges.Ptr, _inclusive);
                 return dOutput.Gather();
             }
-        }
-
-        public T[] Apply(T[] input, bool inclusive)
-        {
-            return Apply(input, _reduceModule.Upsweep, ScanReduce, Downsweep, inclusive);
         }
     }
 }

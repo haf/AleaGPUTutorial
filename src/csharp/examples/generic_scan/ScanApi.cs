@@ -22,5 +22,17 @@ namespace Tutorial.Cs.examples.generic_scan
         {
 
         }
+
+        public static int[] Sum(int[] input, bool inclusive)
+        {
+            return
+                (new ScanModule<int>(
+                    GPUModuleTarget.DefaultWorker,
+                    () => 0,
+                    (x, y) => x + y,
+                    x => x,
+                    Plan.Plan32)
+                ).Apply(input, inclusive);
+        }
     }
 }
