@@ -167,15 +167,13 @@ namespace Tutorial.Cs.examples.generic_scan
         private readonly Func<T, T, T> _scanOp;
         private readonly Func<T, T> _transform;
         public Plan Plan;
-        private int numThreads;
-        private int numWarps;
-        private int numValues;
-        private int valuesPerThread;
-        private int valuesPerWarp;
-        private int logNumWarps;
-        private int size;
-        private Func<int, T, FSharpRef<T>, T> multiScan;
-        private Func<int, T, FSharpRef<T>, T> multiScanExcl; 
+        private int _numThreads;
+        private readonly int _numValues;
+        private readonly int _valuesPerThread;
+        private readonly int _valuesPerWarp;
+        private readonly int _size;
+        private readonly Func<int, T, FSharpRef<T>, T> _multiScan;
+        private readonly Func<int, T, FSharpRef<T>, T> _multiScanExcl; 
 
         public Scan(GPUModuleTarget target, Func<T> init, Func<T,T,T> scanOp, Func<T,T> transform, Plan plan) : base(target)
         {
@@ -183,15 +181,15 @@ namespace Tutorial.Cs.examples.generic_scan
             _scanOp = scanOp;
             _transform = transform;
             Plan = plan;
-            numThreads = plan.NumThreadsReduction;
-            numWarps = plan.NumWarpsReduction;
-            numValues = plan.NumValues;
-            valuesPerThread = plan.ValuesPerThread;
-            valuesPerWarp = plan.ValuesPerWarp;
-            logNumWarps = Alea.CUDA.Utilities.Common.log2(numWarps);
-            size = numWarps*valuesPerThread*(Const.WARP_SIZE + 1);
-            multiScan = MultiScan(init, scanOp, numWarps, logNumWarps);
-            multiScanExcl = MultiScanExcl(init, scanOp, numWarps, logNumWarps);
+            _numThreads = plan.NumThreadsReduction;
+            var numWarps = plan.NumWarpsReduction;
+            _numValues = plan.NumValues;
+            _valuesPerThread = plan.ValuesPerThread;
+            _valuesPerWarp = plan.ValuesPerWarp;
+            var logNumWarps = Alea.CUDA.Utilities.Common.log2(numWarps);
+            _size = numWarps*_valuesPerThread*(Const.WARP_SIZE + 1);
+            _multiScan = MultiScan(init, scanOp, numWarps, logNumWarps);
+            _multiScanExcl = MultiScanExcl(init, scanOp, numWarps, logNumWarps);
         }
 
         [Kernel]
@@ -200,7 +198,7 @@ namespace Tutorial.Cs.examples.generic_scan
             var tid = threadIdx.x;
             var x = (tid < numRanges) ? dRangeTotals[tid] : _init();
             var total = __local__.Variable(_init());
-            var sum = multiScan(tid, x, total);
+            var sum = _multiScan(tid, x, total);
             // Shift the value from the inclusive scan for the exclusive scan.
             if (tid < numRanges)
                 dRangeTotals[tid + 1] = sum;
@@ -217,7 +215,7 @@ namespace Tutorial.Cs.examples.generic_scan
             var tid = threadIdx.x;
             var warp = tid/Const.WARP_SIZE;
             var lane = (Const.WARP_SIZE - 1) & tid;
-            var index = warp*valuesPerWarp + lane;
+            var index = warp*_valuesPerWarp + lane;
 
             var blockScan = dRangeTotals[block];
             var rangeX = dRanges[block];
@@ -226,21 +224,21 @@ namespace Tutorial.Cs.examples.generic_scan
             var shared =
                 Intrinsic.__ptr_volatile(
                     Intrinsic.__array_to_ptr(
-                        __shared__.Array<T>(size)));
+                        __shared__.Array<T>(_size)));
 
             // Use a stride of 33 slots per warp per value to allow conflict-free tranposes 
             // from strided to thread order.
-            var warpShared = shared + warp*valuesPerThread*(Const.WARP_SIZE + 1);
+            var warpShared = shared + warp*_valuesPerThread*(Const.WARP_SIZE + 1);
             var threadShared = warpShared + lane;
 
             // Transpose values into thread order.
-            var offset = valuesPerThread*lane;
+            var offset = _valuesPerThread*lane;
             offset += offset/Const.WARP_SIZE;
 
             while (rangeX < rangeY)
             {
 
-                for (var i = 0; i < valuesPerThread; i++)
+                for (var i = 0; i < _valuesPerThread; i++)
                 {
                     var source = rangeX + index + i*Const.WARP_SIZE;
                     var x = (source < rangeY) ? _transform(dValuesIn[source]) : _init();
@@ -249,10 +247,10 @@ namespace Tutorial.Cs.examples.generic_scan
 
                 // Transpose into thread order by reading from transposeValues.
                 // Compute the exclusive or inclusive scan of the thread values and their sum.
-                var threadScan = __local__.Array<T>(valuesPerThread);
+                var threadScan = __local__.Array<T>(_valuesPerThread);
                 var scan = _init();
 
-                for (var i = 0; i < valuesPerThread; i++)
+                for (var i = 0; i < _valuesPerThread; i++)
                 {
                     var x = warpShared[offset + i];
                     threadScan[i] = scan;
@@ -263,19 +261,19 @@ namespace Tutorial.Cs.examples.generic_scan
 
                 // Exclusive multi-scan for each thread's scan offset within the block.
                 var localTotal = __local__.Variable(_init());
-                var localScan = multiScanExcl(tid, scan, localTotal);
+                var localScan = _multiScanExcl(tid, scan, localTotal);
                 var scanOffset = _scanOp(blockScan, localScan);
 
                 // Apply the scan offset to each exclusive scan and put the values back into the shared memory
                 // they came out of.
-                for (var i = 0; i < valuesPerThread; i++)
+                for (var i = 0; i < _valuesPerThread; i++)
                 {
                     var x = _scanOp(threadScan[i], scanOffset);
                     warpShared[offset + i] = x;
                 }
 
                 // Store the scan back to global memory.
-                for (var i = 0; i < valuesPerThread; i++)
+                for (var i = 0; i < _valuesPerThread; i++)
                 {
                     var x = threadShared[i*(Const.WARP_SIZE + 1)];
                     var target = rangeX + index + i*Const.WARP_SIZE;
@@ -287,7 +285,7 @@ namespace Tutorial.Cs.examples.generic_scan
                 // This is the total for all the values encountered in this pass.
                 blockScan = _scanOp(blockScan, localTotal.Value);
 
-                rangeX += numValues;
+                rangeX += _numValues;
             }
         }
     }

@@ -134,5 +134,35 @@ namespace Tutorial.Cs.examples.generic_reduce
             if (tid == 0)
                 dRangeTotals[0] = total;
         }
+
+        public T Apply(T[] values)
+        {
+            var n = values.Length;
+            var numSm = GPUWorker.Device.Attributes.MULTIPROCESSOR_COUNT;
+            var tup = Plan.BlockRanges(numSm, n);
+            var ranges = tup.Item1;
+            var numRanges = tup.Item2;
+            var lpUpsweep = new LaunchParam(numRanges, Plan.NumThreads);
+            var lpReduce = new LaunchParam(1, Plan.NumThreadsReduction);
+
+            using (var dValues = GPUWorker.Malloc(values))
+            using (var dRanges = GPUWorker.Malloc(ranges))
+            using (var dRangeTotals = GPUWorker.Malloc<T>(numRanges))
+            {
+                // Launch range reduction kernel to calculate the totals per range.
+                GPUWorker.EvalAction(
+                    () =>
+                    {
+                        GPULaunch(Upsweep, lpUpsweep, dValues.Ptr, dRanges.Ptr, dRangeTotals.Ptr);
+                        if (numRanges > 1)
+                        {
+                            // Need to aggregate the block sums as well.
+                            GPULaunch(ReduceRangeTotals, lpReduce, numRanges, dRangeTotals.Ptr);
+                        }
+                    });
+                return dRangeTotals.Gather()[0];
+            }
+
+        }
     }
 }
