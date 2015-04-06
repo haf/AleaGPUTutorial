@@ -37,11 +37,11 @@ namespace Tutorial.Cs.examples.generic_reduce
             {
                 var n = values.Length;
                 var numSm = GPUWorker.Device.Attributes.MULTIPROCESSOR_COUNT;
-                var tup = _plan.BlockRanges(numSm, n);
+                var tup = Plan.BlockRanges(numSm, n);
                 var ranges = tup.Item1;
                 var numRanges = tup.Item2;
-                var lpUpsweep = new LaunchParam(numRanges, _plan.NumThreads);
-                var lpReduce = new LaunchParam(1, _plan.NumThreadsReduction);
+                var lpUpsweep = new LaunchParam(numRanges, Plan.NumThreads);
+                var lpReduce = new LaunchParam(1, Plan.NumThreadsReduction);
                 Console.WriteLine("num ranges ==> {0}", numRanges);
                 using(var dValues = GPUWorker.Malloc(values))
                 using(var dRanges = GPUWorker.Malloc(ranges))

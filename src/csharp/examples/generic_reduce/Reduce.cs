@@ -1,7 +1,7 @@
 ﻿using System;
 using Alea.CUDA;
 using Alea.CUDA.IL;
-using Microsoft.FSharp.Core;
+using Alea.CUDA.Utilities;
 
 namespace Tutorial.Cs.examples.generic_reduce
 {
@@ -78,11 +78,10 @@ namespace Tutorial.Cs.examples.generic_reduce
                 };
         }
 
-        // TODO: ask about invoke with null
         private readonly Func<T> _initFunc;
         private readonly Func<T,T,T> _reductionOp;
         private readonly Func<T,T> _transform;
-        public Plan _plan;
+        public Plan Plan;
         private readonly int _numThreads;
         private readonly Func<int, T, T> _multiReduce;
 
@@ -92,10 +91,10 @@ namespace Tutorial.Cs.examples.generic_reduce
             _initFunc = initFunc;
             _reductionOp = reductionOp;
             _transform = transform;
-            _plan = plan;
+            Plan = plan;
             _numThreads = plan.NumThreads;
             var numWarps = plan.NumWarps;
-            var logNumWarps = Alea.CUDA.Utilities.Common.log2(numWarps);
+            var logNumWarps = Common.log2(numWarps);
             _multiReduce = MultiReduce(initFunc, reductionOp, numWarps, logNumWarps);
         }
 
