@@ -1,13 +1,14 @@
 ﻿using System;
 using Alea.CUDA;
 using Alea.CUDA.IL;
+using Microsoft.FSharp.Core;
 
 namespace Tutorial.Cs.examples.generic_scan
 {
     public class Scan<T> : ILGPUModule
     {
         // Multi-scan function for all warps in the block.
-        public static Func<int, T, T, T> MultiScan(Func<T> init, Func<T, T, T> scanOp, int numWarps, int logNumWarps)
+        public static Func<int, T, FSharpRef<T>, T> MultiScan(Func<T> init, Func<T, T, T> scanOp, int numWarps, int logNumWarps)
         {
             var warpStride = Const.WARP_SIZE + Const.WARP_SIZE/2 + 1;
             return
@@ -71,7 +72,7 @@ namespace Tutorial.Cs.examples.generic_scan
                     Intrinsic.__syncthreads();
 
                     // The total is the last element.
-                    totalRef = totalsShared[2*numWarps - 1];
+                    totalRef.Value = totalsShared[2*numWarps - 1];
 
                     // Add the block scan to the inclusive scan for the block.
                     return scanOp(scan, totalsShared[warp]);
@@ -79,7 +80,7 @@ namespace Tutorial.Cs.examples.generic_scan
         } 
         
         // Multi-scan function for all warps in the block.
-        public static Func<int, T, T, T> MultiScanExcl(Func<T> init, Func<T, T, T> scanOp, int numWarps, int logNumWarps)
+        public static Func<int, T, FSharpRef<T>, T> MultiScanExcl(Func<T> init, Func<T, T, T> scanOp, int numWarps, int logNumWarps)
         {
             var warpStride = Const.WARP_SIZE + Const.WARP_SIZE/2 + 1;
             return
@@ -147,7 +148,7 @@ namespace Tutorial.Cs.examples.generic_scan
                     Intrinsic.__syncthreads();
 
                     // The total is the last element.
-                    totalRef = totalsShared[2*numWarps - 1];
+                    totalRef.Value = totalsShared[2*numWarps - 1];
 
                     // Add the block scan to the inclusive scan for the block.
                     if (tid == 0)
@@ -168,8 +169,13 @@ namespace Tutorial.Cs.examples.generic_scan
         public Plan Plan;
         private int numThreads;
         private int numWarps;
+        private int numValues;
+        private int valuesPerThread;
+        private int valuesPerWarp;
         private int logNumWarps;
-        private Func<int, T, T, T> multiScan;
+        private int size;
+        private Func<int, T, FSharpRef<T>, T> multiScan;
+        private Func<int, T, FSharpRef<T>, T> multiScanExcl; 
 
         public Scan(GPUModuleTarget target, Func<T> init, Func<T,T,T> scanOp, Func<T,T> transform, Plan plan) : base(target)
         {
@@ -179,8 +185,13 @@ namespace Tutorial.Cs.examples.generic_scan
             Plan = plan;
             numThreads = plan.NumThreadsReduction;
             numWarps = plan.NumWarpsReduction;
+            numValues = plan.NumValues;
+            valuesPerThread = plan.ValuesPerThread;
+            valuesPerWarp = plan.ValuesPerWarp;
             logNumWarps = Alea.CUDA.Utilities.Common.log2(numWarps);
+            size = numWarps*valuesPerThread*(Const.WARP_SIZE + 1);
             multiScan = MultiScan(init, scanOp, numWarps, logNumWarps);
+            multiScanExcl = MultiScanExcl(init, scanOp, numWarps, logNumWarps);
         }
 
         [Kernel]
@@ -188,7 +199,7 @@ namespace Tutorial.Cs.examples.generic_scan
         {
             var tid = threadIdx.x;
             var x = (tid < numRanges) ? dRangeTotals[tid] : _init();
-            var total = _init();
+            var total = __local__.Variable(_init());
             var sum = multiScan(tid, x, total);
             // Shift the value from the inclusive scan for the exclusive scan.
             if (tid < numRanges)
@@ -202,7 +213,82 @@ namespace Tutorial.Cs.examples.generic_scan
         public void Downsweep(deviceptr<T> dValuesIn, deviceptr<T> dValuesOut, deviceptr<T> dRangeTotals,
             deviceptr<int> dRanges, int inclusive)
         {
-            
+            var block = blockIdx.x;
+            var tid = threadIdx.x;
+            var warp = tid/Const.WARP_SIZE;
+            var lane = (Const.WARP_SIZE - 1) & tid;
+            var index = warp*valuesPerWarp + lane;
+
+            var blockScan = dRangeTotals[block];
+            var rangeX = dRanges[block];
+            var rangeY = dRanges[block + 1];
+
+            var shared =
+                Intrinsic.__ptr_volatile(
+                    Intrinsic.__array_to_ptr(
+                        __shared__.Array<T>(size)));
+
+            // Use a stride of 33 slots per warp per value to allow conflict-free tranposes 
+            // from strided to thread order.
+            var warpShared = shared + warp*valuesPerThread*(Const.WARP_SIZE + 1);
+            var threadShared = warpShared + lane;
+
+            // Transpose values into thread order.
+            var offset = valuesPerThread*lane;
+            offset += offset/Const.WARP_SIZE;
+
+            while (rangeX < rangeY)
+            {
+
+                for (var i = 0; i < valuesPerThread; i++)
+                {
+                    var source = rangeX + index + i*Const.WARP_SIZE;
+                    var x = (source < rangeY) ? _transform(dValuesIn[source]) : _init();
+                    threadShared[i*(Const.WARP_SIZE + 1)] = x;
+                }
+
+                // Transpose into thread order by reading from transposeValues.
+                // Compute the exclusive or inclusive scan of the thread values and their sum.
+                var threadScan = __local__.Array<T>(valuesPerThread);
+                var scan = _init();
+
+                for (var i = 0; i < valuesPerThread; i++)
+                {
+                    var x = warpShared[offset + i];
+                    threadScan[i] = scan;
+                    if (inclusive != 0)
+                        threadScan[i] = _scanOp(threadScan[i], x);
+                    scan = _scanOp(scan, x);
+                }
+
+                // Exclusive multi-scan for each thread's scan offset within the block.
+                var localTotal = __local__.Variable(_init());
+                var localScan = multiScanExcl(tid, scan, localTotal);
+                var scanOffset = _scanOp(blockScan, localScan);
+
+                // Apply the scan offset to each exclusive scan and put the values back into the shared memory
+                // they came out of.
+                for (var i = 0; i < valuesPerThread; i++)
+                {
+                    var x = _scanOp(threadScan[i], scanOffset);
+                    warpShared[offset + i] = x;
+                }
+
+                // Store the scan back to global memory.
+                for (var i = 0; i < valuesPerThread; i++)
+                {
+                    var x = threadShared[i*(Const.WARP_SIZE + 1)];
+                    var target = rangeX + index + i*Const.WARP_SIZE;
+                    if (target < rangeY)
+                        dValuesOut[target] = x;
+                }
+
+                // Grab the last element of totals_shared, which was set in MultiScan.
+                // This is the total for all the values encountered in this pass.
+                blockScan = _scanOp(blockScan, localTotal.Value);
+
+                rangeX += numValues;
+            }
         }
     }
 }
