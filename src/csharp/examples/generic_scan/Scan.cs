@@ -2,6 +2,7 @@
 using Alea.CUDA;
 using Alea.CUDA.IL;
 using Microsoft.FSharp.Core;
+using Tutorial.Cs.examples.generic_reduce;
 
 namespace Tutorial.Cs.examples.generic_scan
 {
@@ -173,8 +174,8 @@ namespace Tutorial.Cs.examples.generic_scan
         private readonly int _valuesPerWarp;
         private readonly int _size;
         private readonly Func<int, T, FSharpRef<T>, T> _multiScan;
-        private readonly Func<int, T, FSharpRef<T>, T> _multiScanExcl; 
-
+        private readonly Func<int, T, FSharpRef<T>, T> _multiScanExcl;
+        
         public Scan(GPUModuleTarget target, Func<T> init, Func<T,T,T> scanOp, Func<T,T> transform, Plan plan) : base(target)
         {
             _init = init;
@@ -287,6 +288,43 @@ namespace Tutorial.Cs.examples.generic_scan
 
                 rangeX += _numValues;
             }
+        }
+
+        public void Apply(
+            T[] input, 
+            Action<deviceptr<T>,deviceptr<int>,deviceptr<T>> upsweep,
+            Action<int,deviceptr<T>> reduce,
+            Action<deviceptr<T>,deviceptr<T>,deviceptr<T>,deviceptr<int>,int> downsweep,
+            bool inclusive)
+        {
+            var n = input.Length;
+            var numSm = GPUWorker.Device.Attributes.MULTIPROCESSOR_COUNT;
+            var tup = Plan.BlockRanges(numSm, n);
+            var ranges = tup.Item1;
+            var numRanges = tup.Item2;
+
+
+            var lpUpsweep = new LaunchParam(numRanges, Plan.NumThreads);
+            var lpReduce = new LaunchParam(1, Plan.NumThreadsReduction);
+            var lpDownsweep = new LaunchParam(numRanges, Plan.NumThreads);
+            var _inclusive = inclusive ? 1 : 0;
+
+            using(var dRanges = GPUWorker.Malloc(ranges))
+            using(var dRangeTotals = GPUWorker.Malloc<T>(numRanges))
+            using(var dInput = GPUWorker.Malloc(input))
+            using (var dOutput = GPUWorker.Malloc(input))
+            {
+                GPUWorker.EvalAction(
+                    () =>
+                    {
+                        GPULaunch(upsweep, lpUpsweep, dInput.Ptr, dRanges.Ptr, dRangeTotals.Ptr);
+                        GPULaunch(reduce, lpReduce, numRanges, dRangeTotals.Ptr);
+                        GPULaunch(downsweep, lpDownsweep, dInput.Ptr, dOutput.Ptr, dRangeTotals.Ptr, dRanges.Ptr,
+                            _inclusive);
+
+                    });
+            }
+
         }
     }
 }

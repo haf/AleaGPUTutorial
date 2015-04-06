@@ -70,7 +70,6 @@
     <Compile Include="examples\generic_reduce\ScalarProd.cs" />
     <Compile Include="examples\generic_reduce\Sum.cs" />
     <Compile Include="examples\generic_reduce\Test.cs" />
-    <Compile Include="examples\generic_scan\Plan.cs" />
     <Compile Include="examples\generic_scan\Scan.cs" />
     <Compile Include="examples\generic_scan\ScanApi.cs" />
     <Compile Include="examples\generic_scan\Sum.cs" />

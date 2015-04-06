@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Alea.CUDA;
 using Alea.CUDA.IL;
+using Tutorial.Cs.examples.generic_reduce;
 
 namespace Tutorial.Cs.examples.generic_scan
 {
