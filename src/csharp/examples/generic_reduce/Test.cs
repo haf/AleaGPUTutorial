@@ -25,13 +25,13 @@ namespace Tutorial.Cs.examples.generic_reduce
         public void Sum()
         {
             var nums = new[]{1,2,8,128,100,1024};
-            Func<double, double, double> sum = (x, y) => x + y;
             foreach (int n in nums)
             {
                 var values = Gen(n);
                 var dr = ReduceApi.Sum(values);
-                var hr = values.Aggregate(sum);
-                Assert.AreEqual(dr, hr);
+                var hr = values.Sum();
+                Console.WriteLine("hr, dr ===> {0}, {1}", hr, dr);
+                Assert.AreEqual(dr, hr, 1e-12);
             }
         }
     }

@@ -1,6 +1,7 @@
 ﻿
 
 using System;
+using System.Linq;
 
 namespace Tutorial.Cs.examples.generic_reduce
 {
@@ -31,30 +32,40 @@ namespace Tutorial.Cs.examples.generic_reduce
         {
             var numBlocks = Math.Min(BlockPerSm*numSm, NumThreadsReduction);
             var blockSize = NumThreads*ValuesPerThread;
-            var numBricks = 0; // divup
+            var numBricks = Alea.CUDA.Utilities.Common.divup(count, blockSize);
             numBlocks = Math.Min(numBlocks, numBricks);
 
             var brickDivQuot = numBricks/numBlocks;
             var brickDivRem = numBricks%numBlocks;
 
-            var ranges = new int[numBlocks];
-            for (var i = 0; i < numBlocks; i++) ranges[i] = i + 1;
-            for (var i = 0; i < numBlocks; i++)
-            {
-                int bricks = 0;
-                if ((i - 1) < brickDivRem)
-                    bricks = brickDivQuot + 1;
-                else
-                    bricks = brickDivQuot;
-                ranges[i] = Math.Min(ranges[i] + bricks*blockSize, count);
-            }
+            var r = Enumerable.Range(0, numBlocks + 1).ToArray();
+            int idx = 1;
+            var ranges = 
+                r.Select(i =>
+                {
+                    var s = r.Take(idx++).Sum();
+                    var bricks = (i - 1) < brickDivRem ? brickDivQuot + 1 : brickDivQuot;
+                    return Math.Min(s + bricks * blockSize, count);
+                }).ToArray();
+            ranges[0] = 0;
             return new Tuple<int[], int>(ranges, ranges.Length - 1);
         }
-
-        public static Plan Plan32()
+        
+        public static Plan Plan32 = new Plan()
         {
-            return new Plan {NumThreads = 1024, ValuesPerThread = 4, NumThreadsReduction = 256, BlockPerSm = 1};
-        }
+            NumThreads = 1024,
+            ValuesPerThread = 4,
+            NumThreadsReduction = 256,
+            BlockPerSm = 1
+        };
+
+        public static Plan Plan64 = new Plan()
+        {
+            NumThreads = 512,
+            ValuesPerThread = 4,
+            NumThreadsReduction = 256,
+            BlockPerSm = 1
+        };
     }
 
     public enum Planner

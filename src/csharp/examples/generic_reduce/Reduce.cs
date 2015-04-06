@@ -8,7 +8,7 @@ namespace Tutorial.Cs.examples.generic_reduce
     
     public class ReduceModule<T> : ILGPUModule
     {
-        public static Func<int, T, T> MultiReduce(Func<Unit, T> initFunc, Func<T, T, T> reductionOp, int numWarps,
+        public static Func<int, T, T> MultiReduce(Func<T> initFunc, Func<T, T, T> reductionOp, int numWarps,
             int logNumWarps)
         {
             var warpStride = Const.WARP_SIZE + Const.WARP_SIZE/2 + 1;
@@ -18,7 +18,7 @@ namespace Tutorial.Cs.examples.generic_reduce
                 (tid, x) =>
                 {
                     var warp = tid/Const.WARP_SIZE;
-                    var lane = tid & Const.WARP_SIZE - 1;
+                    var lane = tid & (Const.WARP_SIZE - 1);
                     var shared =
                         Intrinsic.__ptr_volatile(
                             Intrinsic.__array_to_ptr(
@@ -26,7 +26,7 @@ namespace Tutorial.Cs.examples.generic_reduce
                     var warpShared = shared + warp*warpStride;
                     var s = warpShared + (lane + Const.WARP_SIZE/2);
 
-                    warpShared[lane] = initFunc.Invoke(null);
+                    warpShared[lane] = initFunc();
                     s[0] = x;
 
                     // Run inclusive scan on each warp's data.
@@ -45,7 +45,7 @@ namespace Tutorial.Cs.examples.generic_reduce
                                 __shared__.Array<T>(2*numWarps)));
 
                     // Last line of warp stores the warp scan.
-                    if (lane == Const.WARP_SIZE - 1)
+                    if (lane == (Const.WARP_SIZE - 1))
                         totalsShared[numWarps + warp] = warpScan;
 
                     // Synchronize to make all the totals available to the reduction code.
@@ -57,7 +57,7 @@ namespace Tutorial.Cs.examples.generic_reduce
                         // Grab the block total for the tid'th block.  This is the last element
                         // in the block's scanned sequence.  This operation avoids bank conflicts.
                         var total = totalsShared[numWarps + tid];
-                        totalsShared[tid] = initFunc.Invoke(null);
+                        totalsShared[tid] = initFunc();
                         var ss = totalsShared + numWarps + tid;
 
                         var totalsScan = total;
@@ -65,7 +65,7 @@ namespace Tutorial.Cs.examples.generic_reduce
                         {
                             var offset = 1 << i;
                             totalsScan = reductionOp.Invoke(totalsScan, ss[-offset]);
-                            s[0] = totalsScan;
+                            ss[0] = totalsScan;
                         }
                     }
 
@@ -78,14 +78,15 @@ namespace Tutorial.Cs.examples.generic_reduce
                 };
         }
 
-        private readonly Func<Unit, T> _initFunc;
+        // TODO: ask about invoke with null
+        private readonly Func<T> _initFunc;
         private readonly Func<T,T,T> _reductionOp;
         private readonly Func<T,T> _transform;
         public Plan _plan;
         private readonly int _numThreads;
         private readonly Func<int, T, T> _multiReduce;
 
-        public ReduceModule(GPUModuleTarget target, Func<Unit, T> initFunc, Func<T, T, T> reductionOp, Func<T, T> transform,
+        public ReduceModule(GPUModuleTarget target, Func<T> initFunc, Func<T, T, T> reductionOp, Func<T, T> transform,
             Plan plan) : base(target)
         {
             _initFunc = initFunc;
@@ -109,7 +110,7 @@ namespace Tutorial.Cs.examples.generic_reduce
 
             // Loop through all elements in the interval, adding up values.
             // There is no need to synchronize until we perform the multi-reduce.
-            var reduced = _initFunc.Invoke(null);
+            var reduced = _initFunc();
             var index = rangeX + tid;
             while (index < rangeY)
             {
@@ -128,7 +129,7 @@ namespace Tutorial.Cs.examples.generic_reduce
         public void ReduceRangeTotals(int numRanges, deviceptr<T> dRangeTotals)
         {
             var tid = threadIdx.x;
-            var x = tid > numRanges ? dRangeTotals[tid] : _initFunc.Invoke(null);
+            var x = tid < numRanges ? dRangeTotals[tid] : _initFunc();
             var total = _multiReduce.Invoke(tid, x);
 
             if (tid == 0)
