@@ -6,7 +6,7 @@ using Tutorial.Cs.examples.generic_reduce;
 
 namespace Tutorial.Cs.examples.generic_scan
 {
-    public class Scan<T> : ILGPUModule
+    public class ScanModule<T> : ILGPUModule
     {
         // Multi-scan function for all warps in the block.
         public static Func<int, T, FSharpRef<T>, T> MultiScan(Func<T> init, Func<T, T, T> scanOp, int numWarps, int logNumWarps)
@@ -175,8 +175,9 @@ namespace Tutorial.Cs.examples.generic_scan
         private readonly int _size;
         private readonly Func<int, T, FSharpRef<T>, T> _multiScan;
         private readonly Func<int, T, FSharpRef<T>, T> _multiScanExcl;
+        private ReduceModule<T> _reduceModule; 
         
-        public Scan(GPUModuleTarget target, Func<T> init, Func<T,T,T> scanOp, Func<T,T> transform, Plan plan) : base(target)
+        public ScanModule(GPUModuleTarget target, Func<T> init, Func<T,T,T> scanOp, Func<T,T> transform, Plan plan) : base(target)
         {
             _init = init;
             _scanOp = scanOp;
@@ -191,6 +192,7 @@ namespace Tutorial.Cs.examples.generic_scan
             _size = numWarps*_valuesPerThread*(Const.WARP_SIZE + 1);
             _multiScan = MultiScan(init, scanOp, numWarps, logNumWarps);
             _multiScanExcl = MultiScanExcl(init, scanOp, numWarps, logNumWarps);
+            _reduceModule = new ReduceModule<T>(target, init, scanOp, transform, plan);
         }
 
         [Kernel]
@@ -290,7 +292,7 @@ namespace Tutorial.Cs.examples.generic_scan
             }
         }
 
-        public void Apply(
+        public T[] Apply(
             T[] input, 
             Action<deviceptr<T>,deviceptr<int>,deviceptr<T>> upsweep,
             Action<int,deviceptr<T>> reduce,
@@ -323,8 +325,13 @@ namespace Tutorial.Cs.examples.generic_scan
                             _inclusive);
 
                     });
+                return dOutput.Gather();
             }
+        }
 
+        public T[] Apply(T[] input, bool inclusive)
+        {
+            return Apply(input, _reduceModule.Upsweep, ScanReduce, Downsweep, inclusive);
         }
     }
 }
