@@ -1,20 +1,16 @@
 ﻿using System;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Alea.CUDA;
 using Alea.CUDA.IL;
 using Alea.CUDA.Utilities;
 using Microsoft.FSharp.Core;
+using Tutorial.Cs.examples.generic_scan;
 
 namespace Tutorial.Cs.examples.moving_average
 {
     public class WindowDifference : ILGPUModule
     {
-        public WindowDifference(GPUModuleTarget target, FSharpFunc<object, FSharpFunc<CompileOptions, Template<Entry<GPUModuleEntities>>>> cudafy)
-            : base(target, cudafy)
-        {
-
-        }
-
         public WindowDifference(GPUModuleTarget target)
             : base(target)
         {
@@ -37,8 +33,8 @@ namespace Tutorial.Cs.examples.moving_average
 
         public LaunchParam LaunchParams(int n)
         {
-            var numSm = this.GPUWorker.Device.Attributes.MULTIPROCESSOR_COUNT;
-            var blockSize = 256;
+            var numSm = GPUWorker.Device.Attributes.MULTIPROCESSOR_COUNT;
+            const int blockSize = 256;
             var gridSize = Math.Min(numSm, Common.divup(n, blockSize));
             return new LaunchParam(gridSize, blockSize);
         }
@@ -50,20 +46,25 @@ namespace Tutorial.Cs.examples.moving_average
         }
     }
 
-    public class MovingAverage : ILGPUModule
+    public class MovingAverageModule<T> : ILGPUModule
     {
-        public MovingAverage(GPUModuleTarget target, FSharpFunc<object, FSharpFunc<CompileOptions, Template<Entry<GPUModuleEntities>>>> cudafy)
-            : base(target, cudafy)
-        {
-        }
+        private Func<T, T, T> _add;
+        private Func<T, T, T> _mul;
+        private Func<T, T, T> _div; 
+        private T _1G;
+         
 
-        public MovingAverage(GPUModuleTarget target)
+        public MovingAverageModule(GPUModuleTarget target, Func<T,T,T> add, Func<T,T,T> mul, Func<T,T,T> div, T _1G)
             : base(target)
         {
+            _1G = _1G;
+            _add = add;
+            _mul = mul;
+            _div = div;
         }
 
         [Kernel]
-        public void MovingAvg<T>(int windowSize, int n, deviceptr<T> values, deviceptr<T> results)
+        public void MovingAvg(int windowSize, int n, deviceptr<T> values, deviceptr<T> results)
         {
             var blockSize = blockDim.x;
             var idx = threadIdx.x;
@@ -74,11 +75,7 @@ namespace Tutorial.Cs.examples.moving_average
             var idxGlobal = iGlobal;
             while (idxShared >= 0)
             {
-                dynamic value;
-                if (idxGlobal >= 0 && idxGlobal < n)
-                    value = values[idxGlobal];
-                else
-                    value = 0;
+                var value = ((idxGlobal >= 0) && (idxGlobal < n)) ? values[idxGlobal] : default(T);
                 shared[idxShared] = value;
                 idxShared -= blockSize;
                 idxGlobal -= blockSize;
@@ -88,34 +85,54 @@ namespace Tutorial.Cs.examples.moving_average
 
             if (iGlobal < n)
             {
-                dynamic temp = 0;
-                dynamic dyn1 = 1;
+                var temp = default(T);
                 var k = 0;
                 while (k <= Math.Min(windowSize - 1, iGlobal))
                 {
-                    temp = (temp * LibDevice2.__gconv<int, T>(k) + shared[idx - k + windowSize - 1]) /
-                           (LibDevice2.__gconv<int, T>(k) + dyn1);
+                    // This looks messy because of the add,mul,div operators needed for generics.
+                    // For reference, here is the original F# line of code; it's easier to read:
+                    // temp <- (temp * __gconv k + shared.[idx - k + windowSize - 1]) / (__gconv k + 1G)
+                    var gk = LibDevice2.__gconv<int, T>(k);
+                    var s = shared[idx - k + windowSize - 1];
+                    var t = _mul(temp, gk);
+                    var u = _add(t, s);
+                    var v = _add(gk, _1G);
+                    temp = _div(u, v);
                     k++;
                 }
                 results[iGlobal] = temp;
             }
         }
 
-        public void Run<T>(int n, int windowSize, deviceptr<T> values, deviceptr<T> results)
+        public LaunchParam LaunchParams(int n, int windowSize)
         {
-            var maxBlockSize = 256;
+            const int maxBlockSize = 256;
             var blockSize = Math.Min(n, maxBlockSize);
             var gridSizeX = (n - 1) / blockSize + 1;
-
             var sharedMem = (blockSize + windowSize - 1) * Intrinsic.__sizeof<T>();
-            var lp = new LaunchParam(gridSizeX, blockSize, sharedMem);
-            if (gridSizeX > 65535)
-            {
-                var gridSizeY = 1 + (n - 1) / (blockSize * 65535);
-                gridSizeX = 1 + (n - 1) / (blockSize * gridSizeY);
-                lp = new LaunchParam(new dim3(gridSizeX, gridSizeY), new dim3(blockSize), sharedMem);
-            }
+            
+            if (gridSizeX <= 65535)
+                return new LaunchParam(gridSizeX, blockSize, sharedMem);
+            
+            var gridSizeY = 1 + (n - 1) / (blockSize * 65535);
+            gridSizeX = 1 + (n - 1) / (blockSize * gridSizeY);
+            return new LaunchParam(new dim3(gridSizeX, gridSizeY), new dim3(blockSize), sharedMem);
+        }
+
+        public void Apply(int n, int windowSize, deviceptr<T> values, deviceptr<T> results)
+        {
+            var lp = LaunchParams(n, windowSize);
             GPULaunch(MovingAvg, lp, windowSize, n, values, results);
+        }
+    }
+
+    public class MovingAverageScan<T> : MovingAverageModule<T>
+    {
+        private ScanModule<T> scanner; 
+
+        public MovingAverageScan(GPUModuleTarget target, Func<T, T, T> add, Func<T, T, T> mul, Func<T, T, T> div, T _1G) : base(target, add, mul, div, _1G)
+        {
+            scanner= new ScanModule<T>(target, () => default(T), (x,y) => x + y, x => x);
         }
     }
 
