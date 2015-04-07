@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Linq;
-using System.Runtime.InteropServices;
 using Alea.CUDA;
 using Alea.CUDA.IL;
 using Alea.CUDA.Utilities;
-using Microsoft.FSharp.Core;
 using Tutorial.Cs.examples.generic_scan;
 
 namespace Tutorial.Cs.examples.moving_average
@@ -48,16 +46,16 @@ namespace Tutorial.Cs.examples.moving_average
 
     public class MovingAverageModule<T> : ILGPUModule
     {
-        private Func<T, T, T> _add;
-        private Func<T, T, T> _mul;
-        private Func<T, T, T> _div; 
-        private T _1G;
+        private readonly Func<T, T, T> _add;
+        private readonly Func<T, T, T> _mul;
+        private readonly Func<T, T, T> _div; 
+        private readonly T _1G;
          
 
-        public MovingAverageModule(GPUModuleTarget target, Func<T,T,T> add, Func<T,T,T> mul, Func<T,T,T> div, T _1G)
+        public MovingAverageModule(GPUModuleTarget target, Func<T,T,T> add, Func<T,T,T> mul, Func<T,T,T> div, T genericOne)
             : base(target)
         {
-            _1G = _1G;
+            _1G = genericOne;
             _add = add;
             _mul = mul;
             _div = div;
@@ -90,7 +88,7 @@ namespace Tutorial.Cs.examples.moving_average
                 while (k <= Math.Min(windowSize - 1, iGlobal))
                 {
                     // This looks messy because of the add,mul,div operators needed for generics.
-                    // For reference, here is the original F# line of code; it's easier to read:
+                    // For reference, here is the original line of F# code - it's easier to read:
                     // temp <- (temp * __gconv k + shared.[idx - k + windowSize - 1]) / (__gconv k + 1G)
                     var gk = LibDevice2.__gconv<int, T>(k);
                     var s = shared[idx - k + windowSize - 1];
@@ -132,7 +130,7 @@ namespace Tutorial.Cs.examples.moving_average
 
         public MovingAverageScan(GPUModuleTarget target, Func<T, T, T> add, Func<T, T, T> mul, Func<T, T, T> div, T _1G) : base(target, add, mul, div, _1G)
         {
-            scanner= new ScanModule<T>(target, () => default(T), (x,y) => x + y, x => x);
+            //scanner= new ScanModule<T>(target, () => default(T), (x,y) => x + y, x => x);
         }
     }
 
@@ -140,7 +138,6 @@ namespace Tutorial.Cs.examples.moving_average
     {
         public double[] MovingAverageArray(int windowSize, double[] series)
         {
-            var count = 1;
             var sums = series.Select((a, i) => series.Take(i + 1).Sum()).ToArray();
             var ma = new double[sums.Length - windowSize];
             for (var i = windowSize; i < sums.Length; i++)
