@@ -46,9 +46,23 @@ namespace Tutorial.Cs.examples.generic_scan
                 var dr = ScanApi.Sum(values, true);
                 var hr = cpuScan((x,y) => x + y, values, true);
                 Show(hr, dr);
-                Compare(hr,dr);
+                Compare(hr,dr,1e-11);
             }
         }
+
+        [Test]
+        public void ExclusiveSumDoubles()
+        {
+            foreach (var n in Nums)
+            {
+                var values = Gen(() => Rng.NextDouble(), n);
+                var dr = ScanApi.Sum(values, false);
+                var hr = cpuScan((x, y) => x + y, values, false);
+                Show(hr, dr);
+                Compare(hr, dr, 1e-11);
+            }
+        }
+
 
         [Test]
         public void InclusiveSumSingles()
@@ -59,8 +73,21 @@ namespace Tutorial.Cs.examples.generic_scan
                 var dr = ScanApi.Sum(values, true);
                 var hr = cpuScan((x, y) => x + y, values, true);
                 Show(hr, dr);
-                Compare(hr, dr);
+                Compare(hr, dr, 1e-3);
             }            
+        }
+
+        [Test]
+        public void ExclusiveSumSingles()
+        {
+            foreach (var n in Nums)
+            {
+                var values = Gen(() => (float)Rng.NextDouble(), n);
+                var dr = ScanApi.Sum(values, false);
+                var hr = cpuScan((x, y) => x + y, values, false);
+                Show(hr, dr);
+                Compare(hr, dr, 1e-3);
+            }
         }
 
         [Test]
@@ -77,7 +104,7 @@ namespace Tutorial.Cs.examples.generic_scan
                 var dr1 = ScanApi.Scan(v1, (x,y) => x+y, inclusive);
                 var dr2 = ScanApi.Scan(v2, (x, y) => x + y, inclusive);
                 Compare(hr1, dr1);
-                Compare(hr2, dr2, 1e-12);
+                Compare(hr2, dr2, 1e-11);
             }
         }
 
@@ -87,7 +114,7 @@ namespace Tutorial.Cs.examples.generic_scan
             result[0] = default(T);
             for (var i = 1; i < result.Length; i++)
                 result[i] = op(result[i - 1], input[i - 1]);
-            return inclusive ? result.Skip(1).ToArray() : result;
+            return inclusive ? result.Skip(1).ToArray() : result.Take(input.Length).ToArray();
         }
 
         public T[] Gen<T>(Func<T> g, int n)
