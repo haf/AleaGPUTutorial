@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Linq;
-using Alea.CUDA;
-using Microsoft.FSharp.Core;
 using NUnit.Framework;
-using OpenTK.Graphics.ES20;
-using SharpDX.Direct3D9;
 
 namespace Tutorial.Cs.examples.generic_reduce
 {
