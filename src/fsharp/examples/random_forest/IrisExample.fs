@@ -54,7 +54,6 @@ let irisScatterPlot (trainingData : DataModel.LabeledSample[]) =
     createChart choosePetalLenghtPetalWidth "Petal-length Petal-width"
 
     System.Windows.Forms.Application.Run()
-//    ()
 
 (**
 Train random forest and to an out of sample test.
@@ -89,7 +88,6 @@ let printFractionOfCorrectForcasts trainingData device =
     let fraction = (forecastedLabels, expectedLabels) ||> Array.map2  (fun x y -> if x=y then 1.0 else 0.0)
                                                        |> Array.average
     printfn "%f %% of forecasts were correct (out of sample)" (fraction*100.0)
-
 
 (**
 Read in the Iris data set from csv-file using csv-type-provider

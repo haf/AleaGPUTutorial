@@ -47,12 +47,6 @@ type Matrix<'T> private (worker:Worker, matrixType) =
 
     member this.ToArray2D () = this.ToArray () |> Array2D.ofArrayRowMajor nRows nCols
 
-    member this.ToJaggedArray () =
-        let host = this.ToArray()
-        Array.init nRows (fun rowIdx ->
-            Array.sub host (rowIdx * nCols) nCols
-        ) 
-
     member this.Gather (rowIdx, colIdx) =
         if rowIdx >= nRows then failwith "rowIdx out of bounds"
         if colIdx >= nCols then failwith "colIdx out of bounds"

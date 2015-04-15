@@ -107,7 +107,7 @@ let private entropyTerm (x : int) =
     elif x = 0 then
         0.0
     else
-        failwith "undefined"
+        failwith "entropy undefined"
 
 let private entropyTermSum node =
     let hist, total = node
@@ -246,17 +246,21 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
     // for each feature find minimum entropy and corresponding index
     let mapping = (fun featureIdx labels ->
         if (mask.[featureIdx]) <> 0 then
-            let featureWeights = weightsPerFeature.[featureIdx]
-            let countsPerSplit = cumHistograms numClasses labels featureWeights
-            let mask = entropyMask featureWeights labels total combinedMinWeight
-            let entropyPerSplit = splitEntropies mask countsPerSplit totals
-            entropyPerSplit |> Seq.map rounding |> minAndArgMin |> translator featureIdx
+//            if Array.min labels = Array.max labels then
+//                (0.0, upperBoundWeights)
+//            else
+                let featureWeights = weightsPerFeature.[featureIdx]
+                let countsPerSplit = cumHistograms numClasses labels featureWeights
+                let mask = entropyMask featureWeights labels total combinedMinWeight
+                let entropyPerSplit = splitEntropies mask countsPerSplit totals
+                let a = entropyPerSplit |> Seq.map rounding |>Seq.toArray
+                a |> minAndArgMin |> translator featureIdx
         else
             (infinity, upperBoundWeights)
     )
 
     let r = labelsPerFeature |> mapper mapping
-//    printfn "%A" r
+    printfn "%A" r
     r
 
 let restrict startIdx count (source : _[]) = 
@@ -272,32 +276,43 @@ let restrictAbove idx (source : _[]) =
 
 /// FeatureArrays need to be sorted in ascending order
 let rec trainTrees depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainingSet:(FeatureArray * Labels * Indices)[]) (weights:Weights[]) =
+    printfn "---- depth: %d ----" depth
+    printfn "weigths: %A" weights
     let triples = 
         if depth = 0 then
             weights |> Array.map (fun weights -> nan, weights.GetUpperBound(0), 0)
         else
             optimizer.Optimize(weights)
             |> Array.map (fun results ->
-                results
-                |> Array.mapi (fun i (entropy, splitIdx) -> entropy, splitIdx, i)
-                |> Array.minBy (fun (entropy, _, _) -> entropy))
+                let fst a = 
+                    let a1, _, _ = a
+                    a1
+                let a = results
+                        |> Array.mapi (fun i (entropy, splitIdx) -> entropy, splitIdx, i)
+                        
+                let b = a |> Array.minBy (fun (entropy, _, _) -> entropy)
+                printfn "triplet: %A" b
+                if fst a.[0] = fst b then a.[0] else b
+                )
+    ()
+
+//    printfn "Triplets %A, depth = %d" triples depth
 
     let trees0 = triples |> Array.mapi (fun i (entropy, splitIdx, featureIdx) ->
         let weights = weights.[i]
-
         let featureArray, labels, indices = sortedTrainingSet.[featureIdx]
         let sortedWeights = weights |> Array.projectIdcs indices
         let threshold = featureArrayThreshold sortedWeights featureArray splitIdx
 
-//        if true then
-//            printfn "depth: %A, entropy: %A, splitIdx: %A, featureIdx: %A" depth entropy splitIdx featureIdx
-//            printf "Labels:\n["
-//            (sortedWeights, labels) ||> Array.iteri2 (fun i weight label ->
-//                if weight <> 0 then
-//                    printf " (%A * %A) " label weight
-//                if (i = splitIdx) then printf "|"
-//            )
-//            printfn "]"
+        if true then
+            printfn "depth: %A, entropy: %A, splitIdx: %A, featureIdx: %A" depth entropy splitIdx featureIdx
+            printf "Labels:\n["
+            (sortedWeights, labels) ||> Array.iteri2 (fun i weight label ->
+                if weight <> 0 then
+                    printf " (%A * %A) " label weight
+                if (i = splitIdx) then printf "|"
+            )
+            printfn "]"
 
         match threshold with
         | Some num ->
@@ -322,9 +337,9 @@ let rec trainTrees depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainin
         | None ->
             let label = findMajorityClass sortedWeights numClasses labels
             Some (Tree.Leaf label), None, None, None )
-
+    
     let trees() = trees0 |> Array.choose (fun (tree, _, _, _) -> tree)
-
+    
     let lowWeights = trees0 |> Array.choose (fun (_, lowWeights, _, _) -> lowWeights)
     let highWeights = trees0 |> Array.choose (fun (_, _, highWeights, _) -> highWeights)
 

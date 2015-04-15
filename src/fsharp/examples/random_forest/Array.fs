@@ -50,11 +50,41 @@ let randomlySplitUpArray x (rnd : System.Random) k =
 /// Returns value and position of minimum in a sequence. 
 /// In case of multiple minima it returns the first occuring.
 let inline minAndArgMin (source: seq<'T>) : ('T * int) =
-    source |> Seq.mapi (fun i e -> e,i)
-            |> Seq.minBy (fun e -> fst e)
+    use e = source.GetEnumerator() 
+    if not (e.MoveNext()) then invalidArg "source" "empty sequence"
+    let mutable i = 0
+
+    let mutable accv = e.Current
+    let mutable acci = i
+
+    while e.MoveNext() do
+        i <- i + 1
+        let curr = e.Current
+        if curr <= accv then
+            accv <- curr
+            acci <- i
+
+    (accv, acci)
+//    source |> Seq.mapi (fun i e -> e,i)
+//           |> Seq.minBy (fun e -> fst e)
 
 /// Returns value and position of maximum in a sequence. 
 /// In case of multiple maxima it returns the first occuring.
 let inline maxAndArgMax (source: seq<'T>) : ('T * int) =
-    source |> Seq.mapi (fun i e -> e,i)
-            |> Seq.maxBy (fun e -> fst e)
+    use e = source.GetEnumerator() 
+    if not (e.MoveNext()) then invalidArg "source" "empty sequence"
+    let mutable i = 0
+
+    let mutable accv = e.Current
+    let mutable acci = i
+
+    while e.MoveNext() do
+        i <- i + 1
+        let curr = e.Current
+        if curr > accv then
+            accv <- curr
+            acci <- i
+
+    (accv, acci)
+//    source |> Seq.mapi (fun i e -> e,i)
+//           |> Seq.maxBy (fun e -> fst e)

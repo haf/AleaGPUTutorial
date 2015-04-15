@@ -357,34 +357,34 @@ let randomTrainingData (rnd:System.Random) numSamples numFeatures numClasses =
     LabeledFeatures (domains, labels)
 
 let defaultTrainingData = 
-    let numSamples = 1000
-    let numFeatures = 20
+    let numSamples = 200
+    let numFeatures = 10
     let numClasses = 2
     let rnd = System.Random(0)
     let trainingData = randomTrainingData rnd numSamples numFeatures numClasses
     trainingData.Sorted
 
-let compareForests options1 options2 = 
+let compareForests gpuOptions cpuOptions = 
     let trainingData = defaultTrainingData
 
-    let numTrees = 100
+    let numTrees = 1
     let rnd = System.Random(0)
     let weights = Array.init numTrees (fun _ -> randomWeights rnd trainingData.Length)
     let classifier options = bootstrappedForestClassifier options weights
 
     printfn "GPU--------------"
-    let model1 = classifier options1 defaultTrainingData
+    let model1 = classifier gpuOptions defaultTrainingData
     let (RandomForest (trees1, _)) = model1
 
     printfn "CPU--------------"
-    let model2 = classifier options2 trainingData
+    let model2 = classifier cpuOptions trainingData
     let (RandomForest (trees2, _)) = model2
 
     Array.iteri2 (fun i tree1 tree2 -> 
         try
             tree1 |> should equal tree2
         with 
-        | ex ->
+        | _ ->
             printfn "Tree Nr. %d" i
             reraise()
     ) trees1 trees2
@@ -412,10 +412,9 @@ let ``Random forest on CPU thread pool vs GPU thread pool`` () =
 
     let options = { TreeOptions.Default with MaxDepth = 4 }
     let trainingData = defaultTrainingData
-    let numClasses = trainingData.NumClasses
 
     match trainingData with
-    | SortedFeatures sortedData ->
+    | SortedFeatures _ ->
         compareForests  { options with Device = cpuDevice } { options with Device = gpuDevice }
     | _ -> failwith "expected SortedFeatures"
 
@@ -436,12 +435,12 @@ let ``Features subselection`` () =
     //let cpuDevice = Pool(PoolMode.EqualPartition, List.init 2 (fun i -> CPU(CpuMode.Sequential)))
     let cpuDevice = CPU(CpuMode.Sequential)
 
-    //let options = { TreeOptions.Default with MaxDepth = 4 }
-    let options = { TreeOptions.Default with MaxDepth = 3 }
+    let options = { TreeOptions.Default with MaxDepth = 6 }
+//    let options = { TreeOptions.Default with MaxDepth = 3 }
     let trainingData = defaultTrainingData
-    let numClasses = trainingData.NumClasses
+
     match trainingData with
-    | SortedFeatures sortedData ->
+    | SortedFeatures _ ->
         compareForests  
             ({ options with Device = gpuDevice1 } |> addSquareRootFeatureSelector 50)
             ({ options with Device = cpuDevice } |> addSquareRootFeatureSelector 50)
@@ -454,7 +453,7 @@ let ``Random forest on CPU Parallel vs GPU thread pool`` () =
     let gpuDevice1 = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
     let gpuDevice2 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
     let gpuDevice = Pool(PoolMode.EqualPartition, [gpuDevice1; gpuDevice2])
-    let cpuDevice = Pool(PoolMode.EqualPartition, List.init 2 (fun i -> CPU(CpuMode.Sequential)))
+    let cpuDevice = Pool(PoolMode.EqualPartition, List.init 2 (fun _ -> CPU(CpuMode.Sequential)))
     let options = { TreeOptions.Default with MaxDepth = 4 }
     let trainingData = defaultTrainingData
     let numClasses = trainingData.NumClasses
