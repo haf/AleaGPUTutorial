@@ -1,6 +1,6 @@
 ﻿(**
 The [Iris flower data set](http://en.wikipedia.org/wiki/Iris_flower_data_set) contains four features (length and the width of both: 
-[sepals and petals](http://en.wikipedia.org/wiki/Sepal#/media/File:Petal-sepal.jpg) ) of three species:
+[sepals and petals](http://en.wikipedia.org/wiki/Sepal#/media/File:Petal-sepal.jpg)) of three species:
 
  - [Iris setosa](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Kosaciec_szczecinkowaty_Iris_setosa.jpg), 
  - [Iris virginica](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_virginica.jpg) and  
@@ -72,15 +72,16 @@ let printFractionOfCorrectForcasts trainingData device =
     let options = { GpuSplitEntropy.EntropyOptimizationOptions.Default with
                         FeatureSelector = GpuSplitEntropy.EntropyOptimizationOptions.SquareRootFeatureSelector (System.Random()) }
 
-    let parameters = { TreeOptions.Default with
+    let options = { TreeOptions.Default with
+                        MaxDepth = 3
                         Device = device
                         EntropyOptions = options }
 
-    printfn "%A" parameters
+    printfn "%A" options
 
     // train model
     let trainingData = LabeledSamples trainingData
-    let model = randomForestClassifier  parameters (System.Random(42)) 100 trainingData
+    let model = randomForestClassifier options (System.Random(42)) 100 trainingData
     
     // predict labels
     let features, expectedLabels = Array.unzip testData
@@ -118,7 +119,7 @@ let irisExample () =
     irisScatterPlot trainingData
 
     let cpuDevice = CPU(CpuMode.Parallel)
-    let gpuDevice = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
+    let gpuDevice = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.DefaultModule)
 
     printFractionOfCorrectForcasts trainingData cpuDevice
     printFractionOfCorrectForcasts trainingData gpuDevice

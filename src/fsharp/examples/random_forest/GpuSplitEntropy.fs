@@ -490,7 +490,7 @@ type EntropyOptimizationModule(target) as this =
                     if condition then (__nv_nearbyint (rawEntropy * roundingFactor)) / roundingFactor else infinity
                 else infinity
 
-    /// Returns a GPU matrix that the caller needs to dispose of
+    /// Returns a GPU matrix that the caller needs to dispose of.
     member this.Entropy(problem:EntropyOptimizationProblem, memories:EntropyOptimizationMemories, options:EntropyOptimizationOptions, totals:int, numValid:int) =
         let roundingFactor = 10.0 ** (float options.Decimals)
         let minWeight = options.MinWeight problem.numClasses totals
@@ -634,6 +634,9 @@ type EntropyOptimizationModule(target) as this =
 
         results |> Array.choose id
 
+    (**
+    Optimization not using Streams, optimizing each element of the `weights`-array for itself.
+    *)
     member this.Optimize(problem:EntropyOptimizationProblem, memories:EntropyOptimizationMemories, options:EntropyOptimizationOptions, weights:Weights) = 
         this.GPUWorker.Eval <| fun _ ->
             let masks = options.FeatureSelector problem.numFeatures
@@ -646,6 +649,9 @@ type EntropyOptimizationModule(target) as this =
             this.Entropy(problem, memories, options, sum, count)
             this.MinimumEntropy(problem, memories, count, masks)
 
+    (**
+    Optimization using Streams. Optimizes the `weights`-array in parrallel.
+    *)
     member this.Optimize(problem:EntropyOptimizationProblem, param:(Stream * EntropyOptimizationMemories)[], options:EntropyOptimizationOptions, weights:Weights[]) =
         this.GPUWorker.Eval <| fun _ ->
 
@@ -671,9 +677,9 @@ type EntropyOptimizationModule(target) as this =
 
             let launch = this.LaunchCumSumKernel.Value
             param |> Array.iteri (fun i (stream, memories) ->
-                // cum sums over the weight matrix   
+                // cum sums over the weight matrix
                 let matrix = memories.weightsPerFeatureAndClass
-                let numValid = counts.[i]    
+                let numValid = counts.[i]
                 let lp = LaunchParam(matrix.NumRows, primitiveScan.Resource.BlockThreads, 0, stream)
                 launch lp matrix.NumCols numValid matrix.DeviceData.Ptr )
 
@@ -685,6 +691,3 @@ type EntropyOptimizationModule(target) as this =
             handleMasks |> Array.iter (fun (_, handle) -> handle.Free())
 
             results
-
-                
-

@@ -51,10 +51,9 @@ type LabeledFeatureSet =
             let samples, labels = trainingSet |> Array.unzip
             let domains = Array.init samples.[0].Length (fun i -> Array.init numSamples (fun j -> samples.[j].[i]))
             SortedFeatures (sortAllFeatures labels domains)
-        | LabeledFeatures (domains, labels) -> 
-            SortedFeatures (sortAllFeatures labels domains)
+        | LabeledFeatures (domains, labels) -> SortedFeatures (sortAllFeatures labels domains)
         | SortedFeatures _ -> this
-        
+
 (**
 Forecasts the label of a `sample` by traversing the `tree`.
 *)
@@ -101,7 +100,7 @@ let countTotals numClasses labels weights =
 
 let private log_2 = log 2.0
 
-let private entropyTerm (x : int) = 
+let private entropyTerm (x : int) =
     if x > 0 then
         let xf = float x
         xf * (log xf)
@@ -188,7 +187,7 @@ let entropyMask (weights : _[]) (labels : _[]) totalWeight absMinWeight =
                     ((labelChange || weightChange) && enoughWeight, nextNonZero, lowWeight) 
                 | None -> (true, nextNonZero, lowWeight) // i is the last valid element
         | None -> (false, nextNonZero, lowWeight) // no valid elements left
-    ) 
+    )
     |> Seq.skip 1 
     |> Seq.map (fun (x, _, _) -> x)
 
@@ -207,7 +206,7 @@ type GpuModuleProvider =
 
 type GpuMode =
     | SingleWeight
-    | SingleWeightWithStream of numStreams:int
+    | MultiWeightWithStream of numStreams:int
 
 type PoolMode =
     | EqualPartition
@@ -375,7 +374,7 @@ type EntropyDevice =
                         memories.Dispose()
                         problem.Dispose() }
 
-            | SingleWeightWithStream numStreams ->
+            | MultiWeightWithStream numStreams ->
                 let problem, param = worker.Eval <| fun _ ->
                     let problem = gpuModule.CreateProblem(numClasses, labelsPerFeature, indicesPerFeature)
                     let param = Array.init numStreams (fun _ ->
@@ -492,7 +491,14 @@ let randomWeights (rnd:System.Random) length : Weights =
     hist
 
 (**
-Create a random forest from a `trainingSet`
+Create a random forest from a `trainingSet`:
+
+- `options`, often the default options using GPU is a fair choice
+- `rnd`, an instance of System.Random in order to create different weights for the trees
+- `numTrees`, the number of trees to be grown in the random forest
+- `trainingSet`, data to train the random forest.
+
+The method returns a random forest consisting of an array of trees and the number of classes (i.e. number of possible labels).
 *)
 let randomForestClassifier options (rnd : System.Random) numTrees (trainingSet : LabeledFeatureSet) =
     let numSamples = trainingSet.Length
