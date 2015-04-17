@@ -100,13 +100,22 @@ let countTotals numClasses labels weights =
 
 let private log_2 = log 2.0
 
+let private entropyTerm (x : int) =
+    if x > 0 then
+        let xf = float x
+        xf * (log xf)
+    elif x = 0 then
+        0.0
+    else
+        failwith "entropy undefined"
+
 let private entropyTermSum node =
     let hist, total = node
     if (total = 0) then
         0.0
     else
-        let sumLogs = (0.0, hist) ||> Seq.fold (fun e c -> e - (GpuSplitEntropy.entropyTerm c))
-        (sumLogs + GpuSplitEntropy.entropyTerm total)
+        let sumLogs = (0.0, hist) ||> Seq.fold (fun e c -> e - (entropyTerm c))
+        (sumLogs + entropyTerm total)
 
 /// Returns entropy as $\frac{1}{\rm{total} log 2} \sum_i - f_i * log(f_i/F)$.
 let entropy total (nodes : LabelHistogram seq) =
