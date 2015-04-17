@@ -57,7 +57,7 @@ type LabeledFeatureSet =
 (**
 Forecasts the label of a `sample` by traversing the `tree`.
 *)
-let rec forecastTree (sample:Sample) tree =
+let rec forecastTree (sample : Sample) tree =
     match tree with
     | Tree.Leaf label -> label
     | Tree.Node (low, split, high) ->
@@ -84,7 +84,7 @@ let forecast model sample : Label =
 Functionality needed for training a random forest:
 *)
 /// Returns an array of histograms on `labels` weighted by `weights`.
-let cumHistograms numClasses (labels:Labels) (weights : Weights) : LabelHistogram seq =
+let cumHistograms numClasses (labels : Labels) (weights : Weights) : LabelHistogram seq =
     ((Array.zeroCreate numClasses, 0), seq { 0 .. weights.GetUpperBound(0) })
     ||> Seq.scan (fun (hist, sum) i ->
             let weight = weights.[i]
@@ -100,22 +100,13 @@ let countTotals numClasses labels weights =
 
 let private log_2 = log 2.0
 
-let private entropyTerm (x : int) =
-    if x > 0 then
-        let xf = float x
-        xf * (log xf)
-    elif x = 0 then
-        0.0
-    else
-        failwith "entropy undefined"
-
 let private entropyTermSum node =
     let hist, total = node
     if (total = 0) then
         0.0
     else
-        let sumLogs = (0.0, hist) ||> Seq.fold (fun e c -> e - (entropyTerm c))
-        (sumLogs + entropyTerm total)
+        let sumLogs = (0.0, hist) ||> Seq.fold (fun e c -> e - (GpuSplitEntropy.entropyTerm c))
+        (sumLogs + GpuSplitEntropy.entropyTerm total)
 
 /// Returns entropy as $\frac{1}{\rm{total} log 2} \sum_i - f_i * log(f_i/F)$.
 let entropy total (nodes : LabelHistogram seq) =
@@ -253,14 +244,13 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
                 let countsPerSplit = cumHistograms numClasses labels featureWeights
                 let mask = entropyMask featureWeights labels total combinedMinWeight
                 let entropyPerSplit = splitEntropies mask countsPerSplit totals
-                let a = entropyPerSplit |> Seq.map rounding |>Seq.toArray
-                a |> minAndArgMin |> translator featureIdx
+                entropyPerSplit |> Seq.map rounding |> Seq.toArray |> minAndArgMin |> translator featureIdx
         else
             (infinity, upperBoundWeights)
     )
 
     let r = labelsPerFeature |> mapper mapping
-    printfn "%A" r
+//    printfn "%A" r
     r
 
 let restrict startIdx count (source : _[]) = 
@@ -296,23 +286,21 @@ let rec trainTrees depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainin
                 )
     ()
 
-//    printfn "Triplets %A, depth = %d" triples depth
-
     let trees0 = triples |> Array.mapi (fun i (entropy, splitIdx, featureIdx) ->
         let weights = weights.[i]
         let featureArray, labels, indices = sortedTrainingSet.[featureIdx]
         let sortedWeights = weights |> Array.projectIdcs indices
         let threshold = featureArrayThreshold sortedWeights featureArray splitIdx
 
-        if true then
-            printfn "depth: %A, entropy: %A, splitIdx: %A, featureIdx: %A" depth entropy splitIdx featureIdx
-            printf "Labels:\n["
-            (sortedWeights, labels) ||> Array.iteri2 (fun i weight label ->
-                if weight <> 0 then
-                    printf " (%A * %A) " label weight
-                if (i = splitIdx) then printf "|"
-            )
-            printfn "]"
+//        if true then
+//            printfn "depth: %A, entropy: %A, splitIdx: %A, featureIdx: %A" depth entropy splitIdx featureIdx
+//            printf "Labels:\n["
+//            (sortedWeights, labels) ||> Array.iteri2 (fun i weight label ->
+//                if weight <> 0 then
+//                    printf " (%A * %A) " label weight
+//                if (i = splitIdx) then printf "|"
+//            )
+//            printfn "]"
 
         match threshold with
         | Some num ->

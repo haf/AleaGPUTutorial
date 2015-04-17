@@ -71,6 +71,16 @@ type MinOrMax =
 
     member this.DefaultValue = ValueAndIndex.OPT_INFINITY this.Sign
 
+[<ReflectedDefinition>]
+let entropyTerm (x : int) =
+    if x > 0 then
+        let xf = float x
+        xf * (__nv_log2 xf)
+    elif x = 0 then
+        0.0
+    else
+        __nan()
+
 (**
 Matrix row scan resource.
 
@@ -454,15 +464,6 @@ type EntropyOptimizationModule(target) as this =
             totals.[classIdx] <- classTotal
             classIdx <- classIdx + blockDim.x 
         __syncthreads()
-
-        let entropyTerm (x : int) =
-            if x > 0 then
-                let xf = float x
-                xf * (__nv_log2 xf)
-            elif x = 0 then
-                0.0
-            else
-                __nan()
 
         let sampleIdx = blockIdx.x * blockDim.x + threadIdx.x
         let upperBound = numValid - 1

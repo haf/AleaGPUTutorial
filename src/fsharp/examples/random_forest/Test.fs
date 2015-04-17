@@ -52,12 +52,8 @@ let ``Sort features``() =
 [<Test>] 
 let ``Min and max functions``() =
     let testData = [|2.0;1.0;3.0;10.0;9.0;5.0|]
-    testData
-    |> minAndArgMin
-    |> should equal (1.0,1)
-    testData
-    |> maxAndArgMax
-    |> should equal (10.0,3)
+    testData |> minAndArgMin |> should equal (1.0,1)
+    testData |> maxAndArgMax |> should equal (10.0,3)
 
 [<Test>] 
 let ``Threshold and labels``() =
@@ -437,14 +433,18 @@ let ``Features subselection`` () =
 
     let options = { TreeOptions.Default with MaxDepth = 6 }
 //    let options = { TreeOptions.Default with MaxDepth = 3 }
-    let trainingData = defaultTrainingData
 
-    match trainingData with
-    | SortedFeatures _ ->
-        compareForests  
-            ({ options with Device = gpuDevice1 } |> addSquareRootFeatureSelector 50)
-            ({ options with Device = cpuDevice } |> addSquareRootFeatureSelector 50)
-    | _ -> failwith "expected SortedFeatures"
+    compareForests  
+        ({ options with Device = gpuDevice2 } |> addSquareRootFeatureSelector 50)
+        ({ options with Device = cpuDevice } |> addSquareRootFeatureSelector 50)
+
+    compareForests  
+        ({ options with Device = gpuDevice1 } |> addSquareRootFeatureSelector 50)
+        ({ options with Device = cpuDevice } |> addSquareRootFeatureSelector 50)
+
+    compareForests  
+        ({ options with Device = gpuDevice } |> addSquareRootFeatureSelector 50)
+        ({ options with Device = cpuDevice } |> addSquareRootFeatureSelector 50)
 
 [<Test>]
 let ``Random forest on CPU Parallel vs GPU thread pool`` () =
@@ -455,12 +455,8 @@ let ``Random forest on CPU Parallel vs GPU thread pool`` () =
     let gpuDevice = Pool(PoolMode.EqualPartition, [gpuDevice1; gpuDevice2])
     let cpuDevice = Pool(PoolMode.EqualPartition, List.init 2 (fun _ -> CPU(CpuMode.Sequential)))
     let options = { TreeOptions.Default with MaxDepth = 4 }
-    let trainingData = defaultTrainingData
-    let numClasses = trainingData.NumClasses
-    match trainingData with
-    | SortedFeatures sortedData ->
-        compareForests  { options with Device = cpuDevice } { options with Device = gpuDevice }
-    | _ -> failwith "expected SortedFeatures"
+
+    compareForests  { options with Device = cpuDevice } { options with Device = gpuDevice }
 
 [<Test>]
 let ``Speed of training random forests`` () =
@@ -477,15 +473,13 @@ let ``Speed of training random forests`` () =
     let SEPERATOR = "-------------------------------------------------------------------------------------------"
 
     let measureDevice poolSize numWarmups numTrees (options : TreeOptions) numClasses (trainingData : LabeledFeatureSet) (entropyDevice : EntropyDevice) = 
-        match trainingData.Sorted with
-        | SortedFeatures sortedData ->
-            let deviceOptions = {options with Device = entropyDevice}
-            printfn "%s\n%A warm-up with %d trees" SEPERATOR entropyDevice numWarmups
-            measureRandomForestTraining deviceOptions numWarmups trainingData |> ignore
-            printfn "%s\n%A measurement with %d trees" SEPERATOR entropyDevice numTrees
-            let time = measureRandomForestTraining deviceOptions numTrees trainingData
-            time
-        | _ -> failwith "expected sorted features"
+
+        let deviceOptions = {options with Device = entropyDevice}
+        printfn "%s\n%A warm-up with %d trees" SEPERATOR entropyDevice numWarmups
+        measureRandomForestTraining deviceOptions numWarmups trainingData |> ignore
+        printfn "%s\n%A measurement with %d trees" SEPERATOR entropyDevice numTrees
+        let time = measureRandomForestTraining deviceOptions numTrees trainingData
+        time
 
     let measureGpuVsCpu numSamples numFeatures numClasses numTrees maxDepth poolSize =
         let numWarmups = numTrees / 10 |> min 10 |> max 3
