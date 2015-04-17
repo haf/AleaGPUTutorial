@@ -38,7 +38,7 @@ type ValueAndIndex =
     /// Returns the maximum/minimum of the two values `a` and `b`
     /// If `sign` is 1 it computes the maximum, if -1 the minimum.
     /// In case `a` and `b` have the same value, the ValueAndIndex with 
-    /// larger index will be returned.
+    /// largest index will be returned
     static member inline Opt sign (a:ValueAndIndex) (b:ValueAndIndex) =
         if a.Value = b.Value then
             if a.Index > b.Index then a else b

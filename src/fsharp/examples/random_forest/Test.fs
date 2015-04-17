@@ -69,7 +69,7 @@ let ``Threshold and labels``() =
         let high = findMajorityClass highWeights numClasses labels
         threshold, low, high
     thresholdAndLabels 0 |> should equal (Some 4.5, 1, 0)
-    thresholdAndLabels 1 |> should equal (Some 7.5, 0, 0)
+    thresholdAndLabels 1 |> should equal (Some 7.5, 1, 1)
     thresholdAndLabels 2 |> should equal (Some 11.0, 0, 1)
     let threshold, _, _ = thresholdAndLabels 3
     threshold |> should equal None
@@ -115,7 +115,7 @@ let ``Train simple stump`` () =
     |> checkStump 1 4.5f 0 1
 
     optimizeStump 2 [|domain, mixedLabels, indices|] weights
-    |> checkStump 0 0.5f 0 1
+    |> checkStump 0 8.5f 0 1
 
     let biasedWeights = Array.zeroCreate numSamples
     biasedWeights.[numSamples - 1] <- numSamples / 2
@@ -282,18 +282,18 @@ let ``CPU vs GPU optimizer`` () =
 let ``Tree with one feature`` () =
     let device = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.DefaultModule)
     let labels = [| 0; 0; 1; 1; 0; 0; 1; 1 |]
-    let domain = Array.init labels.Length (fun x -> float x)
+    let domain = Array.init labels.Length (fun i -> float i)
     let trainingSet = LabeledFeatureSet.LabeledFeatures ([| domain |], labels)
     [|
-        (1, Node (Leaf 0, { Feature = 0; Threshold = 1.5 }, Leaf 1))
-        (2, Node (Leaf 0, { Feature = 0; Threshold = 1.5 },
-                Node (Leaf 1, { Feature = 0; Threshold = 3.5 }, Leaf 0)))
-        (3, Node (Leaf 0, { Feature = 0; Threshold = 1.5 },
-                Node (Leaf 1, { Feature = 0; Threshold = 3.5 },
-                    Node (Leaf 0, { Feature = 0; Threshold = 5.5 }, Leaf 1))))
-        (4, Node (Leaf 0, { Feature = 0; Threshold = 1.5 },
-                Node (Leaf 1, { Feature = 0; Threshold = 3.5 },
-                    Node (Leaf 0, { Feature = 0; Threshold = 5.5 }, Leaf 1))))
+        (1, Node (Leaf 0, { Feature = 0; Threshold = 5.5 }, Leaf 1))
+        (2, Node (Node (Leaf 1, { Feature = 0; Threshold = 3.5 }, Leaf 0), 
+                { Feature = 0; Threshold = 5.5 }, Leaf 1))
+        (3, Node( Node(  Node (Leaf 0, { Feature = 0; Threshold = 1.5 }, Leaf 1),
+                    { Feature = 0; Threshold = 3.5 }, Leaf 0),
+                    { Feature = 0; Threshold = 5.5 }, Leaf 1) )
+        (4, Node( Node(  Node (Leaf 0, { Feature = 0; Threshold = 1.5 }, Leaf 1),
+                    { Feature = 0; Threshold = 3.5 }, Leaf 0),
+                    { Feature = 0; Threshold = 5.5 }, Leaf 1) )
     |]
     |> Array.iter (fun (depth, expectedTree) ->
         let options = { TreeOptions.Default with MaxDepth = depth; Device = device }
@@ -308,24 +308,16 @@ let ``Tree with two features`` () =
     let options = { TreeOptions.Default with MaxDepth = 4; Device = device }
     [|  
         [| 0.0; 1.0; 2.0; 3.0 |], [| 0.0; 1.0; 2.0; 3.0 |], 
-            Node // <(1 {0, 0.5} (0 {0, 1.5} (1 {0, 2.5} 0)))>
-                (
-                    Leaf 1, { Feature = 0; Threshold = 0.5 },
-                    Node (Leaf 0, { Feature = 0; Threshold = 1.5 },
-                        Node (Leaf 1, { Feature = 0; Threshold = 2.5 }, Leaf 0))
-                )
+            Node( Node( Node(Leaf 1, { Feature = 0; Threshold = 0.5 }, Leaf 0),
+                     { Feature = 0; Threshold = 1.5 }, Leaf 1),
+                     { Feature = 0; Threshold = 2.5 }, Leaf 0)
         [| 0.0; 1.0; 2.0; 3.0 |], [| 2.0; 1.0; 0.0; 3.0 |], 
-            Node // <(1 {0, 0.5} (1 {1, 0.5} 0))>
-                (
-                    Leaf 1, { Feature = 0; Threshold = 0.5 },
-                    Node (Leaf 1, { Feature = 1; Threshold = 0.5 }, Leaf 0)
-                )
+            Node( Node( Node(Leaf 1, { Feature = 0; Threshold = 0.5 }, Leaf 0),
+                     { Feature = 0; Threshold = 1.5 }, Leaf 1),
+                     { Feature = 0; Threshold = 2.5 }, Leaf 0)
         [| 0.0; 1.0; 3.0; 2.0|], [| 0.0; 3.0; 2.0; 1.0 |], 
-            Node // <(1 {0, 0.5} (0 {0, 2.5} 1))>
-                (
-                    Leaf 1, { Feature = 0; Threshold = 0.5 },
-                    Node (Leaf 0, { Feature = 0; Threshold = 2.5 }, Leaf 1)
-                )
+            Node( Node(Leaf 1, { Feature = 0; Threshold = 0.5 }, Leaf 0),
+                     { Feature = 0; Threshold = 2.5 }, Leaf 1)
         [| 0.0; 2.0; 1.0; 3.0 |], [| 0.0; 2.0; 1.0; 3.0 |], 
             Node (Leaf 1, { Feature = 0; Threshold = 1.5 }, Leaf 0)                                               
     |]
@@ -434,12 +426,12 @@ let ``Features subselection`` () =
     let options = { TreeOptions.Default with MaxDepth = 6 }
 //    let options = { TreeOptions.Default with MaxDepth = 3 }
 
-    compareForests  
-        ({ options with Device = gpuDevice2 } |> addSquareRootFeatureSelector 50)
+    compareForests
+        ({ options with Device = gpuDevice1 } |> addSquareRootFeatureSelector 50)
         ({ options with Device = cpuDevice } |> addSquareRootFeatureSelector 50)
 
     compareForests  
-        ({ options with Device = gpuDevice1 } |> addSquareRootFeatureSelector 50)
+        ({ options with Device = gpuDevice2 } |> addSquareRootFeatureSelector 50)
         ({ options with Device = cpuDevice } |> addSquareRootFeatureSelector 50)
 
     compareForests  

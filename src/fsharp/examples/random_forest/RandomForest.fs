@@ -275,8 +275,6 @@ let restrictAbove idx (source : _[]) =
 
 /// FeatureArrays need to be sorted in ascending order
 let rec trainTrees depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainingSet:(FeatureArray * Labels * Indices)[]) (weights:Weights[]) =
-    printfn "---- depth: %d ----" depth
-    printfn "weigths: %A" weights
     let triples = 
         if depth = 0 then
             weights |> Array.map (fun weights -> nan, weights.GetUpperBound(0), 0)
@@ -290,7 +288,7 @@ let rec trainTrees depth (optimizer:IEntropyOptimizer) numClasses (sortedTrainin
                         |> Array.mapi (fun i (entropy, splitIdx) -> entropy, splitIdx, i)
                         
                 let b = a |> Array.minBy (fun (entropy, _, _) -> entropy)
-                printfn "triplet: %A" b
+//                printfn "triplet: %A" b
                 if fst a.[0] = fst b then a.[0] else b
                 )
     ()

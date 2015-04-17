@@ -48,7 +48,7 @@ let randomlySplitUpArray x (rnd : System.Random) k =
     shuffledSequence.[0..k-1], shuffledSequence.[k..]
 
 /// Returns value and position of minimum in a sequence. 
-/// In case of multiple minima it returns the first occuring.
+/// In case of multiple minima it returns the last occuring.
 let inline minAndArgMin (source: seq<'T>) : ('T * int) =
     use e = source.GetEnumerator() 
     if not (e.MoveNext()) then invalidArg "source" "empty sequence"
@@ -69,7 +69,7 @@ let inline minAndArgMin (source: seq<'T>) : ('T * int) =
 //           |> Seq.minBy (fun e -> fst e)
 
 /// Returns value and position of maximum in a sequence. 
-/// In case of multiple maxima it returns the first occuring.
+/// In case of multiple maxima it returns the last occuring.
 let inline maxAndArgMax (source: seq<'T>) : ('T * int) =
     use e = source.GetEnumerator() 
     if not (e.MoveNext()) then invalidArg "source" "empty sequence"
@@ -81,7 +81,7 @@ let inline maxAndArgMax (source: seq<'T>) : ('T * int) =
     while e.MoveNext() do
         i <- i + 1
         let curr = e.Current
-        if curr > accv then
+        if curr >= accv then
             accv <- curr
             acci <- i
 
