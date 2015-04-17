@@ -1,32 +1,33 @@
 ﻿namespace Tutorial.Fs.examples.RandomForest.DataModel
 
 type Label = int
+
 type FeatureValue = float
 
-(** 
+(**
 Array of `FeatureValue`s for a given sample,
-e.g.: 
+e.g.:
 
     | sepalLength; sepalWidth; petalLength; petalWidth |
 
 for one sample.
 *)
-type Sample = FeatureValue[]
+type Sample = FeatureValue []
 
-(** 
+(**
 Array of `FeatureValue`s for a given feature but many Samples,
-e.g: 
+e.g:
 
     | sepalLength_1; sepalLength_2; ...; sepalLength_n |
 
 for n samples.
 *)
-type FeatureArray = FeatureValue[]
+type FeatureArray = FeatureValue []
 
-(** 
-Array of `FeatureArray`s, 
+(**
+Array of `FeatureArray`s,
 e.g:
-    
+
     |                                                                  |
     | |             |  |            |  |             |  |            | |
     | |sepalLength_1|  |sepalWidth_1|  |petalLength_1|  |sepalWidth_1| |
@@ -38,8 +39,10 @@ e.g:
 
 for m samples with 4 features each.
 *)
-type FeatureArrays = FeatureArray[]
-type Labels = Label[]
+type FeatureArrays = FeatureArray []
+
+type Labels = Label []
+
 (**
 Sample with attatched Label,
 e.g:
@@ -49,32 +52,30 @@ e.g:
 a sample with label 1.
 *)
 type LabeledSample = Sample * Label
-type LabelHistogram = int[] * int // counts per class and sum
-type Weights = int[]
-type Indices = int[]
 
-type Split = 
-    {
-        Feature : int
-        Threshold : FeatureValue
-    }
+type LabelHistogram = int [] * int // counts per class and sum
+
+type Weights = int []
+
+type Indices = int []
+
+type Split =
+    { Feature : int
+      Threshold : FeatureValue }
 
     static member Create feature threshold =
-        {
-            Feature = feature
-            Threshold = threshold
-        }
-        
-    override this.ToString () = sprintf "{F:%d, T:%.3f}" this.Feature this.Threshold
+        { Feature = feature
+          Threshold = threshold }
 
-type Tree = 
+    override this.ToString() = sprintf "{F:%d, T:%.3f}" this.Feature this.Threshold
+
+type Tree =
     | Leaf of Label
     | Node of low : Tree * split : Split * high : Tree
-
-    override this.ToString () =
+    override this.ToString() =
         match this with
         | Leaf label -> sprintf "%s" (label.ToString())
-        | Node (low, split, high) -> sprintf "(%s %s %s)" (low.ToString()) (split.ToString()) (high.ToString())
+        | Node(low, split, high) -> sprintf "(%s %s %s)" (low.ToString()) (split.ToString()) (high.ToString())
 
 type Model =
-    | RandomForest of trees : Tree[] * numClasses : int
+    | RandomForest of trees : Tree [] * numClasses : int
