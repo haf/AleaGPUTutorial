@@ -224,9 +224,6 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
     let mapping =
         (fun featureIdx labels ->
         if (mask.[featureIdx]) <> 0 then
-            //            if Array.min labels = Array.max labels then
-            //                (0.0, upperBoundWeights)
-            //            else
             let featureWeights = weightsPerFeature.[featureIdx]
             let countsPerSplit = cumHistograms numClasses labels featureWeights
             let mask = entropyMask featureWeights labels total combinedMinWeight
