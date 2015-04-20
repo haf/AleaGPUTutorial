@@ -35,13 +35,23 @@ let findNonZeroWeights (weightsPerFeature : Weights []) =
     let nonZeroIdcsPerFeature = weightsPerFeature |> Array.Parallel.map (findNonZeroIdcs countNonZero)
     nonZeroIdcsPerFeature
 
-let shuffle (rnd : System.Random) arr = arr |> Seq.sortBy (fun _ -> rnd.NextDouble())
+/// Creates a function taking an int `l` and returning a random number between 0 and `l`. It is a funciton `rnd` as needed
+/// in the functionalities below. It abstracts the function Next(l) of the System.Random, hence you can use your own random 
+/// number generators.
+let getRngFunction seed = 
+    let rng = System.Random(seed)
+    (fun l -> rng.Next(l))
+
+/// `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
+let shuffle (rnd : int -> int) arr = arr |> Seq.sortBy (fun _ -> rnd(System.Int32.MaxValue))
 
 /// Returns array of length `k` with uniqe random integer numbers from 0 to `n` - 1.
-let randomSubIndices (rnd : System.Random) n k =
+/// `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
+let randomSubIndices rnd n k =
     seq { 0..n - 1 } |> shuffle rnd |> Seq.take k |> Seq.toArray
 
-let randomlySplitUpArray x (rnd : System.Random) k =
+/// `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
+let randomlySplitUpArray x rnd k =
     let shuffledSequence =
         x |> shuffle rnd |> Seq.toArray
     shuffledSequence.[0..k - 1], shuffledSequence.[k..]
@@ -60,7 +70,6 @@ let inline minAndArgMin (source : seq<'T>) : 'T*int =
         if curr <= accv then
             accv <- curr
             acci <- i
-    
     (accv, acci)
 
 /// Returns value and position of maximum in a sequence.

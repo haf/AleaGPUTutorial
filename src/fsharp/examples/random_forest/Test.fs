@@ -164,8 +164,7 @@ let ``Train random stumps``() =
         ||> Array.zip
         |> LabeledSamples
 
-    let rnd = System.Random(0)
-    let (RandomForest(stumps, _)) = randomStumpsClassifier rnd numStumps labeledSamples
+    let (RandomForest(stumps, _)) = randomStumpsClassifier (getRngFunction 0) numStumps labeledSamples
 
     let num, sum =
         Seq.fold (fun (num, sum) s ->
@@ -177,8 +176,7 @@ let ``Train random stumps``() =
 [<Test>]
 let ``Random weights``() =
     let numElements = 100
-    let rnd = System.Random(0)
-    let weights = randomWeights rnd numElements
+    let weights = randomWeights (getRngFunction 0) numElements
     weights
     |> Array.sum
     |> should equal numElements
@@ -269,7 +267,7 @@ let ``CPU vs GPU optimizer``() =
         | SortedFeatures sortedTrainingSet ->
             use gpuOptimizer = gpuDevice.CreateDefaultOptions numClasses sortedTrainingSet
             use cpuOptimizer = cpuDevice.CreateDefaultOptions numClasses sortedTrainingSet
-            let weights = Array.init numTrees (fun _ -> randomWeights rnd numSamples)
+            let weights = Array.init numTrees (fun _ -> randomWeights (getRngFunction 0) numSamples)
             let gpuResults = gpuOptimizer.Optimize weights
             let cpuResults = cpuOptimizer.Optimize weights
             gpuResults.Length |> should equal cpuResults.Length
@@ -396,8 +394,7 @@ let defaultTrainingData =
 let compareForests gpuOptions cpuOptions =
     let trainingData = defaultTrainingData
     let numTrees = 1
-    let rnd = System.Random(0)
-    let weights = Array.init numTrees (fun _ -> randomWeights rnd trainingData.Length)
+    let weights = Array.init numTrees (fun _ -> randomWeights (getRngFunction 0) trainingData.Length)
     let classifier options = bootstrappedForestClassifier options weights
     printfn "GPU--------------"
     let model1 = classifier gpuOptions defaultTrainingData
@@ -435,8 +432,7 @@ let ``Random forest on CPU thread pool vs GPU thread pool``() =
     compareForests { options with Device = cpuDevice } { options with Device = gpuDevice }
 
 let addSquareRootFeatureSelector seed options =
-    let rnd = System.Random(seed)
-    let featureSelector = EntropyOptimizationOptions.SquareRootFeatureSelector rnd
+    let featureSelector = EntropyOptimizationOptions.SquareRootFeatureSelector (getRngFunction 0)
     let entropyOptions = { options.EntropyOptions with FeatureSelector = featureSelector }
     { options with EntropyOptions = entropyOptions }
 
@@ -474,10 +470,9 @@ let ``Random forest on CPU Parallel vs GPU thread pool``() =
 [<Test>]
 let ``Speed of training random forests``() =
     let measureRandomForestTraining options numTrees trainingData =
-        let rnd = System.Random(0)
         printfn "Options:\n%A" options
         let watch = System.Diagnostics.Stopwatch.StartNew()
-        randomForestClassifier options rnd numTrees trainingData |> ignore
+        randomForestClassifier options (getRngFunction 0) numTrees trainingData |> ignore
         watch.Stop()
         let elapsed = watch.Elapsed
         printfn "Total time elapsed: %A" elapsed

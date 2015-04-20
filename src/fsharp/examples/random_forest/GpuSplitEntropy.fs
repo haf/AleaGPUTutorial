@@ -71,7 +71,7 @@ type MinOrMax =
 let entropyTerm (x : int) =
     if x > 0 then
         let xf = float x
-        xf * (__nv_log2 xf)
+        xf * __nv_log2 xf
     elif x = 0 then 0.0
     else __nan()
 
@@ -142,7 +142,7 @@ type EntropyOptimizationOptions =
         max this.AbsMinWeight relativeMinWeight
 
     /// Returns array of length `n` of booleans where randomly sqrt `n` are true.
-    static member SquareRootFeatureSelector (rnd : System.Random) (n : int) =
+    static member SquareRootFeatureSelector (rnd : int -> int) (n : int) =
         let k = float n |> sqrt |> int
 
         let idcs = Array.randomSubIndices rnd n k

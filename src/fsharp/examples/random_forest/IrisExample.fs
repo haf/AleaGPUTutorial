@@ -28,12 +28,12 @@ let irisScatterPlot (trainingData : DataModel.LabeledSample []) =
     let setosaFilter = (fun e -> snd e = 0)
     let versicolorFilter = (fun e -> snd e = 1)
     let virginicaFilter = (fun e -> snd e = 2)
-    let chooseSepalLengthWidth (x : _ []) = x.[0], x.[1]
-    let chooseSepalWidthPetalLenght (x : _ []) = x.[1], x.[2]
-    let choosePetalLenghtPetalWidth (x : _ []) = x.[2], x.[3]
+    let chooseSepalLengthWidth (x : _[]) = x.[0], x.[1]
+    let chooseSepalWidthPetalLenght (x : _[]) = x.[1], x.[2]
+    let choosePetalLenghtPetalWidth (x : _[]) = x.[2], x.[3]
 
-    let createChart (chooseFeatures : float [] -> (float * float)) filename =
-        let extractPoints (trainingData : DataModel.LabeledSample []) filterLabel chooseFeature =
+    let createChart (chooseFeatures : float[] -> (float * float)) filename =
+        let extractPoints (trainingData : DataModel.LabeledSample[]) filterLabel chooseFeature =
             trainingData
             |> Array.filter filterLabel
             |> Array.map fst
@@ -64,12 +64,12 @@ Train random forest and to an out of sample test.
 let printFractionOfCorrectForcasts trainingData device =
     // split up data in training and test data:
     let trainingData, testData =
-        randomlySplitUpArray trainingData (System.Random(42)) (70 * Array.length trainingData / 100)
+        randomlySplitUpArray trainingData (getRngFunction 42) (70 * Array.length trainingData / 100)
     //    let options = GpuSplitEntropy.EntropyOptimizationOptions.Default
     let options =
         { GpuSplitEntropy.EntropyOptimizationOptions.Default with FeatureSelector =
                                                                       GpuSplitEntropy.EntropyOptimizationOptions.SquareRootFeatureSelector
-                                                                          (System.Random()) }
+                                                                          (getRngFunction 42) }
 
     let options =
         { TreeOptions.Default with MaxDepth = 3
@@ -78,7 +78,7 @@ let printFractionOfCorrectForcasts trainingData device =
     printfn "%A" options
     // train model
     let trainingData = LabeledSamples trainingData
-    let model = randomForestClassifier options (System.Random(42)) 100 trainingData
+    let model = randomForestClassifier options (getRngFunction 42) 100 trainingData
     // predict labels
     let features, expectedLabels = Array.unzip testData
     let forecastedLabels = Array.map (forecast model) features

@@ -27,8 +27,8 @@ The `LabeledFeatureSet` contains the traing data which can be saved in three dif
 *)
 type LabeledFeatureSet =
     | LabeledSamples of LabeledSample []
-    | LabeledFeatures of FeatureArrays * Labels
-    | SortedFeatures of (FeatureArray * Labels * Indices) []
+    | LabeledFeatures of FeatureArrays*Labels
+    | SortedFeatures of (FeatureArray*Labels*Indices) []
 
     member this.Labels =
         this |> function
@@ -72,8 +72,7 @@ let forecast model sample : Label =
                 let label = forecastTree sample tree
                 hist.[label] <- hist.[label] + 1
                 hist)
-        |> maxAndArgMax
-        |> snd
+        |> maxAndArgMax  |> snd
 
 (**
 Functionality needed for training a random forest:
@@ -116,14 +115,10 @@ let splitEntropies (mask : bool seq) (countsPerSplit : LabelHistogram seq) (tota
     let complement = complementHist totals
     let entropy = entropy (totals |> snd)
     (mask, countsPerSplit) ||> Seq.map2 (fun isValid low ->
-                                   if isValid then
-                                       let histograms =
-                                           seq {
-                                               yield low
-                                               yield complement low
-                                           }
-                                       entropy histograms
-                                   else System.Double.PositiveInfinity)
+        if isValid then
+            let histograms =seq { yield low; yield complement low }
+            entropy histograms
+        else System.Double.PositiveInfinity)
 
 /// Returns value in the middle between `splidIdx` and next non-empty index if it exists,
 /// else returns None.
@@ -168,7 +163,7 @@ let entropyMask (weights : _[]) (labels : _[]) totalWeight absMinWeight =
                         ((labelChange || weightChange) && enoughWeight, nextNonZero, lowWeight)
                     | None -> (true, nextNonZero, lowWeight) // i is the last valid element
             | None -> (false, nextNonZero, lowWeight) // no valid elements left
-                                                      )
+            )
     |> Seq.skip 1
     |> Seq.map (fun (x, _, _) -> x)
 
@@ -238,7 +233,6 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
             let entropyPerSplit = splitEntropies mask countsPerSplit totals
             entropyPerSplit
             |> Seq.map rounding
-            |> Seq.toArray
             |> minAndArgMin
             |> translator featureIdx
         else (infinity, upperBoundWeights))
@@ -336,7 +330,7 @@ type EntropyDevice =
     | CPU of mode : CpuMode
     | Pool of mode : PoolMode * devices : EntropyDevice seq
 
-    member this.Create options numClasses (sortedTrainingSet : (_ * Labels * Indices) []) : IEntropyOptimizer =
+    member this.Create options numClasses (sortedTrainingSet : (_*Labels*Indices) []) : IEntropyOptimizer =
         let _, labelsPerFeature, indicesPerFeature = sortedTrainingSet |> Array.unzip3
         match this with
         | GPU(mode, provider) ->
@@ -473,10 +467,10 @@ let weightedTreeClassifier (options : TreeOptions) (trainingSet : LabeledFeature
 let treeClassfier options (trainingSet : LabeledFeatureSet) =
     Array.create trainingSet.Length 1 |> weightedTreeClassifier options trainingSet
 
-let randomWeights (rnd : System.Random) length : Weights =
+let randomWeights (rnd : int -> int) length : Weights =
     let hist = Array.zeroCreate length
     for i = 1 to length do
-        let index = rnd.Next(length)
+        let index = rnd(length)
         hist.[index] <- hist.[index] + 1
     hist
 
@@ -490,7 +484,7 @@ Create a random forest from a `trainingSet`:
 
 The method returns a random forest consisting of an array of trees and the number of classes (i.e. number of possible labels).
 *)
-let randomForestClassifier options (rnd : System.Random) numTrees (trainingSet : LabeledFeatureSet) =
+let randomForestClassifier options (rnd : int -> int) numTrees (trainingSet : LabeledFeatureSet) =
     let numSamples = trainingSet.Length
     let weights = Array.init numTrees (fun _ -> randomWeights rnd numSamples)
     bootstrappedForestClassifier options weights trainingSet
@@ -498,5 +492,5 @@ let randomForestClassifier options (rnd : System.Random) numTrees (trainingSet :
 (**
 Only train stumps, i.e. a random forest with trees of depth 1.
 *)
-let randomStumpsClassifier : System.Random -> int -> LabeledFeatureSet -> Model =
+let randomStumpsClassifier : (int -> int) -> int -> LabeledFeatureSet -> Model =
     randomForestClassifier { TreeOptions.Default with MaxDepth = 1 }
