@@ -39,49 +39,30 @@ let shuffle (rnd : System.Random) arr = arr |> Seq.sortBy (fun _ -> rnd.NextDoub
 
 /// Returns array of length `k` with uniqe random integer numbers from 0 to `n` - 1.
 let randomSubIndices (rnd : System.Random) n k =
-    seq { 0..n - 1 }
-    |> shuffle rnd
-    |> Seq.take k
-    |> Seq.toArray
+    seq { 0..n - 1 } |> shuffle rnd |> Seq.take k |> Seq.toArray
 
 let randomlySplitUpArray x (rnd : System.Random) k =
     let shuffledSequence =
-        x
-        |> shuffle rnd
-        |> Seq.toArray
+        x |> shuffle rnd |> Seq.toArray
     shuffledSequence.[0..k - 1], shuffledSequence.[k..]
 
 /// Returns value and position of minimum in a sequence.
 /// In case of multiple minima it returns the last occuring.
-let inline minAndArgMin (source : seq<float>) : float * int =
-    //    use e = source.GetEnumerator()
-    //    if not (e.MoveNext()) then invalidArg "source" "empty sequence"
-    //    let mutable i = 0
-    //
-    //    let mutable accv = e.Current
-    //    let mutable acci = i
-    //
-    //    while e.MoveNext() do
-    //        i <- i + 1
-    //        let curr = e.Current
-    //        if curr <= accv then
-    //            accv <- curr
-    //            acci <- i
-    //
-    //    (accv, acci)
-    let minArgminCount =
-        source
-        |> Array.ofSeq
-        |> Array.fold (fun acc e ->
-               let value, index, count = acc
-               if value >= e then (e, count, count + 1)
-               else (value, index, count + 1)) (System.Double.PositiveInfinity, 0, 0)
+let inline minAndArgMin (source : seq<'T>) : 'T*int =
+    use e = source.GetEnumerator()
+    if not (e.MoveNext()) then invalidArg "source" "empty sequence"
+    let mutable i = 0
+    let mutable accv = e.Current
+    let mutable acci = i
+    while e.MoveNext() do
+        i <- i + 1
+        let curr = e.Current
+        if curr <= accv then
+            accv <- curr
+            acci <- i
+    
+    (accv, acci)
 
-    let min, arg, _ = minArgminCount
-    min, arg
-
-//cpu time: 58849.822900, gpu time: 2260.624900 -- while
-//cpu time: 69498.257400, gpu time: 2245.435800 -- fold
 /// Returns value and position of maximum in a sequence.
 /// In case of multiple maxima it returns the last occuring.
 let inline maxAndArgMax (source : seq<'T>) : 'T * int =

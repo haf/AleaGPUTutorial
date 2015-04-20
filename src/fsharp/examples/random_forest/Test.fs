@@ -8,6 +8,9 @@ open Tutorial.Fs.examples.RandomForest.DataModel
 open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
 open Tutorial.Fs.examples.RandomForest.RandomForest
 
+let blockSize = 128
+let reduceBlockSize = 512
+
 [<Test>]
 let ``Transform training set``() =
     let trainingSamples =
@@ -45,12 +48,8 @@ let ``Sort features``() =
 [<Test>]
 let ``Min and max functions``() =
     let testData = [| 2.0; 1.0; 3.0; 10.0; 9.0; 5.0 |]
-    testData
-    |> minAndArgMin
-    |> should equal (1.0, 1)
-    testData
-    |> maxAndArgMax
-    |> should equal (10.0, 3)
+    testData |> minAndArgMin |> should equal (1.0, 1)
+    testData |> maxAndArgMax |> should equal (10.0, 3)
 
 [<Test>]
 let ``Threshold and labels``() =
@@ -282,7 +281,7 @@ let ``CPU vs GPU optimizer``() =
         | _ -> failwith "expected sorted features"
 
     use worker2 = Worker.Create(Device.Default)
-    use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2))
+    use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2), blockSize, reduceBlockSize)
     let gpuDevice1 = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
     let gpuDevice2 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
     let gpuDevicePool = Pool(PoolMode.EqualPartition, [ gpuDevice1; gpuDevice2 ])
@@ -427,7 +426,7 @@ let ``Random forest on CPU Parallel vs GPU single threaded``() =
 [<Test>]
 let ``Random forest on CPU thread pool vs GPU thread pool``() =
     use worker2 = Worker.Create(Device.Default)
-    use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2))
+    use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2), blockSize, reduceBlockSize)
     let gpuDevice1 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.DefaultModule)
     let gpuDevice2 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
     let gpuDevice = Pool(PoolMode.EqualPartition, [ gpuDevice1; gpuDevice2 ])
@@ -444,7 +443,7 @@ let addSquareRootFeatureSelector seed options =
 [<Test>]
 let ``Features subselection``() =
     use worker2 = Worker.Create(Device.Default)
-    use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2))
+    use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2), blockSize, reduceBlockSize)
     let gpuDevice1 = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
     let gpuDevice2 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
     let gpuDevices = Pool(PoolMode.EqualPartition, [ gpuDevice1; gpuDevice2 ])
@@ -464,7 +463,7 @@ let ``Features subselection``() =
 [<Test>]
 let ``Random forest on CPU Parallel vs GPU thread pool``() =
     use worker2 = Worker.Create(Device.Default)
-    use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2))
+    use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2), blockSize, reduceBlockSize)
     let gpuDevice1 = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
     let gpuDevice2 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
     let gpuDevice = Pool(PoolMode.EqualPartition, [ gpuDevice1; gpuDevice2 ])
@@ -508,7 +507,7 @@ let ``Speed of training random forests``() =
             numFeatures numClasses numTrees poolSize
         let runner = measureDevice numWarmups numTrees options trainingData
         use worker2 = Worker.Create(Device.Default)
-        use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2))
+        use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2), blockSize, reduceBlockSize)
         let gpuDevice1 = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
         let gpuDevice2 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
         let gpuDevice3 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.DefaultModule)

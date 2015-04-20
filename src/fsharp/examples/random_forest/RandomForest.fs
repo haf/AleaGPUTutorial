@@ -148,7 +148,7 @@ let findMajorityClass weights numClasses labels =
     |> maxAndArgMax
     |> snd
 
-let entropyMask (weights : _ []) (labels : _ []) totalWeight absMinWeight =
+let entropyMask (weights : _[]) (labels : _[]) totalWeight absMinWeight =
     let findNextWeight = Array.findNextNonZeroIdx weights
     ((false, findNextWeight 0, 0), seq { 0..weights.GetUpperBound(0) })
     ||> Seq.scan (fun (_, nextNonZero, lowWeight) i ->
@@ -207,7 +207,7 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
         | Sequential -> Array.mapi f
         | Parallel -> Array.Parallel.mapi f
 
-    let projector (sources : _ [] []) =
+    let projector (sources : _[] []) =
         sources |> mapper (fun i source -> source |> Array.projectIdcs nonZeroIdcsPerFeature.[i])
     let weightsPerFeature = projector weightsPerFeature
     let labelsPerFeature = projector labelsPerFeature
@@ -252,65 +252,65 @@ let restrict startIdx count (source : _ []) =
     Array.blit source startIdx target startIdx count
     target
 
-let restrictBelow idx (source : _ []) = source |> restrict 0 (idx + 1)
-let restrictAbove idx (source : _ []) = source |> restrict idx (source.Length - idx)
+let restrictBelow idx (source : _[]) = source |> restrict 0 (idx + 1)
+let restrictAbove idx (source : _[]) = source |> restrict idx (source.Length - idx)
 
 /// FeatureArrays need to be sorted in ascending order
 let rec trainTrees depth (optimizer : IEntropyOptimizer) numClasses
-        (sortedTrainingSet : (FeatureArray * Labels * Indices) []) (weights : Weights []) =
+        (sortedTrainingSet : (FeatureArray*Labels*Indices) []) (weights : Weights []) =
     let triples =
         if depth = 0 then weights |> Array.map (fun weights -> nan, weights.GetUpperBound(0), 0)
         else
             optimizer.Optimize(weights) |> Array.map (fun results ->
-                                               let fst a =
-                                                   let a1, _, _ = a
-                                                   a1
+                let fst a = 
+                    let a1, _, _ = a
+                    a1
 
-                                               let a =
-                                                   results
-                                                   |> Array.mapi (fun i (entropy, splitIdx) -> entropy, splitIdx, i)
-                                               let b = a |> Array.minBy (fun (entropy, _, _) -> entropy)
-                                               if DEBUG then printfn "triplet: %A" b
-                                               if fst a.[0] = fst b then a.[0]
-                                               else b)
+                let a =
+                    results
+                    |> Array.mapi (fun i (entropy, splitIdx) -> entropy, splitIdx, i)
+                let b = a |> Array.minBy (fun (entropy, _, _) -> entropy)
+                if DEBUG then printfn "triplet: %A" b
+                if fst a.[0] = fst b then a.[0]
+                else b)
     ()
     let trees0 =
         triples |> Array.mapi (fun i (entropy, splitIdx, featureIdx) ->
-                       let weights = weights.[i]
-                       let featureArray, labels, indices = sortedTrainingSet.[featureIdx]
-                       let sortedWeights = weights |> Array.projectIdcs indices
-                       let threshold = featureArrayThreshold sortedWeights featureArray splitIdx
-                       if DEBUG then
-                           printfn "depth: %A, entropy: %A, splitIdx: %A, featureIdx: %A" depth entropy splitIdx
-                               featureIdx
-                           printf "Labels:\n["
-                           (sortedWeights, labels) ||> Array.iteri2 (fun i weight label ->
-                                                           if weight <> 0 then printf " (%A * %A) " label weight
-                                                           if (i = splitIdx) then printf "|")
-                           printfn "]"
-                       match threshold with
-                       | Some num ->
-                           // set weights to 0 for elements which aren't included in left and right branches respectively
-                           let lowWeights = sortedWeights |> restrictBelow splitIdx
-                           let highWeights = sortedWeights |> restrictAbove (splitIdx + 1)
-                           if DEBUG then
-                               printfn "Low  counts: %A" (countSamples lowWeights numClasses labels)
-                               printfn "High counts: %A" (countSamples highWeights numClasses labels)
-                           let lowWeights = lowWeights |> Array.permByIdcs indices
-                           let highWeights = highWeights |> Array.permByIdcs indices
+            let weights = weights.[i]
+            let featureArray, labels, indices = sortedTrainingSet.[featureIdx]
+            let sortedWeights = weights |> Array.projectIdcs indices
+            let threshold = featureArrayThreshold sortedWeights featureArray splitIdx
+            if DEBUG then
+                printfn "depth: %A, entropy: %A, splitIdx: %A, featureIdx: %A" depth entropy splitIdx
+                    featureIdx
+                printf "Labels:\n["
+                (sortedWeights, labels) ||> Array.iteri2 (fun i weight label ->
+                                                if weight <> 0 then printf " (%A * %A) " label weight
+                                                if (i = splitIdx) then printf "|")
+                printfn "]"
+            match threshold with
+            | Some num ->
+                // set weights to 0 for elements which aren't included in left and right branches respectively
+                let lowWeights = sortedWeights |> restrictBelow splitIdx
+                let highWeights = sortedWeights |> restrictAbove (splitIdx + 1)
+                if DEBUG then
+                    printfn "Low  counts: %A" (countSamples lowWeights numClasses labels)
+                    printfn "High counts: %A" (countSamples highWeights numClasses labels)
+                let lowWeights = lowWeights |> Array.permByIdcs indices
+                let highWeights = highWeights |> Array.permByIdcs indices
 
-                           let set (lowTree : Tree) (highTree : Tree) =
-                               match lowTree, highTree with
-                               | Leaf lowLabel, Leaf highLabel when lowLabel = highLabel -> i, Tree.Leaf lowLabel
-                               | _ ->
-                                   i,
-                                   Tree.Node(lowTree,
-                                             { Feature = featureIdx
-                                               Threshold = num }, highTree)
-                           None, Some lowWeights, Some highWeights, Some set
-                       | None ->
-                           let label = findMajorityClass sortedWeights numClasses labels
-                           Some(Tree.Leaf label), None, None, None)
+                let set (lowTree : Tree) (highTree : Tree) =
+                    match lowTree, highTree with
+                    | Leaf lowLabel, Leaf highLabel when lowLabel = highLabel -> i, Tree.Leaf lowLabel
+                    | _ ->
+                        i,
+                        Tree.Node(lowTree,
+                                  { Feature = featureIdx
+                                    Threshold = num }, highTree)
+                None, Some lowWeights, Some highWeights, Some set
+            | None ->
+                let label = findMajorityClass sortedWeights numClasses labels
+                Some(Tree.Leaf label), None, None, None)
 
     let trees() = trees0 |> Array.choose (fun (tree, _, _, _) -> tree)
     let lowWeights = trees0 |> Array.choose (fun (_, lowWeights, _, _) -> lowWeights)
@@ -439,6 +439,7 @@ type TreeOptions =
     { MaxDepth : int
       Device : EntropyDevice
       EntropyOptions : EntropyOptimizationOptions }
+
     static member Default =
         { MaxDepth = System.Int32.MaxValue
           Device = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)

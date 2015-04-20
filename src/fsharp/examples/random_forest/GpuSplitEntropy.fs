@@ -15,12 +15,8 @@ open Tutorial.Fs.examples.RandomForest.DataModel
 [<Literal>]
 let private DEBUG = false
 
-// todo: make blockSizes variable, but compile time constant.
-[<Literal>]
-let BLOCK_SIZE = 128
-
-[<Literal>]
-let REDUCE_BLOCK_SIZE = 512
+let DEFAULT_BLOCK_SIZE = 128
+let DEFAULT_REDUCE_BLOCK_SIZE = 512
 
 [<Struct; Align(8)>]
 type ValueAndIndex =
@@ -84,8 +80,8 @@ Matrix row scan resource.
 
 Using block range scan from Alea Unbound.
 *)
-type MultiChannelReducePrimitive(arch : DeviceArch) =
-    let blockReduce = BlockReduce.WarpReductions<ValueAndIndex>(dim3 REDUCE_BLOCK_SIZE, arch)
+type MultiChannelReducePrimitive(arch : DeviceArch, reduceBlockSize) =
+    let blockReduce = BlockReduce.WarpReductions<ValueAndIndex>(dim3 reduceBlockSize, arch)
     [<ReflectedDefinition>]
     member inline internal this.OptAndArgOpt (output : deviceptr<ValueAndIndex>) numOutputCols sign
                   (matrix : deviceptr<_>) numCols numValid (indices : deviceptr<int>) hasIndices =
@@ -187,14 +183,14 @@ type EntropyOptimizationMemories =
         this.gpuMask.Dispose()
 
 [<AOTCompile(SpecificArchs = "sm20;sm30;sm35")>]
-type EntropyOptimizationModule(target) as this =
+type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
     inherit GPUModule(target)
     let primitiveScan =
         fun (options : CompileOptions) ->
             cuda { return MatrixRowScanPrimitive(options.MinimalArch, options.AddressSize, None) }
         |> this.GPUDefineResource
     let primitiveReduce =
-        fun (options : CompileOptions) -> cuda { return MultiChannelReducePrimitive(options.MinimalArch) }
+        fun (options : CompileOptions) -> cuda { return MultiChannelReducePrimitive(options.MinimalArch, reduceBlockSize) }
         |> this.GPUDefineResource
 
     let summarizeWeights (weights : Weights) =
@@ -205,15 +201,14 @@ type EntropyOptimizationModule(target) as this =
             count <- count + (min weight 1)
         sum, count
 
-    let blockDim = dim3 (BLOCK_SIZE)
-
     let lp numFeatures numCols =
-        let gridDim = dim3 (divup numCols BLOCK_SIZE, numFeatures)
+        let blockDim = dim3 (blockSize)
+        let gridDim = dim3 (divup numCols blockSize, numFeatures)
         LaunchParam(gridDim, blockDim)
 
     let streams = System.Collections.Generic.Queue<Stream>()
-    static let instance = Lazy.Create <| fun _ -> new EntropyOptimizationModule(GPUModuleTarget.DefaultWorker)
-    static member Default = instance.Value
+    static let instance blockSize reduceBlockSize = Lazy.Create <| fun _ -> new EntropyOptimizationModule(GPUModuleTarget.DefaultWorker, blockSize, reduceBlockSize)
+    static member Default = (instance DEFAULT_BLOCK_SIZE DEFAULT_REDUCE_BLOCK_SIZE).Value
     // launching function cache, because we have many small kernel, and will
     // launch them many times, so it is good to do a lazy cache, set then in OnLoad() function.
     [<DefaultValue>]
@@ -230,17 +225,12 @@ type EntropyOptimizationModule(target) as this =
     val mutable LaunchEntropyKernel : Lazy<LaunchParam -> deviceptr<float> -> deviceptr<int> -> int -> int -> int -> int -> float -> deviceptr<int> -> unit>
 
     override this.OnLoad(_) =
-        this.LaunchOptAndArgOptKernelDoubleWithIdcs <- lazy this.GPULaunch<deviceptr<ValueAndIndex>, int, int, deviceptr<float>, int, int, deviceptr<int>>
-                                                                <@ this.OptAndArgOptKernelDoubleWithIdcs @>
+        this.LaunchOptAndArgOptKernelDoubleWithIdcs <- lazy this.GPULaunch<deviceptr<ValueAndIndex>, int, int, deviceptr<float>, int, int, deviceptr<int>> <@ this.OptAndArgOptKernelDoubleWithIdcs @>
         this.LaunchCumSumKernel <- lazy this.GPULaunch<int, int, deviceptr<int>> <@ this.CumSumKernel @>
-        this.LaunchLogicalWeightExpansionKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<int>, deviceptr<int>, int>
-                                                            <@ this.LogicalWeightExpansionKernel @>
-        this.LaunchFindNonZeroIndicesKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<int>, int>
-                                                        <@ this.FindNonZeroIndicesKernel @>
-        this.LaunchWeightExpansionKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<Label>, deviceptr<int>, deviceptr<int>, int, int, int, deviceptr<int>>
-                                                     <@ this.WeightExpansionKernel @>
-        this.LaunchEntropyKernel <- lazy this.GPULaunch<deviceptr<float>, deviceptr<int>, int, int, int, int, float, deviceptr<int>>
-                                             <@ this.EntropyKernel @>
+        this.LaunchLogicalWeightExpansionKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<int>, deviceptr<int>, int> <@ this.LogicalWeightExpansionKernel @>
+        this.LaunchFindNonZeroIndicesKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<int>, int> <@ this.FindNonZeroIndicesKernel @>
+        this.LaunchWeightExpansionKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<Label>, deviceptr<int>, deviceptr<int>, int, int, int, deviceptr<int>> <@ this.WeightExpansionKernel @>
+        this.LaunchEntropyKernel <- lazy this.GPULaunch<deviceptr<float>, deviceptr<int>, int, int, int, int, float, deviceptr<int>> <@ this.EntropyKernel @>
 
     override this.Dispose(disposing) =
         if disposing then streams |> Seq.iter (fun stream -> stream.Dispose())
@@ -283,9 +273,9 @@ type EntropyOptimizationModule(target) as this =
         let nonZeroIdcsPerFeature = new Cublas.Matrix<_>(worker, numFeatures, numSamples)
         let weightsPerFeatureAndClass = new Cublas.Matrix<_>(worker, numFeatures * numClasses, numSamples)
         let entropyMatrix = new Cublas.Matrix<_>(worker, numFeatures, numSamples)
-        let reducedOutput = new Cublas.Matrix<_>(worker, numFeatures, divup numSamples REDUCE_BLOCK_SIZE)
+        let reducedOutput = new Cublas.Matrix<_>(worker, numFeatures, divup numSamples reduceBlockSize)
         let gpuMask = new Cublas.Matrix<_>(worker, 1, numFeatures)
-        let valuesAndIndices = Array.zeroCreate (numFeatures * (divup numSamples REDUCE_BLOCK_SIZE))
+        let valuesAndIndices = Array.zeroCreate (numFeatures * (divup numSamples reduceBlockSize))
         { gpuWeights = gpuWeights
           weightMatrix = weightMatrix
           nonZeroIdcsPerFeature = nonZeroIdcsPerFeature
@@ -388,16 +378,14 @@ type EntropyOptimizationModule(target) as this =
                launch (lp.NewWithStream(stream)) memories.nonZeroIdcsPerFeature.DeviceData.Ptr
                    memories.weightMatrix.DeviceData.Ptr problem.numSamples)
 
-    member this.ExpandWeights(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories,
-                              numValid : int) =
+    member this.ExpandWeights(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, numValid : int) =
         let lp = lp problem.numFeatures numValid
         this.LaunchWeightExpansionKernel.Value lp memories.weightsPerFeatureAndClass.DeviceData.Ptr
             problem.labelMatrix.DeviceData.Ptr problem.indexMatrix.DeviceData.Ptr memories.gpuWeights.DeviceData.Ptr
             problem.numSamples problem.numClasses numValid memories.nonZeroIdcsPerFeature.DeviceData.Ptr
         if DEBUG then printfn "weightsPerFeatureAndClass:\n%A" (memories.weightsPerFeatureAndClass.ToArray2D())
 
-    member this.ExpandWeights(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories) [],
-                              numValids : int []) =
+    member this.ExpandWeights(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories) [], numValids : int []) =
         let launch = this.LaunchWeightExpansionKernel.Value
         param
         |> Array.iteri
@@ -426,35 +414,35 @@ type EntropyOptimizationModule(target) as this =
         let upperBound = numValid - 1
         if sampleIdx <= upperBound then
             let matrixIdx = featureIdx * numSamples + sampleIdx
-            entropyMatrix.[matrixIdx] <- if mask.[featureIdx] <> 0 then
-                                             let mutable leftEntropy = 0.0
-                                             let mutable rightEntropy = 0.0
-                                             let mutable leftTotal = 0
-                                             let mutable rightTotal = 0
-                                             for classIdx = 0 to numClasses - 1 do
-                                                 let matrixOffset = gridDim.y * numSamples * classIdx + matrixIdx
-                                                 let leftCount = cumSumsMatrix.[matrixOffset]
-                                                 let rightCount = totals.[classIdx] - leftCount
-                                                 leftEntropy <- leftEntropy - (entropyTerm leftCount)
-                                                 rightEntropy <- rightEntropy - (entropyTerm rightCount)
-                                                 leftTotal <- leftTotal + leftCount
-                                                 rightTotal <- rightTotal + rightCount
-                                             let leftEntropy = leftEntropy + (entropyTerm leftTotal)
-                                             let rightEntropy = rightEntropy + (entropyTerm rightTotal)
-                                             let rawEntropy =
-                                                 (leftEntropy + rightEntropy) / (float (leftTotal + rightTotal))
-                                             let condition =
-                                                 sampleIdx = upperBound
-                                                 || (minWeight <= leftTotal && minWeight <= rightTotal)
-                                             if condition then
-                                                 (__nv_nearbyint (rawEntropy * roundingFactor)) / roundingFactor
-                                             else infinity
-                                         else infinity
+            entropyMatrix.[matrixIdx] <- 
+                if mask.[featureIdx] <> 0 then
+                    let mutable leftEntropy = 0.0
+                    let mutable rightEntropy = 0.0
+                    let mutable leftTotal = 0
+                    let mutable rightTotal = 0
+                    for classIdx = 0 to numClasses - 1 do
+                        let matrixOffset = gridDim.y * numSamples * classIdx + matrixIdx
+                        let leftCount = cumSumsMatrix.[matrixOffset]
+                        let rightCount = totals.[classIdx] - leftCount
+                        leftEntropy <- leftEntropy - (entropyTerm leftCount)
+                        rightEntropy <- rightEntropy - (entropyTerm rightCount)
+                        leftTotal <- leftTotal + leftCount
+                        rightTotal <- rightTotal + rightCount
+                    let leftEntropy = leftEntropy + (entropyTerm leftTotal)
+                    let rightEntropy = rightEntropy + (entropyTerm rightTotal)
+                    let rawEntropy =
+                        (leftEntropy + rightEntropy) / (float (leftTotal + rightTotal))
+                    let condition =
+                        sampleIdx = upperBound
+                        || (minWeight <= leftTotal && minWeight <= rightTotal)
+                    if condition then
+                        (__nv_nearbyint (rawEntropy * roundingFactor)) / roundingFactor
+                    else infinity
+                else infinity
 
     /// Returns a GPU matrix that the caller needs to dispose of.
     /// Calculates Entropy includeing heuristic for avoiding small splits.
-    member this.Entropy(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories,
-                        options : EntropyOptimizationOptions, totals : int, numValid : int) =
+    member this.Entropy(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, options : EntropyOptimizationOptions, totals : int, numValid : int) =
         let roundingFactor = 10.0 ** (float options.Decimals)
         let minWeight = options.MinWeight problem.numClasses totals
         let cumSumsMatrix = memories.weightsPerFeatureAndClass
@@ -462,8 +450,7 @@ type EntropyOptimizationModule(target) as this =
         this.LaunchEntropyKernel.Value lp memories.entropyMatrix.DeviceData.Ptr cumSumsMatrix.DeviceData.Ptr numValid
             problem.numSamples problem.numClasses minWeight roundingFactor memories.gpuMask.DeviceData.Ptr
 
-    member this.Entropy(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories) [],
-                        options : EntropyOptimizationOptions, totals : int [], numValids : int []) =
+    member this.Entropy(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories) [], options : EntropyOptimizationOptions, totals : int [], numValids : int []) =
         let roundingFactor = 10.0 ** (float options.Decimals)
         let launch = this.LaunchEntropyKernel.Value
         param
@@ -478,26 +465,24 @@ type EntropyOptimizationModule(target) as this =
                    numValid problem.numSamples problem.numClasses minWeight roundingFactor
                    memories.gpuMask.DeviceData.Ptr)
 
-    member this.MinimumEntropy(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories,
-                               numValid : int, masks : int []) =
+    member this.MinimumEntropy(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, numValid : int, masks : int []) =
         let optima() =
             let minOrMax = MinOrMax.Min
             let numRows = problem.numFeatures
             let numCols = problem.numSamples
-            let numOutputCols = divup numCols REDUCE_BLOCK_SIZE
+            let numOutputCols = divup numCols reduceBlockSize
             let sign = minOrMax.Sign
-            let numBlocks = divup numValid REDUCE_BLOCK_SIZE
+            let numBlocks = divup numValid reduceBlockSize
             let gridSize = dim3 (numRows, numBlocks)
-            let lp = LaunchParam(gridSize, dim3 REDUCE_BLOCK_SIZE)
+            let lp = LaunchParam(gridSize, dim3 reduceBlockSize)
             let matrix = memories.entropyMatrix
             let idcs = memories.nonZeroIdcsPerFeature
             let reducedOut = memories.reducedOutput
             this.LaunchOptAndArgOptKernelDoubleWithIdcs.Value lp reducedOut.DeviceData.Ptr numOutputCols sign
                 matrix.DeviceData.Ptr numCols numValid idcs.DeviceData.Ptr
             let valuesAndIndices = memories.valuesAndIndices
-            this.GPUWorker.Gather(reducedOut.DeviceData.Ptr, valuesAndIndices) // todo why not using Array.init?
-            let optima =
-                Array.create numRows (ValueAndIndex.ofDouble System.Double.PositiveInfinity (problem.numSamples - 1))
+            this.GPUWorker.Gather(reducedOut.DeviceData.Ptr, valuesAndIndices)
+            let optima = Array.create numRows (ValueAndIndex.ofDouble System.Double.PositiveInfinity (problem.numSamples - 1))
             for rowIdx = 0 to numRows - 1 do
                 let rowOffset = rowIdx * numOutputCols
                 for colIdx = 0 to numBlocks - 1 do
@@ -506,21 +491,19 @@ type EntropyOptimizationModule(target) as this =
 
         let optima = optima()
 
-        let r =
-            optima |> Array.mapi (fun i x ->
-                          let fullEntropy = memories.entropyMatrix.Gather(i, numValid - 1)
-                          if fullEntropy > 0.0 then x.Value, x.Index
-                          else if masks.[i] <> 0 then 0.0, problem.numSamples - 1
-                          else System.Double.PositiveInfinity, problem.numSamples - 1)
+        let r = optima |> Array.mapi (fun i x ->
+                        let fullEntropy = memories.entropyMatrix.Gather(i, numValid - 1)
+                        if fullEntropy > 0.0 then x.Value, x.Index
+                        else if masks.[i] <> 0 then 0.0, problem.numSamples - 1
+                        else System.Double.PositiveInfinity, problem.numSamples - 1)
         if DEBUG then printfn "%A" r
         r
 
-    member this.MinimumEntropy(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories) [],
-                               numValids : int []) =
+    member this.MinimumEntropy(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories) [], numValids : int []) =
         let minOrMax = MinOrMax.Min
         let numRows = problem.numFeatures
         let numCols = problem.numSamples
-        let numOutputCols = divup numCols REDUCE_BLOCK_SIZE
+        let numOutputCols = divup numCols reduceBlockSize
         let sign = minOrMax.Sign
         let size = sizeof<float> |> nativeint
         let launch = this.LaunchOptAndArgOptKernelDoubleWithIdcs.Value
@@ -536,9 +519,9 @@ type EntropyOptimizationModule(target) as this =
                                    memories.entropyMatrix.DeviceData.Ptr.Handle + offset, size, stream.Handle))
                          cuSafeCall (cuStreamSynchronize (stream.Handle))
                          if fullEntropy > 0.0 then
-                             let numBlocks = divup numValid REDUCE_BLOCK_SIZE
+                             let numBlocks = divup numValid reduceBlockSize
                              let gridSize = dim3 (numRows, numBlocks)
-                             let lp = LaunchParam(gridSize, dim3 REDUCE_BLOCK_SIZE, 0, stream)
+                             let lp = LaunchParam(gridSize, dim3 reduceBlockSize, 0, stream)
                              let matrix = memories.entropyMatrix
                              let idcs = memories.nonZeroIdcsPerFeature
                              let reducedOut = memories.reducedOutput
@@ -559,7 +542,7 @@ type EntropyOptimizationModule(target) as this =
         param |> Array.iteri (fun i (stream, memories) ->
                      if results.[i].IsNone then
                          let numValid = numValids.[i]
-                         let numBlocks = divup numValid REDUCE_BLOCK_SIZE
+                         let numBlocks = divup numValid reduceBlockSize
                          let optima = Array.create numRows minOrMax.DefaultValue
                          cuSafeCall (cuStreamSynchronize (stream.Handle))
                          memories.valuesAndIndicesHandle.Value.Free()
@@ -576,8 +559,7 @@ type EntropyOptimizationModule(target) as this =
     (**
     Optimization not using Streams, optimizing each element of the `weights`-array for itself.
     *)
-    member this.Optimize(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories,
-                         options : EntropyOptimizationOptions, weights : Weights) =
+    member this.Optimize(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, options : EntropyOptimizationOptions, weights : Weights) =
         this.GPUWorker.Eval <| fun _ ->
             let masks = options.FeatureSelector problem.numFeatures
             memories.gpuMask.Scatter(masks)
@@ -592,8 +574,7 @@ type EntropyOptimizationModule(target) as this =
     (**
     Optimization using Streams. Optimizes the `weights`-array in parrallel.
     *)
-    member this.Optimize(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories) [],
-                         options : EntropyOptimizationOptions, weights : Weights []) =
+    member this.Optimize(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories) [], options : EntropyOptimizationOptions, weights : Weights []) =
         this.GPUWorker.Eval <| fun _ ->
             let size = weights.[0].Length * sizeof<int> |> nativeint
 
