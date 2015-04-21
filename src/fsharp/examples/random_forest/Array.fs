@@ -35,13 +35,6 @@ let findNonZeroWeights (weightsPerFeature : Weights []) =
     let nonZeroIdcsPerFeature = weightsPerFeature |> Array.Parallel.map (findNonZeroIdcs countNonZero)
     nonZeroIdcsPerFeature
 
-/// Creates a function taking an int `l` and returning a random number between 0 and `l`. It is a funciton `rnd` as needed
-/// in the functionalities below. It abstracts the function Next(l) of the System.Random, hence you can use your own random 
-/// number generators.
-let getRngFunction seed = 
-    let rng = System.Random(seed)
-    (fun l -> rng.Next(l))
-
 /// `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
 let shuffle (rnd : int -> int) arr = arr |> Seq.sortBy (fun _ -> rnd(System.Int32.MaxValue))
 
@@ -51,7 +44,7 @@ let randomSubIndices rnd n k =
     seq { 0..n - 1 } |> shuffle rnd |> Seq.take k |> Seq.toArray
 
 /// `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
-let randomlySplitUpArray x rnd k =
+let randomlySplitUpArray rnd k x =
     let shuffledSequence =
         x |> shuffle rnd |> Seq.toArray
     shuffledSequence.[0..k - 1], shuffledSequence.[k..]

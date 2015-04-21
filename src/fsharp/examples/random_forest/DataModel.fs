@@ -1,4 +1,4 @@
-﻿namespace Tutorial.Fs.examples.RandomForest.DataModel
+﻿module Tutorial.Fs.examples.RandomForest.DataModel
 
 type Label = int
 
@@ -79,3 +79,9 @@ type Tree =
 
 type Model =
     | RandomForest of trees : Tree [] * numClasses : int
+
+/// We abstract from the random number generator, demanding only a function taking an integer `l` and returning a 
+/// random integer between 0 and `l`. The method getRngFunction is a factory providing such a function using System.Random.
+let getRngFunction seed = 
+    let rng = System.Random(seed)
+    (fun l -> rng.Next(l))

@@ -6,7 +6,7 @@ The [Iris flower data set](http://en.wikipedia.org/wiki/Iris_flower_data_set) co
  - [Iris virginica](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_virginica.jpg) and
  - [Iris versicolor](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_versicolor_3.jpg).
 
-It is not the typical dataset for random forests, but as it only has few features it gives small trees ideal as an example.
+It is not the typical dataset for random forests, but as it only has few features it gives small trees: ideal as an example.
 *)
 
 module Tutorial.Fs.examples.RandomForest.IrisExample
@@ -16,6 +16,7 @@ open FSharp.Charting
 open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
 open Tutorial.Fs.examples.RandomForest.RandomForest
 open Tutorial.Fs.examples.RandomForest.Array
+open Tutorial.Fs.examples.RandomForest.DataModel
 
 (**
 In order to get a feeling for the data, we do three scatterplots of the different features:
@@ -64,17 +65,12 @@ Train random forest and to an out of sample test.
 let printFractionOfCorrectForcasts trainingData device =
     // split up data in training and test data:
     let trainingData, testData =
-        randomlySplitUpArray trainingData (getRngFunction 42) (70 * Array.length trainingData / 100)
-    //    let options = GpuSplitEntropy.EntropyOptimizationOptions.Default
-    let options =
-        { GpuSplitEntropy.EntropyOptimizationOptions.Default with FeatureSelector =
-                                                                      GpuSplitEntropy.EntropyOptimizationOptions.SquareRootFeatureSelector
-                                                                          (getRngFunction 42) }
+        randomlySplitUpArray (getRngFunction 42) (70*Array.length trainingData/100) trainingData
 
     let options =
         { TreeOptions.Default with MaxDepth = 3
                                    Device = device
-                                   EntropyOptions = options }
+                                   EntropyOptions = EntropyOptimizationOptions.DefaultWithSquareRootFeatureSelector }
     printfn "%A" options
     // train model
     let trainingData = LabeledSamples trainingData
@@ -89,12 +85,12 @@ let printFractionOfCorrectForcasts trainingData device =
                 if x = y then 1.0
                 else 0.0)
         |> Array.average
-    printfn "%f %% of forecasts were correct (out of sample)" (fraction * 100.0)
+    printfn "%f %% of forecasts were correct (out of sample)" (fraction*100.0)
 
 (**
 Read in the Iris data set from csv-file using csv-type-provider
 and call the above functions for CPU as well as for GPU.
-Prediction-accuracy is between 95% and 100%.
+prediction-accuracy is between 95% and 100%.
 *)
 let irisExample() =
     // read in data
@@ -112,7 +108,7 @@ let irisExample() =
                | "I. setosa" -> 0
                | "I. versicolor" -> 1
                | "I. virginica" -> 2
-               | x -> failwithf "should not happen %A" x) |]
+               | x -> failwithf "No such Label: %A" x) |]
     irisScatterPlot trainingData
     let cpuDevice = CPU(CpuMode.Parallel)
     let gpuDevice = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.DefaultModule)

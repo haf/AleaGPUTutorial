@@ -137,6 +137,10 @@ type EntropyOptimizationOptions =
           Decimals = 6
           FeatureSelector = fun n -> Array.create n 1 }
 
+    static member DefaultWithSquareRootFeatureSelector = 
+        { EntropyOptimizationOptions.Default 
+          with FeatureSelector = EntropyOptimizationOptions.SquareRootFeatureSelector (getRngFunction 42) }
+
     member this.MinWeight numClasses total =
         let relativeMinWeight = min (total / (numClasses * this.RelMinDivisor)) this.RelMinBound
         max this.AbsMinWeight relativeMinWeight

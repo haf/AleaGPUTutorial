@@ -481,7 +481,7 @@ Create a random forest from a `trainingSet`:
 
 The method returns a random forest consisting of an array of trees and the number of classes (i.e. number of possible labels).
 *)
-let randomForestClassifier options (rnd : int -> int) numTrees (trainingSet : LabeledFeatureSet) =
+let randomForestClassifier options rnd numTrees (trainingSet : LabeledFeatureSet) =
     let numSamples = trainingSet.Length
     let weights = Array.init numTrees (fun _ -> randomWeights rnd numSamples)
     bootstrappedForestClassifier options weights trainingSet
