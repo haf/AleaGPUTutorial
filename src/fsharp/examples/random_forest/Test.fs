@@ -432,7 +432,7 @@ let ``Random forest on CPU thread pool vs GPU thread pool``() =
     compareForests { options with Device = cpuDevice } { options with Device = gpuDevice }
 
 let addSquareRootFeatureSelector seed options =
-    let featureSelector = EntropyOptimizationOptions.SquareRootFeatureSelector (getRngFunction 0)
+    let featureSelector = EntropyOptimizationOptions.SquareRootFeatureSelector (getRngFunction seed)
     let entropyOptions = { options.EntropyOptions with FeatureSelector = featureSelector }
     { options with EntropyOptions = entropyOptions }
 
@@ -489,15 +489,32 @@ let ``Speed of training random forests``() =
         let time = measureRandomForestTraining deviceOptions numTrees trainingData
         time
 
+    let savetrainingData (data:LabeledFeatureSet) =
+        let features, labels = match data with
+                               | LabeledFeatures(x, y) -> x, y
+                               | _ -> failwithf "Only Labeled Features are allowed."
+
+        use outFile = new System.IO.StreamWriter("PerformanceTestData.csv")
+
+        for j = 0 to labels.Length - 1 do
+            let mutable row = ""
+            for i = 0 to features.Length - 1 do
+                row <- row + features.[i].[j].ToString(System.Globalization.CultureInfo.InvariantCulture) + ","
+            row <- row + labels.[j].ToString()
+            outFile.WriteLine(row)
+        outFile.Flush()
+
     let measureGpuVsCpu numSamples numFeatures numClasses numTrees maxDepth poolSize =
         let numWarmups = numTrees / 10 |> min 10 |> max 3
         printf "Generating training data ... "
         let rnd = System.Random(0)
         let trainingData = randomTrainingData rnd numSamples numFeatures numClasses
+        printf "saving ... "
+        savetrainingData trainingData
         printf "sorting ... "
         let trainingData = trainingData.Sorted
         printfn "done."
-        let options = { TreeOptions.Default with MaxDepth = maxDepth; EntropyOptions = { TreeOptions.Default.EntropyOptions with AbsMinWeight = 2 } }
+        let options = { TreeOptions.Default with MaxDepth = maxDepth; EntropyOptions = { TreeOptions.Default.EntropyOptions with AbsMinWeight = 1 } }
         printfn "Starting measurements with %A samples, %A features, %A classes, %A trees, %A threads" numSamples
             numFeatures numClasses numTrees poolSize
         let runner = measureDevice numWarmups numTrees options trainingData
@@ -507,7 +524,7 @@ let ``Speed of training random forests``() =
         let gpuDevice2 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
         let gpuDevice3 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.DefaultModule)
         let gpuDevicePool = Pool(PoolMode.EqualPartition, [ gpuDevice1; gpuDevice3 ])
-        let cpuDevicePool = Pool(PoolMode.EqualPartition, List.init 2 (fun i -> CPU(CpuMode.Parallel)))
+        let cpuDevicePool = Pool(PoolMode.EqualPartition, List.init 2 (fun _ -> CPU(CpuMode.Parallel)))
         let gpuNoStreamTime = gpuDevice1 |> runner
         let gpuWithStreamTime = gpuDevice2 |> runner
         let gpuPool2Time = gpuDevicePool |> runner
@@ -526,6 +543,6 @@ let ``Speed of training random forests``() =
     let numFeatures = 20
     let numClasses = 2
     let numTrees = 1000
-    let maxDepth = 1
+    let maxDepth = 5
     let gpuTime, cpuTime = measureGpuVsCpu numSamples numFeatures numClasses numTrees maxDepth 2
     printf "cpu time: %f, gpu time: %f" cpuTime gpuTime

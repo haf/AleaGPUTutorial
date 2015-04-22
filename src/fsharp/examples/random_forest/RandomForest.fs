@@ -140,8 +140,7 @@ let countSamples (weights : Weights) numClasses (labels : Labels) =
 /// Returns the `class`/`label` with the most `weight`.
 let findMajorityClass weights numClasses labels =
     countSamples weights numClasses labels
-    |> maxAndArgMax
-    |> snd
+    |> maxAndArgMax |> snd
 
 let entropyMask (weights : _[]) (labels : _[]) totalWeight absMinWeight =
     let findNextWeight = Array.findNextNonZeroIdx weights
@@ -264,7 +263,7 @@ let rec trainTrees depth (optimizer : IEntropyOptimizer) numClasses
                 if DEBUG then printfn "triplet: %A" b
                 if fst a.[0] = fst b then a.[0]
                 else b)
-    ()
+
     let trees0 =
         triples |> Array.mapi (fun i (entropy, splitIdx, featureIdx) ->
             let weights = weights.[i]
