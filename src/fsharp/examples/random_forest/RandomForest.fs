@@ -433,7 +433,6 @@ type TreeOptions =
     static member Default =
         { MaxDepth = System.Int32.MaxValue
           Device = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
-          //Device = CPU(CpuMode.Sequential)
           EntropyOptions = EntropyOptimizationOptions.Default }
 
 let bootstrappedForestClassifier (options : TreeOptions) (weightsPerBootstrap : Weights [])
