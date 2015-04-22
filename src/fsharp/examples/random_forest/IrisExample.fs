@@ -25,7 +25,7 @@ In order to get a feeling for the data, we do three scatterplots of the differen
 <img src="../../content/images/Sepal-Width_Petal-length.png" width="500" alt="scatter plot: sepal width vs. petal length">
 <img src="../../content/images/Petal-length_Petal-width.png" width="500" alt="scatter plot: petal length vs. petal widht">
 *)
-let irisScatterPlot (trainingData : DataModel.LabeledSample []) =
+let irisScatterPlot (trainingData : DataModel.LabeledSample[]) =
     let setosaFilter = (fun e -> snd e = 0)
     let versicolorFilter = (fun e -> snd e = 1)
     let virginicaFilter = (fun e -> snd e = 2)
@@ -55,12 +55,12 @@ let irisScatterPlot (trainingData : DataModel.LabeledSample []) =
     System.Windows.Forms.Application.Run()
 
 (**
-Train random forest and to an out of sample test.
+Train random forest and perform an out-of-sample test.
 
-1. Randomly split up dat in `training` and `test` set.
-2. Create set of Parameters for random forest.
+1. Randomly split up data in a `training` and `test` set.
+2. Create set of parameters for random forest.
 3. Train the model using the `training` - set.
-4. predict labels of `test` - set and calculate the fraction of correct predictions.
+4. predict labels of the  `test`-set and calculate the fraction of correct predictions.
 *)
 let printFractionOfCorrectForcasts trainingData device =
     // split up data in training and test data:
@@ -90,7 +90,16 @@ let printFractionOfCorrectForcasts trainingData device =
 (**
 Read in the Iris data set from csv-file using csv-type-provider
 and call the above functions for CPU as well as for GPU.
-prediction-accuracy is between 95% and 100%.
+prediction-accuracy is between 95% and 100%, depending on splitting fraction
+between training and testdata.
+
+An array of `LabeledSample`s consisting of a touple of an array of samples and
+a label is used for the training data.
+e.g:
+
+    (|| sepalLength; sepalWidth; petalLength; petalWidth |], 1)
+
+
 *)
 let irisExample() =
     // read in data

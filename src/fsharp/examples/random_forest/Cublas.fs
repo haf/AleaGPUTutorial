@@ -1,11 +1,14 @@
-﻿module Tutorial.Fs.examples.RandomForest.Cublas
+﻿(**
+The Class `Matrix` helps alllocation, scattering and gathering data on, to and from the GPU memory.
+*)
+module Tutorial.Fs.examples.RandomForest.Cublas
 
 open Alea.CUDA
 open Alea.CUDA.Utilities
 
 type internal MatrixLayout<'T> =
     | Empty of rows : int * cols : int
-    | Jagged of 'T [] []
+    | Jagged of 'T[][]
 
 type Matrix<'T> private (worker : Worker, matrixType) =
     inherit DisposableObject()
@@ -25,8 +28,8 @@ type Matrix<'T> private (worker : Worker, matrixType) =
                     rows, cols, deviceData
 
     new(worker : Worker, nRows : int, nCols : int) = new Matrix<'T>(worker, Empty(nRows, nCols))
-    new(worker : Worker, hostData : 'T [] []) = new Matrix<'T>(worker, Jagged hostData)
-    new(hostData : 'T [] []) = new Matrix<'T>(Worker.Default, hostData)
+    new(worker : Worker, hostData : 'T[][]) = new Matrix<'T>(worker, Jagged hostData)
+    new(hostData : 'T[][]) = new Matrix<'T>(Worker.Default, hostData)
     member this.DeviceData = deviceData
     member this.NumRows = nRows
     member this.NumCols = nCols
@@ -41,7 +44,7 @@ type Matrix<'T> private (worker : Worker, matrixType) =
         MemoryUtil.gather worker.Thread (deviceData.Ptr + offset) host 0 1
         host.[0]
 
-    member this.Scatter(host : 'T []) =
+    member this.Scatter(host : 'T[]) =
         if host.Length <> nRows * nCols then invalidArg "host" "length does not match nRows * nCols"
         worker.Eval <| fun _ -> deviceData.Scatter(host)
 

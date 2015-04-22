@@ -467,7 +467,6 @@ let ``Random forest on CPU Parallel vs GPU thread pool``() =
     let options = { TreeOptions.Default with MaxDepth = 4 }
     compareForests { options with Device = cpuDevice } { options with Device = gpuDevice }
 
-//[<Test>]
 let ``Speed of training random forests``() =
     let measureRandomForestTraining options numTrees trainingData =
         printfn "Options:\n%A" options

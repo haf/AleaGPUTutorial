@@ -26,9 +26,9 @@ The `LabeledFeatureSet` contains the traing data which can be saved in three dif
 3. As `SortedFeatures`, where for every feature all the values are sorted in ascending order as well as labelled and completed with the index before sorting. It is mainly used for finding the best split.
 *)
 type LabeledFeatureSet =
-    | LabeledSamples of LabeledSample []
+    | LabeledSamples of LabeledSample[]
     | LabeledFeatures of FeatureArrays*Labels
-    | SortedFeatures of (FeatureArray*Labels*Indices) []
+    | SortedFeatures of (FeatureArray*Labels*Indices)[]
 
     member this.Labels =
         this |> function
@@ -90,6 +90,8 @@ let cumHistograms numClasses (labels : Labels) (weights : Weights) : LabelHistog
 /// Returns a histogram on `labels` weighted by `weights`.
 let countTotals numClasses labels weights = Seq.last <| cumHistograms numClasses labels weights
 
+/// Calculates the entropy for a given branch.
+/// summing entropies for all bins in histogram.
 let private entropyTermSum node =
     let hist, total = node
     if (total = 0) then 0.0
@@ -97,14 +99,16 @@ let private entropyTermSum node =
         let sumLogs = (0.0, hist) ||> Seq.fold (fun e c -> e - (entropyTerm c))
         (sumLogs + entropyTerm total)
 
-/// Returns entropy as $\frac{1}{\rm{total} log 2} \sum_i - f_i * log(f_i/F)$.
+/// Sums up entropy for all new branches after this split
+/// (only two for the continuous case).
 let entropy total (nodes : LabelHistogram seq) =
     if (total = 0) then 0.0
     else
-        let entropySum = (0.0, nodes) ||> Seq.fold (fun e node -> e + (node |> entropyTermSum))
+        let entropySum = (0.0, nodes) ||> Seq.fold (fun e node -> e + (entropyTermSum node))
         entropySum / (float total)
 
-/// Returns the difference between `total`- and `left`-Histogram.
+/// Returns the complementary histogram, i.e. the
+/// difference between the `total`- and the `left`-histogram.
 let complementHist (total : LabelHistogram) (left : LabelHistogram) : LabelHistogram =
     let totalHist, totalCount = total
     let hist, count = left
@@ -122,7 +126,7 @@ let splitEntropies (mask : bool seq) (countsPerSplit : LabelHistogram seq) (tota
 
 /// Returns value in the middle between `splidIdx` and next non-empty index if it exists,
 /// else returns None.
-let featureArrayThreshold weights (featureArray : _ []) splitIdx =
+let featureArrayThreshold weights (featureArray : _[]) splitIdx =
     let nextIdx = Array.findNextNonZeroIdx weights (splitIdx + 1)
     match nextIdx with
     | None -> None
@@ -187,11 +191,11 @@ type PoolMode =
 
 type IEntropyOptimizer =
     inherit System.IDisposable
-    abstract Optimize : Weights [] -> (float * int) [] []
+    abstract Optimize : Weights[] -> (float * int)[][]
 
 /// Returns best entropy to split and its corresponding index for every feature.
-let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) numClasses (labelsPerFeature : Labels [])
-    (indicesPerFeature : Indices []) weights =
+let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) numClasses (labelsPerFeature : Labels[])
+    (indicesPerFeature : Indices[]) weights =
     // remove zero weights
     let weightsPerFeature = Array.expandWeights indicesPerFeature weights
     let nonZeroIdcsPerFeature = Array.findNonZeroWeights weightsPerFeature
@@ -201,7 +205,7 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
         | Sequential -> Array.mapi f
         | Parallel -> Array.Parallel.mapi f
 
-    let projector (sources : _[] []) =
+    let projector (sources : _[][]) =
         sources |> mapper (fun i source -> source |> Array.projectIdcs nonZeroIdcsPerFeature.[i])
     let weightsPerFeature = projector weightsPerFeature
     let labelsPerFeature = projector labelsPerFeature
@@ -237,7 +241,7 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
     if DEBUG then printfn "%A" r
     r
 
-let restrict startIdx count (source : _ []) =
+let restrict startIdx count (source : _[]) =
     let target = Array.zeroCreate source.Length
     Array.blit source startIdx target startIdx count
     target
@@ -247,7 +251,7 @@ let restrictAbove idx (source : _[]) = source |> restrict idx (source.Length - i
 
 /// FeatureArrays need to be sorted in ascending order
 let rec trainTrees depth (optimizer : IEntropyOptimizer) numClasses
-        (sortedTrainingSet : (FeatureArray*Labels*Indices) []) (weights : Weights []) =
+        (sortedTrainingSet : (FeatureArray*Labels*Indices)[]) (weights : Weights[]) =
     let triples =
         if depth = 0 then weights |> Array.map (fun weights -> nan, weights.GetUpperBound(0), 0)
         else
@@ -326,7 +330,7 @@ type EntropyDevice =
     | CPU of mode : CpuMode
     | Pool of mode : PoolMode * devices : EntropyDevice seq
 
-    member this.Create options numClasses (sortedTrainingSet : (_*Labels*Indices) []) : IEntropyOptimizer =
+    member this.Create options numClasses (sortedTrainingSet : (_*Labels*Indices)[]) : IEntropyOptimizer =
         let _, labelsPerFeature, indicesPerFeature = sortedTrainingSet |> Array.unzip3
         match this with
         | GPU(mode, provider) ->
@@ -415,7 +419,7 @@ type EntropyDevice =
                   interface System.IDisposable with
                       member this.Dispose() = optimizers |> Array.iter (fun opt -> opt.Dispose()) }
 
-    member this.CreateDefaultOptions numClasses (sortedTrainingSet : (_ * Labels * Indices) []) =
+    member this.CreateDefaultOptions numClasses (sortedTrainingSet : (_ * Labels * Indices)[]) =
         this.Create EntropyOptimizationOptions.Default numClasses sortedTrainingSet
 
 (**
@@ -435,7 +439,7 @@ type TreeOptions =
           Device = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
           EntropyOptions = EntropyOptimizationOptions.Default }
 
-let bootstrappedForestClassifier (options : TreeOptions) (weightsPerBootstrap : Weights [])
+let bootstrappedForestClassifier (options : TreeOptions) (weightsPerBootstrap : Weights[])
     (trainingSet : LabeledFeatureSet) : Model =
     let numClasses = trainingSet.NumClasses
 

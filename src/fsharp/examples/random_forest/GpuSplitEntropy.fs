@@ -128,7 +128,7 @@ type EntropyOptimizationOptions =
       Decimals : int
       // computes a subset of n features, i.e. maps n to a boolean vector of length n
       // returns integer instead of bool, for bool is not blittable type
-      FeatureSelector : int -> int [] }
+      FeatureSelector : int -> int[] }
 
     static member Default =
         { AbsMinWeight = 1
@@ -160,8 +160,8 @@ type EntropyOptimizationProblem =
       numSamples : int
       labelMatrix : Cublas.Matrix<Label>
       indexMatrix : Cublas.Matrix<int>
-      indicesPerFeature : Indices []
-      labelsPerFeature : Labels [] }
+      indicesPerFeature : Indices[]
+      labelsPerFeature : Labels[] }
     member this.Dispose() =
         this.labelMatrix.Dispose()
         this.indexMatrix.Dispose()
@@ -174,7 +174,7 @@ type EntropyOptimizationMemories =
       entropyMatrix : Cublas.Matrix<float>
       reducedOutput : Cublas.Matrix<ValueAndIndex>
       gpuMask : Cublas.Matrix<int>
-      valuesAndIndices : ValueAndIndex []
+      valuesAndIndices : ValueAndIndex[]
       mutable valuesAndIndicesHandle : GCHandle option }
     member this.Dispose() =
         if this.valuesAndIndicesHandle.IsSome then failwith "BUG"
@@ -249,7 +249,7 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
 
     member this.ReturnStream(stream) = streams.Enqueue(stream)
 
-    member this.CreateProblem(numberOfClasses : int, labelsPerFeature : Labels [], indicesPerFeature : Indices []) =
+    member this.CreateProblem(numberOfClasses : int, labelsPerFeature : Labels[], indicesPerFeature : Indices[]) =
         let worker = this.GPUWorker
         let labelMatrix = new Cublas.Matrix<_>(worker, labelsPerFeature)
         let indexMatrix = new Cublas.Matrix<_>(worker, indicesPerFeature)
@@ -360,7 +360,7 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
             printfn "nonZeroIdcsPerFeature:\n%A" (memories.nonZeroIdcsPerFeature.ToArray2D())
 
     member this.FindNonZeroIndices(problem : EntropyOptimizationProblem,
-                                   param : (Stream * EntropyOptimizationMemories) []) =
+                                   param : (Stream * EntropyOptimizationMemories)[]) =
         let lp = lp problem.numFeatures problem.numSamples
         let launch = this.LaunchLogicalWeightExpansionKernel.Value
         param
@@ -389,7 +389,7 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
             problem.numSamples problem.numClasses numValid memories.nonZeroIdcsPerFeature.DeviceData.Ptr
         if DEBUG then printfn "weightsPerFeatureAndClass:\n%A" (memories.weightsPerFeatureAndClass.ToArray2D())
 
-    member this.ExpandWeights(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories) [], numValids : int []) =
+    member this.ExpandWeights(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories)[], numValids : int[]) =
         let launch = this.LaunchWeightExpansionKernel.Value
         param
         |> Array.iteri
@@ -454,7 +454,7 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
         this.LaunchEntropyKernel.Value lp memories.entropyMatrix.DeviceData.Ptr cumSumsMatrix.DeviceData.Ptr numValid
             problem.numSamples problem.numClasses minWeight roundingFactor memories.gpuMask.DeviceData.Ptr
 
-    member this.Entropy(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories) [], options : EntropyOptimizationOptions, totals : int [], numValids : int []) =
+    member this.Entropy(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories)[], options : EntropyOptimizationOptions, totals : int[], numValids : int[]) =
         let roundingFactor = 10.0 ** (float options.Decimals)
         let launch = this.LaunchEntropyKernel.Value
         param
@@ -469,7 +469,7 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
                    numValid problem.numSamples problem.numClasses minWeight roundingFactor
                    memories.gpuMask.DeviceData.Ptr)
 
-    member this.MinimumEntropy(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, numValid : int, masks : int []) =
+    member this.MinimumEntropy(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, numValid : int, masks : int[]) =
         let optima() =
             let minOrMax = MinOrMax.Min
             let numRows = problem.numFeatures
@@ -503,7 +503,7 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
         if DEBUG then printfn "%A" r
         r
 
-    member this.MinimumEntropy(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories) [], numValids : int []) =
+    member this.MinimumEntropy(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories)[], numValids : int[]) =
         let minOrMax = MinOrMax.Min
         let numRows = problem.numFeatures
         let numCols = problem.numSamples
@@ -578,7 +578,7 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
     (**
     Optimization using Streams. Optimizes the `weights`-array in parrallel.
     *)
-    member this.Optimize(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories) [], options : EntropyOptimizationOptions, weights : Weights []) =
+    member this.Optimize(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories)[], options : EntropyOptimizationOptions, weights : Weights[]) =
         this.GPUWorker.Eval <| fun _ ->
             let size = weights.[0].Length * sizeof<int> |> nativeint
 

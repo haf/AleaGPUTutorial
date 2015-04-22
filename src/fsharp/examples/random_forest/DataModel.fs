@@ -12,7 +12,7 @@ e.g.:
 
 for one sample.
 *)
-type Sample = FeatureValue []
+type Sample = FeatureValue[]
 
 (**
 Array of `FeatureValue`s for a given feature but many Samples,
@@ -22,7 +22,7 @@ e.g:
 
 for n samples.
 *)
-type FeatureArray = FeatureValue []
+type FeatureArray = FeatureValue[]
 
 (**
 Array of `FeatureArray`s,
@@ -39,25 +39,25 @@ e.g:
 
 for m samples with 4 features each.
 *)
-type FeatureArrays = FeatureArray []
+type FeatureArrays = FeatureArray[]
 
-type Labels = Label []
+type Labels = Label[]
 
 (**
 Sample with attatched Label,
 e.g:
 
-    (| sepalLength; sepalWidth; petalLength; petalWidth |, 1)
+    ([| sepalLength; sepalWidth; petalLength; petalWidth |], 1)
 
 a sample with label 1.
 *)
 type LabeledSample = Sample * Label
 
-type LabelHistogram = int [] * int // counts per class and sum
+type LabelHistogram = int[] * int // counts per class and sum
 
-type Weights = int []
+type Weights = int[]
 
-type Indices = int []
+type Indices = int[]
 
 type Split =
     { Feature : int
@@ -78,10 +78,12 @@ type Tree =
         | Node(low, split, high) -> sprintf "(%s %s %s)" (low.ToString()) (split.ToString()) (high.ToString())
 
 type Model =
-    | RandomForest of trees : Tree [] * numClasses : int
+    | RandomForest of trees : Tree[] * numClasses : int
 
-/// We abstract from the random number generator, demanding only a function taking an integer `l` and returning a 
-/// random integer between 0 and `l`. The method getRngFunction is a factory providing such a function using System.Random.
+(** 
+We abstract from the random number generator, demanding only a function taking an integer `l` and returning a 
+random integer between 0 and `l`. The method getRngFunction is a factory providing such a function using System.Random.
+*)
 let getRngFunction seed = 
     let rng = System.Random(seed)
     (fun l -> rng.Next(l))
