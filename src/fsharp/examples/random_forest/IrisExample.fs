@@ -61,6 +61,60 @@ Train random forest and perform an out-of-sample test.
 2. Create set of parameters for random forest.
 3. Train the model using the `training` - set.
 4. predict labels of the  `test`-set and calculate the fraction of correct predictions.
+
+similar code in Python looks like (some parameters might be different):
+
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn import datasets
+    from sklearn.cross_validation import train_test_split
+    
+    # Load data and split in training and test data.
+    iris = datasets.load_iris()
+    dataTrain, dataTest, labelTrain, labelTest = train_test_split(iris.data, iris.target, test_size=0.33, random_state=42)
+    
+    print(iris)
+    
+    # creating random forest
+    forest = RandomForestClassifier(n_estimators=100)
+    forestFit = forest.fit(dataTrain, labelTrain, max_depth=3)
+    
+    # predict testData
+    output = forest.predict(dataTest)
+    
+    result = []
+    for i in range(len(output)):
+        result.append(output[i] == labelTest[i])
+    
+    print(str(float(sum(result)) / float(len(result))) + " of labels are correct.")
+
+similar code in R looks like (some parameters might be different, especially the trees max depht not accessible directly):
+
+    summary(iris)
+
+    plot(iris[-5], col=iris$Species)
+
+    # split data in training and testdata
+    # install.packages('caret') # caret package needs to be installed.
+    library(caret)
+    set.seed(42)
+    trainIndex <- createDataPartition(iris$Species, p = .8, list = FALSE, times = 1)
+    training <- iris[trainIndex,]
+    test <- iris[-trainIndex,]
+    
+    # install.packages('randomForest') # randomForest package needs to be installed.
+    library(randomForest)
+    
+    # train model
+    fit <- randomForest(as.factor(Species) ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width,
+                        data=training, importance=TRUE, ntree=100)
+    fit
+    
+    # test model out of sample
+    Prediction <- predict(fit, test, OOB=TRUE, type = "response")
+    correct <- sum(Prediction == test$Species) / length(Prediction) * 100
+    correct
+
+In our F# code it now looks like:
 *)
 let printFractionOfCorrectForcasts trainingData device =
     // split up data in training and test data:
@@ -97,9 +151,9 @@ An array of `LabeledSample`s consisting of a touple of an array of samples and
 a label is used for the training data.
 e.g:
 
-    (|| sepalLength; sepalWidth; petalLength; petalWidth |], 1)
+    ([| sepalLength; sepalWidth; petalLength; petalWidth |], 1)
 
-
+a CPU as well as a GPU variant of the code is used.
 *)
 let irisExample() =
     // read in data
@@ -120,6 +174,6 @@ let irisExample() =
                | x -> failwithf "No such Label: %A" x) |]
     irisScatterPlot trainingData
     let cpuDevice = CPU(CpuMode.Parallel)
-    let gpuDevice = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.DefaultModule)
+    let gpuDevice = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
     printFractionOfCorrectForcasts trainingData cpuDevice
     printFractionOfCorrectForcasts trainingData gpuDevice

@@ -34,8 +34,7 @@ let main argv =
         printfn "        ExamplesUnboundRandomTest            |"
         printfn "        ExamplesNbodySimulation              |"
         printfn "        ExamplesRandomForest                 |"
-        printfn "        ExamplesSimpleD3D9                   |"
-        printfn "        All                                   "
+        printfn "        ExamplesSimpleD3D9"
         printfn "           ]"
     match argv with
     | [| name |] ->
@@ -74,7 +73,7 @@ let main argv =
             Tutorial.Fs.examples.cublas.Gemm.dgemmTest()
             Tutorial.Fs.examples.cublas.Gemm.zgemmTest()
         | "examplescublasgemmbatchedtest" -> Tutorial.Fs.examples.cublas.GemmBatched.dgemmBatchedTest()
-        | "examplescudnnmnisttest"               -> Tutorial.Fs.examples.cudnn.Mnist.test()
+        | "examplescudnnmnisttest" -> Tutorial.Fs.examples.cudnn.Mnist.test()
         | "examplesunboundreducetest" -> Tutorial.Fs.examples.unbound.Reduce.deviceReduceTest()
         | "examplesunboundscantest" -> Tutorial.Fs.examples.unbound.Scan.deviceScanTest()
         | "examplesunboundblockrangescantest" -> Tutorial.Fs.examples.unbound.BlockRageScan.blockRangeScanTest()
@@ -82,39 +81,7 @@ let main argv =
         | "examplesnbodysimulation" -> Tutorial.Fs.examples.nbody.OpenGL.runSim()
         | "examplessimpled3d9" -> Tutorial.Fs.examples.simpled3d9.SimpleD3D9.main()
         | "examplesrandomforest" -> Tutorial.Fs.examples.RandomForest.IrisExample.irisExample()
-        | "all" ->
-            Tutorial.Fs.quickStart.ParallelSquare.squareTest()
-            Tutorial.Fs.advancedTechniques.GenericTransform.sinCosTest()
-            Tutorial.Fs.advancedTechniques.GenericMatrixMult.matrixMultTest()
-            Tutorial.Fs.performanceTuning.GenericMatrixTransp.matrixTransposeProfileF32()
-            Tutorial.Fs.performanceTuning.GenericMatrixTransp.matrixTransposeProfileF64()
-            Tutorial.Fs.performanceTuning.GenericMatrixTransp.matrixTransposePerformanceJIT()
-            Tutorial.Fs.performanceTuning.GenericMatrixTransp.matrixTransposePerformanceAOT()
-            Tutorial.Fs.examples.basic.sinTest()
-            Tutorial.Fs.examples.deviceQuery.deviceQuery()
-            Tutorial.Fs.examples.simpleScan.scanTest()
-            Tutorial.Fs.examples.genericReduce.Test.reduceTest()
-            Tutorial.Fs.examples.genericScan.Test.scanTest()
-            Tutorial.Fs.examples.matrixMultiplication.matrixMultiplyTest()
-            Tutorial.Fs.examples.matrixTranspose.matrixTransposePerformance()
-            Tutorial.Fs.examples.movingAverage.movingAverageTest()
-            Tutorial.Fs.examples.movingAverage.movingAverageDirectTest()
-            Tutorial.Fs.examples.tridiagSolver.Solver.triDiagSolverTest()
-            Tutorial.Fs.examples.heatPde.Solver.heatPdeTest()
-            Tutorial.Fs.examples.unbound.MatrixMult.gpu.gemm1DArrayTest()
-            Tutorial.Fs.examples.unbound.MatrixMult.gpu.gemm2DArrayTest()
-            Tutorial.Fs.examples.cublas.Axpy.daxpyTest()
-            Tutorial.Fs.examples.cublas.Axpy.zaxpyTest()
-            Tutorial.Fs.examples.cublas.Gemm.dgemmTest()
-            Tutorial.Fs.examples.cublas.Gemm.zgemmTest()
-            Tutorial.Fs.examples.cublas.GemmBatched.dgemmBatchedTest()
-            Tutorial.Fs.examples.cudnn.Mnist.test()
-            Tutorial.Fs.examples.unbound.Reduce.deviceReduceTest()
-            Tutorial.Fs.examples.unbound.Scan.deviceScanTest()
-            Tutorial.Fs.examples.unbound.BlockRageScan.blockRangeScanTest()
-            Tutorial.Fs.examples.unbound.Random.randomTest()
-            Tutorial.Fs.examples.nbody.OpenGL.runSim()
-            Tutorial.Fs.examples.RandomForest.IrisExample.irisExample()
+                                    Tutorial.Fs.examples.RandomForest.Performance.``Speed of training random forests``()
         | "help" -> help()
         | _ ->
             printfn "unknown sample name %s\n" name

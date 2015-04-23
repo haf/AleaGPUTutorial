@@ -113,6 +113,7 @@
     <Compile Include="examples\random_forest\GpuSplitEntropy.fs" />
     <Compile Include="examples\random_forest\RandomForest.fs" />
     <Compile Include="examples\random_forest\Test.fs" />
+    <Compile Include="examples\random_forest\Performance.fs" />
     <Compile Include="examples\random_forest\IrisExample.fs" />
     <Compile Include="examples\particles\Particles.fs" />
     <Compile Include="examples\simpled3d9\SimpleD3D9.fs" />

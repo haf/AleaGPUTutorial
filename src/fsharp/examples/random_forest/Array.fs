@@ -1,4 +1,7 @@
-﻿module Tutorial.Fs.examples.RandomForest.Array
+﻿(**
+Several functionality on arrays and sequences.
+*)
+module Tutorial.Fs.examples.RandomForest.Array
 
 open Tutorial.Fs.examples.RandomForest.DataModel
 
@@ -35,22 +38,32 @@ let findNonZeroWeights (weightsPerFeature : Weights[]) =
     let nonZeroIdcsPerFeature = weightsPerFeature |> Array.Parallel.map (findNonZeroIdcs countNonZero)
     nonZeroIdcsPerFeature
 
-/// `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
+(**
+ `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
+*)
 let shuffle (rnd : int -> int) arr = arr |> Seq.sortBy (fun _ -> rnd(System.Int32.MaxValue))
 
-/// Returns array of length `k` with uniqe random integer numbers from 0 to `n` - 1.
-/// `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
+(**
+Returns array of length `k` with uniqe random integer numbers from 0 to `n` - 1.
+ `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
+*)
 let randomSubIndices rnd n k =
     seq { 0..n - 1 } |> shuffle rnd |> Seq.take k |> Seq.toArray
 
-/// `rnd` is a randomNumber provider, a function taking an int `l` and returning a random number between 0 and `l`.
+(**
+`rnd` is a randomNumber provider, a function taking an int `l` and returning a random number between 0 and `l`.
+*)
 let randomlySplitUpArray rnd k x =
     let shuffledSequence =
         x |> shuffle rnd |> Seq.toArray
     shuffledSequence.[0..k - 1], shuffledSequence.[k..]
 
-/// Returns value and position of minimum in a sequence.
-/// In case of multiple minima it returns the last occuring.
+(**
+Returns value and position of minimum in a sequence.
+In case of multiple minima it returns the last occuring.
+This function has been written in non functional style in
+order to get higher performence.
+*)
 let inline minAndArgMin (source : seq<'T>) : 'T*int =
     use e = source.GetEnumerator()
     if not (e.MoveNext()) then invalidArg "source" "empty sequence"
@@ -65,8 +78,12 @@ let inline minAndArgMin (source : seq<'T>) : 'T*int =
             acci <- i
     (accv, acci)
 
-/// Returns value and position of maximum in a sequence.
-/// In case of multiple maxima it returns the last occuring.
+(** 
+Returns value and position of maximum in a sequence.
+In case of multiple maxima it returns the last occuring.
+This function has been written in non functional style in
+order to get higher performence.
+*)
 let inline maxAndArgMax (source : seq<'T>) : 'T * int =
     use e = source.GetEnumerator()
     if not (e.MoveNext()) then invalidArg "source" "empty sequence"

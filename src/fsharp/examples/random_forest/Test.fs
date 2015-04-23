@@ -97,7 +97,7 @@ let checkStump feature threshold low high (stump : Tree) =
 [<Test>]
 let ``Train simple stump``() =
     let optimizeStump numClasses sortedTrainingSet weights =
-        let device = EntropyDevice.GPU(GpuMode.MultiWeightWithStream 15, GpuModuleProvider.DefaultModule)
+        let device = EntropyDevice.GPU(GpuMode.SingleWeightWithStream 15, GpuModuleProvider.DefaultModule)
         use optimizer = device.CreateDefaultOptions numClasses sortedTrainingSet
         let trainer = trainStump optimizer numClasses sortedTrainingSet
         (trainer [| weights |]).[0]
@@ -281,7 +281,7 @@ let ``CPU vs GPU optimizer``() =
     use worker2 = Worker.Create(Device.Default)
     use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2), blockSize, reduceBlockSize)
     let gpuDevice1 = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
-    let gpuDevice2 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
+    let gpuDevice2 = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
     let gpuDevicePool = Pool(PoolMode.EqualPartition, [ gpuDevice1; gpuDevice2 ])
     gpuDevice1 |> test
     gpuDevice2 |> test
@@ -289,7 +289,7 @@ let ``CPU vs GPU optimizer``() =
 
 [<Test>]
 let ``Tree with one feature``() =
-    let device = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.DefaultModule)
+    let device = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
     let labels = [| 0; 0; 1; 1; 0; 0; 1; 1 |]
     let domain = Array.init labels.Length (fun i -> float i)
     let trainingSet = LabeledFeatureSet.LabeledFeatures([| domain |], labels)
@@ -329,7 +329,7 @@ let ``Tree with one feature``() =
 
 [<Test>]
 let ``Tree with two features``() =
-    let device = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.DefaultModule)
+    let device = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
     let labels = [| 1; 0; 1; 0 |]
 
     let options =
@@ -368,7 +368,7 @@ let ``Tree with two features``() =
 
 [<Test>]
 let ``Tree with weights``() =
-    let device = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.DefaultModule)
+    let device = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
     let labels = [| 0; 1; 0 |]
     let domain = [| 0.0; 1.0; 2.0 |]
     let weights = [| 1; 0; 2 |]
@@ -424,8 +424,8 @@ let ``Random forest on CPU Parallel vs GPU single threaded``() =
 let ``Random forest on CPU thread pool vs GPU thread pool``() =
     use worker2 = Worker.Create(Device.Default)
     use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2), blockSize, reduceBlockSize)
-    let gpuDevice1 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.DefaultModule)
-    let gpuDevice2 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
+    let gpuDevice1 = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
+    let gpuDevice2 = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
     let gpuDevice = Pool(PoolMode.EqualPartition, [ gpuDevice1; gpuDevice2 ])
     let cpuDevice = Pool(PoolMode.EqualPartition, List.init 5 (fun _ -> CPU(CpuMode.Sequential)))
     let options = { TreeOptions.Default with MaxDepth = 4 }
@@ -441,7 +441,7 @@ let ``Features subselection``() =
     use worker2 = Worker.Create(Device.Default)
     use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2), blockSize, reduceBlockSize)
     let gpuDevice1 = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
-    let gpuDevice2 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
+    let gpuDevice2 = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
     let gpuDevices = Pool(PoolMode.EqualPartition, [ gpuDevice1; gpuDevice2 ])
     //    let cpuDevice = Pool(PoolMode.EqualPartition, List.init 2 (fun i -> CPU(CpuMode.Sequential)))
     let cpuDevice = CPU(CpuMode.Sequential)
@@ -461,87 +461,8 @@ let ``Random forest on CPU Parallel vs GPU thread pool``() =
     use worker2 = Worker.Create(Device.Default)
     use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2), blockSize, reduceBlockSize)
     let gpuDevice1 = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
-    let gpuDevice2 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
+    let gpuDevice2 = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
     let gpuDevice = Pool(PoolMode.EqualPartition, [ gpuDevice1; gpuDevice2 ])
     let cpuDevice = Pool(PoolMode.EqualPartition, List.init 2 (fun _ -> CPU(CpuMode.Sequential)))
     let options = { TreeOptions.Default with MaxDepth = 4 }
     compareForests { options with Device = cpuDevice } { options with Device = gpuDevice }
-
-let ``Speed of training random forests``() =
-    let measureRandomForestTraining options numTrees trainingData =
-        printfn "Options:\n%A" options
-        let watch = System.Diagnostics.Stopwatch.StartNew()
-        randomForestClassifier options (getRngFunction 0) numTrees trainingData |> ignore
-        watch.Stop()
-        let elapsed = watch.Elapsed
-        printfn "Total time elapsed: %A" elapsed
-        elapsed
-
-    let SEPERATOR = "-------------------------------------------------------------------------------------------"
-
-    let measureDevice numWarmups numTrees (options : TreeOptions) (trainingData : LabeledFeatureSet)
-        (entropyDevice : EntropyDevice) =
-        let deviceOptions = { options with Device = entropyDevice }
-        printfn "%s\n%A warm-up with %d trees" SEPERATOR entropyDevice numWarmups
-        measureRandomForestTraining deviceOptions numWarmups trainingData |> ignore
-        printfn "%s\n%A measurement with %d trees" SEPERATOR entropyDevice numTrees
-        let time = measureRandomForestTraining deviceOptions numTrees trainingData
-        time
-
-    let savetrainingData (data:LabeledFeatureSet) =
-        let features, labels = match data with
-                               | LabeledFeatures(x, y) -> x, y
-                               | _ -> failwithf "Only Labeled Features are allowed."
-
-        use outFile = new System.IO.StreamWriter("PerformanceTestData.csv")
-
-        for j = 0 to labels.Length - 1 do
-            let mutable row = ""
-            for i = 0 to features.Length - 1 do
-                row <- row + features.[i].[j].ToString(System.Globalization.CultureInfo.InvariantCulture) + ","
-            row <- row + labels.[j].ToString()
-            outFile.WriteLine(row)
-        outFile.Flush()
-
-    let measureGpuVsCpu numSamples numFeatures numClasses numTrees maxDepth poolSize =
-        let numWarmups = numTrees / 10 |> min 10 |> max 3
-        printf "Generating training data ... "
-        let rnd = System.Random(0)
-        let trainingData = randomTrainingData rnd numSamples numFeatures numClasses
-        printf "saving ... "
-        savetrainingData trainingData
-        printf "sorting ... "
-        let trainingData = trainingData.Sorted
-        printfn "done."
-        let options = { TreeOptions.Default with MaxDepth = maxDepth; EntropyOptions = { TreeOptions.Default.EntropyOptions with AbsMinWeight = 1 } }
-        printfn "Starting measurements with %A samples, %A features, %A classes, %A trees, %A threads" numSamples
-            numFeatures numClasses numTrees poolSize
-        let runner = measureDevice numWarmups numTrees options trainingData
-        use worker2 = Worker.Create(Device.Default)
-        use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2), blockSize, reduceBlockSize)
-        let gpuDevice1 = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
-        let gpuDevice2 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
-        let gpuDevice3 = GPU(GpuMode.MultiWeightWithStream 10, GpuModuleProvider.DefaultModule)
-        let gpuDevicePool = Pool(PoolMode.EqualPartition, [ gpuDevice1; gpuDevice3 ])
-        let cpuDevicePool = Pool(PoolMode.EqualPartition, List.init 2 (fun _ -> CPU(CpuMode.Parallel)))
-        let gpuNoStreamTime = gpuDevice1 |> runner
-        let gpuWithStreamTime = gpuDevice2 |> runner
-        let gpuPool2Time = gpuDevicePool |> runner
-        let cpuPool2Time = cpuDevicePool |> runner
-        printfn "GPU without stream     : %A" gpuNoStreamTime
-        printfn "GPU with stream        : %A" gpuWithStreamTime
-        printfn "GPU pool 2 with stream : %A" gpuPool2Time
-        printfn "CPU pool 2 parallel    : %A" cpuPool2Time
-        let cpuTime = cpuPool2Time
-        let gpuTime = gpuWithStreamTime
-        let speedUp = cpuTime.TotalMilliseconds / gpuTime.TotalMilliseconds
-        printfn "Speed up: %.1f" speedUp
-        gpuTime.TotalMilliseconds, cpuTime.TotalMilliseconds
-
-    let numSamples = 20000
-    let numFeatures = 20
-    let numClasses = 2
-    let numTrees = 1000
-    let maxDepth = 5
-    let gpuTime, cpuTime = measureGpuVsCpu numSamples numFeatures numClasses numTrees maxDepth 2
-    printf "cpu time: %f, gpu time: %f" cpuTime gpuTime

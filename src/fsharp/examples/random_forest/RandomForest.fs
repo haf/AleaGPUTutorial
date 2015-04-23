@@ -75,9 +75,8 @@ let forecast model sample : Label =
         |> maxAndArgMax  |> snd
 
 (**
-Functionality needed for training a random forest:
+Function returning an array of histograms on `labels` weighted by `weights`.
 *)
-/// Returns an array of histograms on `labels` weighted by `weights`.
 let cumHistograms numClasses (labels : Labels) (weights : Weights) : LabelHistogram seq =
     ((Array.zeroCreate numClasses, 0), seq { 0..weights.GetUpperBound(0) })
     ||> Seq.scan (fun (hist, sum) i ->
@@ -87,11 +86,15 @@ let cumHistograms numClasses (labels : Labels) (weights : Weights) : LabelHistog
             (hist, sum + weight))
     |> Seq.skip 1
 
-/// Returns a histogram on `labels` weighted by `weights`.
+(**
+Fuction returning a histogram on `labels` weighted by `weights`.
+*)
 let countTotals numClasses labels weights = Seq.last <| cumHistograms numClasses labels weights
 
-/// Calculates the entropy for a given branch.
-/// summing entropies for all bins in histogram.
+(**
+Function calculating the entropy for a given branch,
+summing entropies for all bins in histogram.
+*)
 let private entropyTermSum node =
     let hist, total = node
     if (total = 0) then 0.0
@@ -99,22 +102,28 @@ let private entropyTermSum node =
         let sumLogs = (0.0, hist) ||> Seq.fold (fun e c -> e - (entropyTerm c))
         (sumLogs + entropyTerm total)
 
-/// Sums up entropy for all new branches after this split
-/// (only two for the continuous case).
+(**
+Sums up entropy for all new branches after this split
+(only two for the continuous case).
+*)
 let entropy total (nodes : LabelHistogram seq) =
     if (total = 0) then 0.0
     else
         let entropySum = (0.0, nodes) ||> Seq.fold (fun e node -> e + (entropyTermSum node))
         entropySum / (float total)
 
-/// Returns the complementary histogram, i.e. the
-/// difference between the `total`- and the `left`-histogram.
+(**
+Returns the complementary histogram, i.e. the
+difference between the `total`- and the `left`-histogram.
+*)
 let complementHist (total : LabelHistogram) (left : LabelHistogram) : LabelHistogram =
     let totalHist, totalCount = total
     let hist, count = left
     (totalHist, hist) ||> Array.map2 (-), totalCount - count
 
-/// Calculates the entropy for all the possible splits in an ordered feature. Returning them in a sequence.
+(**
+Calculates the entropy for all the possible splits in an ordered feature. Returning them in a sequence.
+*)
 let splitEntropies (mask : bool seq) (countsPerSplit : LabelHistogram seq) (totals : LabelHistogram) =
     let complement = complementHist totals
     let entropy = entropy (totals |> snd)
@@ -124,15 +133,19 @@ let splitEntropies (mask : bool seq) (countsPerSplit : LabelHistogram seq) (tota
             entropy histograms
         else System.Double.PositiveInfinity)
 
-/// Returns value in the middle between `splidIdx` and next non-empty index if it exists,
-/// else returns None.
+(**
+Returns value in the middle between `splidIdx` and next non-empty index if it exists,
+else returns None.
+*)
 let featureArrayThreshold weights (featureArray : _[]) splitIdx =
     let nextIdx = Array.findNextNonZeroIdx weights (splitIdx + 1)
     match nextIdx with
     | None -> None
     | Some nextSplitIdx -> Some((featureArray.[splitIdx] + featureArray.[nextSplitIdx]) * 0.5)
 
-/// Returns a histogram from `weights` on `labels`.
+(**
+Returns a histogram from `weights` on `labels`.
+*)
 let countSamples (weights : Weights) numClasses (labels : Labels) =
     let hist = Array.zeroCreate numClasses
     for i = 0 to weights.GetUpperBound(0) do
@@ -141,7 +154,9 @@ let countSamples (weights : Weights) numClasses (labels : Labels) =
         hist.[label] <- hist.[label] + weight
     hist
 
-/// Returns the `class`/`label` with the most `weight`.
+(**
+Returns the `class`/`label` with the most `weight`.
+*)
 let findMajorityClass weights numClasses labels =
     countSamples weights numClasses labels
     |> maxAndArgMax |> snd
@@ -184,7 +199,7 @@ type GpuModuleProvider =
 
 type GpuMode =
     | SingleWeight
-    | MultiWeightWithStream of numStreams : int
+    | SingleWeightWithStream of numStreams : int
 
 type PoolMode =
     | EqualPartition
@@ -193,7 +208,10 @@ type IEntropyOptimizer =
     inherit System.IDisposable
     abstract Optimize : Weights[] -> (float * int)[][]
 
-/// Returns best entropy to split and its corresponding index for every feature.
+(**
+CPU implementation of the Optimizer function. Uses Array.Parallel.mapi for parallelization.
+Returns best entropy to split and its corresponding index for every feature.
+*)
 let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) numClasses (labelsPerFeature : Labels[])
     (indicesPerFeature : Indices[]) weights =
     // remove zero weights
@@ -249,7 +267,9 @@ let restrict startIdx count (source : _[]) =
 let restrictBelow idx (source : _[]) = source |> restrict 0 (idx + 1)
 let restrictAbove idx (source : _[]) = source |> restrict idx (source.Length - idx)
 
-/// FeatureArrays need to be sorted in ascending order
+(**
+FeatureArrays need to be sorted in ascending order
+*)
 let rec trainTrees depth (optimizer : IEntropyOptimizer) numClasses
         (sortedTrainingSet : (FeatureArray*Labels*Indices)[]) (weights : Weights[]) =
     let triples =
@@ -354,7 +374,7 @@ type EntropyDevice =
                       member this.Dispose() =
                           memories.Dispose()
                           problem.Dispose() }
-            | MultiWeightWithStream numStreams ->
+            | SingleWeightWithStream numStreams ->
                 let problem, param =
                     worker.Eval <| fun _ ->
                         let problem = gpuModule.CreateProblem(numClasses, labelsPerFeature, indicesPerFeature)

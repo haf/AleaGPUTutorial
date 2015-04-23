@@ -18,6 +18,9 @@ let private DEBUG = false
 let DEFAULT_BLOCK_SIZE = 128
 let DEFAULT_REDUCE_BLOCK_SIZE = 512
 
+(**
+Class ValueAndIndex used to get back min and argmin resp. max and argmax.
+*)
 [<Struct; Align(8)>]
 type ValueAndIndex =
     val Value : float
@@ -30,11 +33,13 @@ type ValueAndIndex =
 
     override this.ToString() = sprintf "Value: %f Index: %d" this.Value this.Index
 
+    (**
+    Returns the maximum/minimum of the two values `a` and `b`
+    If `sign` is 1 it computes the maximum, if -1 the minimum.
+    In case `a` and `b` have the same value, the ValueAndIndex with
+    largest index will be returned.
+    *)
     [<ReflectedDefinition>]
-    /// Returns the maximum/minimum of the two values `a` and `b`
-    /// If `sign` is 1 it computes the maximum, if -1 the minimum.
-    /// In case `a` and `b` have the same value, the ValueAndIndex with
-    /// largest index will be returned.
     static member inline Opt sign (a : ValueAndIndex) (b : ValueAndIndex) =
         if a.Value = b.Value then
             if a.Index > b.Index then a
@@ -55,6 +60,9 @@ type ValueAndIndex =
     [<ReflectedDefinition>]
     static member ofSingle (value : float32) index = new ValueAndIndex(float value, index)
 
+(**
+Type to distinguish between min and max in `ValueAndIndex`.
+*)
 type MinOrMax =
     | Min
     | Max
@@ -67,6 +75,10 @@ type MinOrMax =
     member this.OptFun a b = ValueAndIndex.Opt this.Sign a b
     member this.DefaultValue = ValueAndIndex.OPT_INFINITY this.Sign
 
+(**
+Function calculating the entropy term for a count of a histogram.
+Used in CPU and GPU implementation.
+*)
 [<ReflectedDefinition>]
 let entropyTerm (x : int) =
     if x > 0 then
@@ -186,6 +198,9 @@ type EntropyOptimizationMemories =
         this.reducedOutput.Dispose()
         this.gpuMask.Dispose()
 
+(**
+Entropy optimization module for GPU optimization with resp. without CUDA-streams.
+*)
 [<AOTCompile(SpecificArchs = "sm20;sm30;sm35")>]
 type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
     inherit GPUModule(target)
@@ -209,12 +224,19 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
         let blockDim = dim3 (blockSize)
         let gridDim = dim3 (divup numCols blockSize, numFeatures)
         LaunchParam(gridDim, blockDim)
-
+(**
+Create CUDA-streams:
+*)
     let streams = System.Collections.Generic.Queue<Stream>()
+(**
+We create a factory method returning a default instance.
+*)
     static let instance blockSize reduceBlockSize = Lazy.Create <| fun _ -> new EntropyOptimizationModule(GPUModuleTarget.DefaultWorker, blockSize, reduceBlockSize)
     static member Default = (instance DEFAULT_BLOCK_SIZE DEFAULT_REDUCE_BLOCK_SIZE).Value
-    // launching function cache, because we have many small kernel, and will
-    // launch them many times, so it is good to do a lazy cache, set then in OnLoad() function.
+(**
+Lauching funcitons does take some time. As we have many small function calls this time adds up.
+Hence we use a function cache using `Lazy` in order to minimize this unnecessary expenditure of time.
+*)
     [<DefaultValue>]
     val mutable LaunchOptAndArgOptKernelDoubleWithIdcs : Lazy<LaunchParam -> deviceptr<ValueAndIndex> -> int -> int -> deviceptr<float> -> int -> int -> deviceptr<int> -> unit>
     [<DefaultValue>]
@@ -235,7 +257,9 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
         this.LaunchFindNonZeroIndicesKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<int>, int> <@ this.FindNonZeroIndicesKernel @>
         this.LaunchWeightExpansionKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<Label>, deviceptr<int>, deviceptr<int>, int, int, int, deviceptr<int>> <@ this.WeightExpansionKernel @>
         this.LaunchEntropyKernel <- lazy this.GPULaunch<deviceptr<float>, deviceptr<int>, int, int, int, int, float, deviceptr<int>> <@ this.EntropyKernel @>
-
+(**
+We need to dispose the created streams.
+*)
     override this.Dispose(disposing) =
         if disposing then streams |> Seq.iter (fun stream -> stream.Dispose())
         base.Dispose(disposing)
@@ -290,7 +314,10 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
           valuesAndIndices = valuesAndIndices
           valuesAndIndicesHandle = None }
 
-    [<ReflectedDefinition; Kernel>]
+(**
+Implementation of the different kernels and launching methods.
+*)
+    [<Kernel; ReflectedDefinition>]
     member private this.OptAndArgOptKernelDoubleWithIdcs output numOutCols sign (matrix : deviceptr<float>) numCols
            numValid indices =
         primitiveReduce.Resource.OptAndArgOpt output numOutCols sign matrix numCols numValid indices true
@@ -560,9 +587,9 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
                          results.[i] <- Some(optima |> Array.map (fun x -> (x.Value, x.Index))))
         results |> Array.choose id
 
-    (**
-    Optimization not using Streams, optimizing each element of the `weights`-array for itself.
-    *)
+(**
+Optimization not using Streams, optimizing each element of the `weights`-array for itself.
+*)
     member this.Optimize(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, options : EntropyOptimizationOptions, weights : Weights) =
         this.GPUWorker.Eval <| fun _ ->
             let masks = options.FeatureSelector problem.numFeatures
@@ -575,9 +602,9 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
             this.Entropy(problem, memories, options, sum, count)
             this.MinimumEntropy(problem, memories, count, masks)
 
-    (**
-    Optimization using Streams. Optimizes the `weights`-array in parrallel.
-    *)
+(**
+Optimization using Streams. Optimizes the `weights`-array in parrallel.
+*)
     member this.Optimize(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories)[], options : EntropyOptimizationOptions, weights : Weights[]) =
         this.GPUWorker.Eval <| fun _ ->
             let size = weights.[0].Length * sizeof<int> |> nativeint

@@ -1,5 +1,5 @@
 ﻿(**
-The Class `Matrix` helps alllocation, scattering and gathering data on, to and from the GPU memory.
+The Class `Matrix` helps allocation, scattering and gathering data on, to and from the GPU memory.
 *)
 module Tutorial.Fs.examples.RandomForest.Cublas
 
