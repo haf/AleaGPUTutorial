@@ -19,9 +19,9 @@ let sortFeature (labels : Labels) (featureValues : FeatureArray) =
 let sortAllFeatures labels domains = domains |> Array.Parallel.map (sortFeature labels)
 
 (**
-The `LabeledFeatureSet` contains the traing data which can be saved in three different ways:
+The `LabeledFeatureSet` contains the traing data which can be saved in three different ways, where only the first is important to the end user:
 
-1. As `LabeledSamples`, i.e. an array containing touples of feature vectors & a label and is the most caonical way for entering a dataset.
+1. As `LabeledSamples`, i.e. an array containing touples of feature vectors & a label and is the most canonical way for entering a dataset.
 2. As `LabeledFeatures`, i.e. a tuple of a FeatureArray (where instead of having a features of a sample together, all features of different samples are saved in an array) and an array of Labels.
 3. As `SortedFeatures`, where for every feature all the values are sorted in ascending order as well as labelled and completed with the index before sorting. It is mainly used for finding the best split.
 *)
@@ -72,7 +72,7 @@ let forecast model sample : Label =
                 let label = forecastTree sample tree
                 hist.[label] <- hist.[label] + 1
                 hist)
-        |> maxAndArgMax  |> snd
+        |> maxAndArgMax |> snd
 
 (**
 Function returning an array of histograms on `labels` weighted by `weights`.
@@ -87,7 +87,7 @@ let cumHistograms numClasses (labels : Labels) (weights : Weights) : LabelHistog
     |> Seq.skip 1
 
 (**
-Fuction returning a histogram on `labels` weighted by `weights`.
+Function returning a histogram on `labels` weighted by `weights`.
 *)
 let countTotals numClasses labels weights = Seq.last <| cumHistograms numClasses labels weights
 
@@ -185,25 +185,16 @@ let entropyMask (weights : _[]) (labels : _[]) totalWeight absMinWeight =
     |> Seq.skip 1
     |> Seq.map (fun (x, _, _) -> x)
 
+(**
+Discriminate between `Sequential` and `Parrallel` CPU mode.
+*)
 type CpuMode =
     | Sequential
     | Parallel
 
-type GpuModuleProvider =
-    | DefaultModule
-    | Specified of gpuModule : GpuSplitEntropy.EntropyOptimizationModule
-    member this.GetModule() =
-        match this with
-        | DefaultModule -> GpuSplitEntropy.EntropyOptimizationModule.Default
-        | Specified gpuModule -> gpuModule
-
-type GpuMode =
-    | SingleWeight
-    | SingleWeightWithStream of numStreams : int
-
-type PoolMode =
-    | EqualPartition
-
+(**
+Abstract class for entropy optimizer granting the same interface for CPU and GPU implementation.
+*)
 type IEntropyOptimizer =
     inherit System.IDisposable
     abstract Optimize : Weights[] -> (float * int)[][]
@@ -280,9 +271,7 @@ let rec trainTrees depth (optimizer : IEntropyOptimizer) numClasses
                     let a1, _, _ = a
                     a1
 
-                let a =
-                    results
-                    |> Array.mapi (fun i (entropy, splitIdx) -> entropy, splitIdx, i)
+                let a = results |> Array.mapi (fun i (entropy, splitIdx) -> entropy, splitIdx, i)
                 let b = a |> Array.minBy (fun (entropy, _, _) -> entropy)
                 if DEBUG then printfn "triplet: %A" b
                 if fst a.[0] = fst b then a.[0]
@@ -344,6 +333,26 @@ let rec trainTrees depth (optimizer : IEntropyOptimizer) numClasses
 
 let trainStump optimizer numClasses sortedTrainingSet weights =
     trainTrees 1 optimizer numClasses sortedTrainingSet weights
+
+(**
+Types for deciding which computational device should run in what mode.
+And method to create an entropy divice.
+*)
+
+type GpuModuleProvider =
+    | DefaultModule
+    | Specified of gpuModule : GpuSplitEntropy.EntropyOptimizationModule
+    member this.GetModule() =
+        match this with
+        | DefaultModule -> GpuSplitEntropy.EntropyOptimizationModule.Default
+        | Specified gpuModule -> gpuModule
+
+type GpuMode =
+    | SingleWeight
+    | SingleWeightWithStream of numStreams : int
+
+type PoolMode =
+    | EqualPartition
 
 type EntropyDevice =
     | GPU of mode : GpuMode * provider : GpuModuleProvider
@@ -443,7 +452,7 @@ type EntropyDevice =
         this.Create EntropyOptimizationOptions.Default numClasses sortedTrainingSet
 
 (**
-Options for Tree:
+Options for decistion-tree:
 
 - `MaxDepth` : maximal number of tree-layers.
 - `Device` : Decide between CPU and GPU implementation.

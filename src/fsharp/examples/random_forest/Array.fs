@@ -5,6 +5,9 @@ module Tutorial.Fs.examples.RandomForest.Array
 
 open Tutorial.Fs.examples.RandomForest.DataModel
 
+(**
+Functionality to find non-zero indices, and store them to an array.
+*)
 let findNextNonZeroIdx (v : _[]) startIdx =
     let mutable i = startIdx
     while i < v.Length && v.[i] = 0 do
@@ -24,10 +27,20 @@ let findNonZeroIdcs count (mask : _[]) =
         | None -> failwith "insufficient number non zero elements"
     dst
 
-let projectIdcs (indices : _[]) (weights : _[]) = Array.init indices.Length (fun i -> weights.[indices.[i]])
-let permByIdcs (indices : _[]) (weights : _[]) = weights |> Array.permute (fun i -> indices.[i])
+(**
+Samples are sorted according to their value. We still want to get the initial weights, i.e. what this method provides.
+*)
+let projectIdcs (indices : _[]) (weights : _[]) = 
+    Array.init indices.Length (fun i -> weights.[indices.[i]])
+
+(**
+apply `projectIdcs` to all features.
+*)
 let expandWeights indicesPerFeature weights =
     indicesPerFeature |> Array.Parallel.map (fun indices -> projectIdcs indices weights)
+
+let permByIdcs (indices : _[]) (weights : _[]) = 
+    weights |> Array.permute (fun i -> indices.[i])
 
 let findNonZeroWeights (weightsPerFeature : Weights[]) =
     let countNonZero =
@@ -38,21 +51,15 @@ let findNonZeroWeights (weightsPerFeature : Weights[]) =
     let nonZeroIdcsPerFeature = weightsPerFeature |> Array.Parallel.map (findNonZeroIdcs countNonZero)
     nonZeroIdcsPerFeature
 
-(**
- `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
-*)
+/// `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
 let shuffle (rnd : int -> int) arr = arr |> Seq.sortBy (fun _ -> rnd(System.Int32.MaxValue))
 
-(**
-Returns array of length `k` with uniqe random integer numbers from 0 to `n` - 1.
- `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
-*)
+/// Returns array of length `k` with uniqe random integer numbers from 0 to `n` - 1.
+/// `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
 let randomSubIndices rnd n k =
     seq { 0..n - 1 } |> shuffle rnd |> Seq.take k |> Seq.toArray
 
-(**
-`rnd` is a randomNumber provider, a function taking an int `l` and returning a random number between 0 and `l`.
-*)
+/// `rnd` is a randomNumber provider, a function taking an int `l` and returning a random number between 0 and `l`.
 let randomlySplitUpArray rnd k x =
     let shuffledSequence =
         x |> shuffle rnd |> Seq.toArray

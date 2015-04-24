@@ -8,7 +8,7 @@ type FeatureValue = float
 Array of `FeatureValue`s for a given sample,
 e.g.:
 
-    | sepalLength; sepalWidth; petalLength; petalWidth |
+    [| sepalLength; sepalWidth; petalLength; petalWidth |]
 
 for one sample.
 *)
@@ -18,7 +18,7 @@ type Sample = FeatureValue[]
 Array of `FeatureValue`s for a given feature but many Samples,
 e.g:
 
-    | sepalLength_1; sepalLength_2; ...; sepalLength_n |
+    [| sepalLength_1; sepalLength_2; ...; sepalLength_n |]
 
 for n samples.
 *)
