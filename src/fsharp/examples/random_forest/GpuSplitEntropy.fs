@@ -1,6 +1,4 @@
-﻿(**
-GPU functionality to train a random forest.
-*)
+﻿(*** hide ***)
 module Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
 
 #nowarn "9"
@@ -12,6 +10,9 @@ open Alea.CUDA.Utilities
 open Alea.CUDA.Unbound
 open Tutorial.Fs.examples.RandomForest.DataModel
 
+(**
+GPU functionality for the `IEntropyOptimizer`'s method `Optimize` needed to train a decision tree. Two implementation using the same kernel exist, one uses CUDA-streams, one not.
+*)
 [<Literal>]
 let private DEBUG = false
 
@@ -19,7 +20,7 @@ let DEFAULT_BLOCK_SIZE = 128
 let DEFAULT_REDUCE_BLOCK_SIZE = 512
 
 (**
-Class ValueAndIndex used to get back min and argmin resp. max and argmax.
+Type `ValueAndIndex` used to get back min and argmin resp. max and argmax.
 *)
 [<Struct; Align(8)>]
 type ValueAndIndex =
@@ -36,8 +37,8 @@ type ValueAndIndex =
 (**
 Returns the maximum/minimum of the two values `a` and `b`
 If `sign` is 1 it computes the maximum, if -1 the minimum.
-In case `a` and `b` have the same value, the ValueAndIndex with
-largest index will be returned.
+In case `a` and `b` have the same value, the `ValueAndIndex` with
+largest index will be returned. This is important to get the same results for CPU and GPU implementation.
 *)
     [<ReflectedDefinition>]
     static member inline Opt sign (a : ValueAndIndex) (b : ValueAndIndex) =
@@ -88,7 +89,7 @@ let entropyTerm (x : int) =
     else __nan()
 
 (**
-Matrix row scan resource, using block range scan from Alea Unbound.
+Matrix row scan resource, using block range scan from Alea-Unbound.
 Here we use it to find value and index of the minimal entropy.
 *)
 type MultiChannelReducePrimitive(arch : DeviceArch, reduceBlockSize) =
@@ -117,8 +118,8 @@ type MultiChannelReducePrimitive(arch : DeviceArch, reduceBlockSize) =
         if tid = 0 then output.[blockIdx.x * numOutputCols + blockIdx.y] <- aggregate
 
 (**
-Matrix row scan resource using block range scan from Alea Unbound.
-Here we use it to calculate a cummulative sum.
+Matrix row scan resource using block range scan from Alea-Unbound.
+Here we use it to calculate a cumulative sum.
 *)
 type MatrixRowScanPrimitive(arch : DeviceArch, addressSize, blockThreads) =
     let blockRangeScan = DeviceScanPolicy.Create(arch, addressSize, blockThreads).BlockRangeScan
@@ -134,7 +135,7 @@ type MatrixRowScanPrimitive(arch : DeviceArch, addressSize, blockThreads) =
 (**
 Entropy options.
 See `MinWeight` function for purpose of `AbsMinWeight`, `RelMinDivisor` and `RelMinBound`.
-`Decimals` is used to round to the given decimals in entropySplit.
+`Decimals` is used to round to the given decimals in the entropy split.
 `FeatureSelector` selects a (random) subset of features. Next to the random weights this is the second way to bring some randomness into tree building.
 *)
 type EntropyOptimizationOptions =
@@ -186,7 +187,7 @@ type EntropyOptimizationProblem =
         this.IndexMatrix.Dispose()
 
 (**
-Record contining matrices for entropy optimization.
+Record containing matrices for entropy optimization.
 *)
 type EntropyOptimizationMemories =
     { GpuWeights : Cublas.Matrix<int>
@@ -244,7 +245,7 @@ We create a factory method returning a default instance of this class.
     static member Default = (instance DEFAULT_BLOCK_SIZE DEFAULT_REDUCE_BLOCK_SIZE).Value
 
 (**
-Lauching funcitons does take some time. As we have many small function calls this time adds up.
+Launching functions does take some time. As we have many small function calls this time adds up.
 Hence we use a function cache using `Lazy` in order to minimize this unnecessary expenditure of time.
 *)
     [<DefaultValue>]
@@ -267,6 +268,7 @@ Hence we use a function cache using `Lazy` in order to minimize this unnecessary
         this.LaunchFindNonZeroIndicesKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<int>, int> <@ this.FindNonZeroIndicesKernel @>
         this.LaunchWeightExpansionKernel <- lazy this.GPULaunch<deviceptr<int>, deviceptr<Label>, deviceptr<int>, deviceptr<int>, int, int, int, deviceptr<int>> <@ this.WeightExpansionKernel @>
         this.LaunchEntropyKernel <- lazy this.GPULaunch<deviceptr<float>, deviceptr<int>, int, int, int, int, float, deviceptr<int>> <@ this.EntropyKernel @>
+
 (**
 We need to dispose the created CUDA-streams.
 *)
@@ -284,7 +286,7 @@ We need to dispose the created CUDA-streams.
     member this.ReturnStream(stream) = streams.Enqueue(stream)
 
 (**
-Creates a object of class `EntropyOptimizationProblem` containing the optimization parameters. The record must be disposed of.
+Creates an object of class `EntropyOptimizationProblem` containing the optimization parameters. The record must be disposed of.
 *)
     member this.CreateProblem(numberOfClasses : int, labelsPerFeature : Labels[], indicesPerFeature : Indices[]) =
         let worker = this.GPUWorker
@@ -332,7 +334,7 @@ Allocates needed memory on GPU using the Cublas.Matrix class. The record must be
 
 (**
 GPU kernel finding optimum and index of optimum using the `MultiChannelReducePrimitive` type.
-The sign decides if maximum or minimum is chosen.
+The `sign` decides if maximum or minimum is chosen.
 *)
     [<Kernel; ReflectedDefinition>]
     member private this.OptAndArgOptKernelDoubleWithIdcs output numOutCols sign (matrix : deviceptr<float>) numCols
@@ -340,7 +342,7 @@ The sign decides if maximum or minimum is chosen.
         primitiveReduce.Resource.OptAndArgOpt output numOutCols sign matrix numCols numValid indices true
 
 (**
-GPU kernel & launching method, calulating the cumulative sum of values in a vector using the `MatrixRowScanPrimitive` type.
+GPU kernel & launching method, calculating the cumulative sum of values in a vector using the `MatrixRowScanPrimitive` type.
 *)
     [<Kernel; ReflectedDefinition>]
     member private this.CumSumKernel (numCols : int) (numValid : int) (inputs : deviceptr<int>) =
@@ -365,7 +367,7 @@ Returns for every initial weight (before sorting samples) if it has been non-zer
             weightMatrix.[matrixIdx] <- min weight 1
 
 (**
-Writes indicies where initial weight is non zero into `indexMatrix`.
+Writes indices where initial weight is non-zero into `indexMatrix`.
 Note in `cumWeightMatrix` weights have been $\in \{0,1\}$.
 *)
     [<Kernel; ReflectedDefinition>]
@@ -381,6 +383,26 @@ Note in `cumWeightMatrix` weights have been $\in \{0,1\}$.
                 else cumWeightMatrix.[weightIdx - 1]
             if weight > prevWeight then indexMatrix.[featureIdx*numSamples + weight - 1] <- sampleIdx
 
+(**
+Launches three kernels in order to find indices where the initial weights were non-zero.
+As for every feature the samples are sorted and hence not anymore in the same order as the weights. Weight-expansion reorders the weights such that every sample 
+gets the initial weight.
+*)
+    member this.FindNonZeroIndices(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories) =
+        let lp = lp problem.NumFeatures problem.NumSamples
+        this.LaunchLogicalWeightExpansionKernel.Value lp memories.WeightMatrix.DeviceData.Ptr
+            problem.IndexMatrix.DeviceData.Ptr memories.GpuWeights.DeviceData.Ptr problem.NumSamples
+        // cum sums over the weight matrix
+        this.CumSum(memories.WeightMatrix, problem.NumSamples)
+        this.LaunchFindNonZeroIndicesKernel.Value lp memories.NonZeroIdcsPerFeature.DeviceData.Ptr
+            memories.WeightMatrix.DeviceData.Ptr problem.NumSamples
+        if DEBUG then
+            printfn "weight matrix:\n%A" (memories.WeightMatrix.ToArray2D())
+            printfn "nonZeroIdcsPerFeature:\n%A" (memories.NonZeroIdcsPerFeature.ToArray2D())
+
+(**
+Launches three kernels in order to find indices where the initial weights were non-zero. Uses CUDA-streams.
+*)
     member this.FindNonZeroIndices(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories)[]) =
         let lp = lp problem.NumFeatures problem.NumSamples
         let launch = this.LaunchLogicalWeightExpansionKernel.Value
@@ -402,13 +424,6 @@ Note in `cumWeightMatrix` weights have been $\in \{0,1\}$.
                (fun (stream, memories) ->
                launch (lp.NewWithStream(stream)) memories.NonZeroIdcsPerFeature.DeviceData.Ptr
                    memories.WeightMatrix.DeviceData.Ptr problem.NumSamples)
-
-    member this.ExpandWeights(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, numValid : int) =
-        let lp = lp problem.NumFeatures numValid
-        this.LaunchWeightExpansionKernel.Value lp memories.WeightsPerFeatureAndClass.DeviceData.Ptr
-            problem.LabelMatrix.DeviceData.Ptr problem.IndexMatrix.DeviceData.Ptr memories.GpuWeights.DeviceData.Ptr
-            problem.NumSamples problem.NumClasses numValid memories.NonZeroIdcsPerFeature.DeviceData.Ptr
-        if DEBUG then printfn "weightsPerFeatureAndClass:\n%A" (memories.WeightsPerFeatureAndClass.ToArray2D())
 
 (**
 Writes initial weights (before sorting samples) into `weightMatrix`.
@@ -432,18 +447,19 @@ Writes initial weights (before sorting samples) into `weightMatrix`.
                 weightMatrix.[classOffset + smallMatrixIdx] <- if label = classIdx then weight
                                                                else 0
 
-    member this.FindNonZeroIndices(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories) =
-        let lp = lp problem.NumFeatures problem.NumSamples
-        this.LaunchLogicalWeightExpansionKernel.Value lp memories.WeightMatrix.DeviceData.Ptr
-            problem.IndexMatrix.DeviceData.Ptr memories.GpuWeights.DeviceData.Ptr problem.NumSamples
-        // cum sums over the weight matrix
-        this.CumSum(memories.WeightMatrix, problem.NumSamples)
-        this.LaunchFindNonZeroIndicesKernel.Value lp memories.NonZeroIdcsPerFeature.DeviceData.Ptr
-            memories.WeightMatrix.DeviceData.Ptr problem.NumSamples
-        if DEBUG then
-            printfn "weight matrix:\n%A" (memories.WeightMatrix.ToArray2D())
-            printfn "nonZeroIdcsPerFeature:\n%A" (memories.NonZeroIdcsPerFeature.ToArray2D())
+(**
+Launches `ExpandWeights` in order to get initial weights (before sorting samples) into `WeightsPerFeatureAndClass`.
+*)
+    member this.ExpandWeights(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, numValid : int) =
+        let lp = lp problem.NumFeatures numValid
+        this.LaunchWeightExpansionKernel.Value lp memories.WeightsPerFeatureAndClass.DeviceData.Ptr
+            problem.LabelMatrix.DeviceData.Ptr problem.IndexMatrix.DeviceData.Ptr memories.GpuWeights.DeviceData.Ptr
+            problem.NumSamples problem.NumClasses numValid memories.NonZeroIdcsPerFeature.DeviceData.Ptr
+        if DEBUG then printfn "weightsPerFeatureAndClass:\n%A" (memories.WeightsPerFeatureAndClass.ToArray2D())
 
+(**
+Launches `ExpandWeights` in order to get initial weights (before sorting samples) into `WeightsPerFeatureAndClass`. Uses CUDA-streams.
+*)
     member this.ExpandWeights(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories)[], numValids : int[]) =
         let launch = this.LaunchWeightExpansionKernel.Value
         param
@@ -629,8 +645,8 @@ Method searching for every feature the best split according to the already calcu
         results |> Array.choose id
 
 (**
-Optimization not using CUDA-streams, optimizing each element of the `weights`-array for itself.
-Returns an array consisiting of entropy and split-index.
+Optimization not using CUDA-streams.
+Returns an array consisting of entropy and split-index.
 *)
     member this.Optimize(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, options : EntropyOptimizationOptions, weights : Weights) =
         this.GPUWorker.Eval <| fun _ ->
@@ -645,7 +661,7 @@ Returns an array consisiting of entropy and split-index.
             this.MinimumEntropy(problem, memories, count, masks)
 
 (**
-Optimization using CUDA-streams. Optimizes the `weights`-array in parrallel.
+Optimization using CUDA-streams.
 Returns an array consisting of entropy and split-index.
 *)
     member this.Optimize(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories)[], options : EntropyOptimizationOptions, weights : Weights[]) =

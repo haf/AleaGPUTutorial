@@ -1,4 +1,5 @@
-﻿module Tutorial.Fs.examples.RandomForest.DataModel
+﻿(*** hide ***)
+module Tutorial.Fs.examples.RandomForest.DataModel
 
 type Label = int
 
@@ -10,12 +11,11 @@ e.g.:
 
     [| sepalLength; sepalWidth; petalLength; petalWidth |]
 
-for one sample.
 *)
 type Sample = FeatureValue[]
 
 (**
-Array of `FeatureValue`s for a given feature but many Samples,
+Array of `FeatureValue`s for a given feature but many samples,
 e.g:
 
     [| sepalLength_1; sepalLength_2; ...; sepalLength_n |]
@@ -37,14 +37,14 @@ e.g:
     | |             |; |            |; |             |; |            | |
     |                                                                  |
 
-for m samples with 4 features each.
+m samples with 4 features each.
 *)
 type FeatureArrays = FeatureArray[]
 
 type Labels = Label[]
 
 (**
-Sample with attatched Label,
+Sample with attached Label,
 e.g:
 
     ([| sepalLength; sepalWidth; petalLength; petalWidth |], 1)
@@ -82,7 +82,7 @@ type Model =
 
 (** 
 We abstract from the random number generator, demanding only a function taking an integer `l` and returning a 
-random integer between 0 and `l`. The method getRngFunction is a factory providing such a function using System.Random.
+random integer between 0 and `l`. The method `getRngFunction` is a factory providing such a function using `System.Random`.
 *)
 let getRngFunction seed = 
     let rng = System.Random(seed)

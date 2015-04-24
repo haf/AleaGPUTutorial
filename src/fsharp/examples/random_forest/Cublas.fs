@@ -1,11 +1,12 @@
-﻿(**
-The Class `Matrix` helps allocation, scattering and gathering data on, to and from the GPU memory.
-*)
+﻿(*** hide ***)
 module Tutorial.Fs.examples.RandomForest.Cublas
 
 open Alea.CUDA
 open Alea.CUDA.Utilities
 
+(**
+The Class `Matrix` helps allocate, scatter and gather data on, to and from GPU memory.
+*)
 type internal MatrixLayout<'T> =
     | Empty of rows : int * cols : int
     | Jagged of 'T[][]

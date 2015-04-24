@@ -1,6 +1,4 @@
-﻿(**
-Functionality for training a random forest and using a random forest for forcasting.
-*)
+﻿(*** hide ***)
 module Tutorial.Fs.examples.RandomForest.RandomForest
 
 open Alea.CUDA.Utilities
@@ -11,6 +9,22 @@ open Tutorial.Fs.examples.RandomForest.Array
 [<Literal>]
 let private DEBUG = false
 
+(**
+This file contains the main code for building a random forest excluding specific GPU & shared CPU/GPU code.
+
+Training data is expected in the `LabeledFeaterSet` form (see type below). It helps to transform `LabeledSamples` (input format) into `SortedFeatures` (working format).
+The input format has the form:
+
+    [|([| sepalLength; sepalWidth; petalLength; petalWidth |], 1)|]
+
+i.e. an array of tuples consisting of a array with features (floats) and a label (int).
+
+It follows the functionality for forecasting: `forecastTree` for decision trees and `forecast` for random forests. Small functions for the entropy calculation follow.
+The function `optimizeFeatures` is the CPU implementation for the `IEntropyOptimizer`'s `Optimize` member.
+`trainTrees` recursively trains a decision tree using the `Optimize` function (CPU or GPU implementation)
+
+*)
+
 let sortFeature (labels : Labels) (featureValues : FeatureArray) =
     let tupleArray = featureValues |> Array.mapi (fun i value -> (value, labels.[i], i))
     tupleArray |> Array.sortInPlace
@@ -19,11 +33,11 @@ let sortFeature (labels : Labels) (featureValues : FeatureArray) =
 let sortAllFeatures labels domains = domains |> Array.Parallel.map (sortFeature labels)
 
 (**
-The `LabeledFeatureSet` contains the traing data which can be saved in three different ways, where only the first is important to the end user:
+The `LabeledFeatureSet` contains the training data which can be saved in three different ways, where only the first is important to the end user:
 
 1. As `LabeledSamples`, i.e. an array containing touples of feature vectors & a label and is the most canonical way for entering a dataset.
-2. As `LabeledFeatures`, i.e. a tuple of a FeatureArray (where instead of having a features of a sample together, all features of different samples are saved in an array) and an array of Labels.
-3. As `SortedFeatures`, where for every feature all the values are sorted in ascending order as well as labelled and completed with the index before sorting. It is mainly used for finding the best split.
+2. As `LabeledFeatures`, i.e. a tuple of a `FeatureArray` (where instead of having a features of a sample together, all features of different samples are saved in an array) and an array of Labels.
+3. As `SortedFeatures`, where for every feature all the values are sorted in ascending order as well as labelled and completed with the index before sorting. It is mainly used for finding the best split. The indices are needed in order to find the weights before ordering the features.
 *)
 type LabeledFeatureSet =
     | LabeledSamples of LabeledSample[]
@@ -54,22 +68,22 @@ type LabeledFeatureSet =
 (**
 Forecasts the label of a `sample` by traversing the `tree`.
 *)
-let rec forecastTree (sample : Sample) tree =
+let rec forecastTree tree (sample : Sample) =
     match tree with
     | Tree.Leaf label -> label
     | Tree.Node(low, split, high) ->
-        if sample.[split.Feature] <= split.Threshold then forecastTree sample low
-        else forecastTree sample high
+        if sample.[split.Feature] <= split.Threshold then forecastTree low sample 
+        else forecastTree high sample
 
 (**
-Forecasts the label of a `sample` by mojority voting on labels received by trees in `model`.
+Forecasts the label of a `sample` by majority voting on labels received by trees in `model`.
 *)
 let forecast model sample : Label =
     match model with
     | RandomForest(trees, numClasses) ->
         (Array.zeroCreate numClasses, trees)
         ||> Seq.fold (fun hist tree ->
-                let label = forecastTree sample tree
+                let label = forecastTree tree sample
                 hist.[label] <- hist.[label] + 1
                 hist)
         |> maxAndArgMax |> snd
@@ -129,7 +143,7 @@ let splitEntropies (mask : bool seq) (countsPerSplit : LabelHistogram seq) (tota
     let entropy = entropy (totals |> snd)
     (mask, countsPerSplit) ||> Seq.map2 (fun isValid low ->
         if isValid then
-            let histograms =seq { yield low; yield complement low }
+            let histograms = seq { yield low; yield complement low }
             entropy histograms
         else System.Double.PositiveInfinity)
 
@@ -161,6 +175,10 @@ let findMajorityClass weights numClasses labels =
     countSamples weights numClasses labels
     |> maxAndArgMax |> snd
 
+(**
+Masks out splits which have for sure no optimal entropy.
+Increases performance of CPU implementation.
+*)
 let entropyMask (weights : _[]) (labels : _[]) totalWeight absMinWeight =
     let findNextWeight = Array.findNextNonZeroIdx weights
     ((false, findNextWeight 0, 0), seq { 0..weights.GetUpperBound(0) })
@@ -186,7 +204,7 @@ let entropyMask (weights : _[]) (labels : _[]) totalWeight absMinWeight =
     |> Seq.map (fun (x, _, _) -> x)
 
 (**
-Discriminate between `Sequential` and `Parrallel` CPU mode.
+Discriminate between `Sequential` and `Parallel` CPU mode.
 *)
 type CpuMode =
     | Sequential
@@ -259,7 +277,7 @@ let restrictBelow idx (source : _[]) = source |> restrict 0 (idx + 1)
 let restrictAbove idx (source : _[]) = source |> restrict idx (source.Length - idx)
 
 (**
-FeatureArrays need to be sorted in ascending order
+`FeatureArrays` need to be sorted in ascending order.
 *)
 let rec trainTrees depth (optimizer : IEntropyOptimizer) numClasses
         (sortedTrainingSet : (FeatureArray*Labels*Indices)[]) (weights : Weights[]) =
@@ -336,9 +354,8 @@ let trainStump optimizer numClasses sortedTrainingSet weights =
 
 (**
 Types for deciding which computational device should run in what mode.
-And method to create an entropy divice.
+And method to create an entropy device.
 *)
-
 type GpuModuleProvider =
     | DefaultModule
     | Specified of gpuModule : GpuSplitEntropy.EntropyOptimizationModule
@@ -452,10 +469,10 @@ type EntropyDevice =
         this.Create EntropyOptimizationOptions.Default numClasses sortedTrainingSet
 
 (**
-Options for decistion-tree:
+Options for decision-tree:
 
-- `MaxDepth` : maximal number of tree-layers.
-- `Device` : Decide between CPU and GPU implementation.
+- `MaxDepth`: maximal number of tree-layers.
+- `Device`: Decide between CPU and GPU implementation.
 - `EntropyOptions`
 *)
 type TreeOptions =
@@ -505,8 +522,8 @@ let randomWeights (rnd : int -> int) length : Weights =
 (**
 Create a random forest from a `trainingSet`:
 
-- `options`, often the default options using GPU is a fair choice
-- `rnd`, an instance of System.Random in order to create different weights for the trees
+- `options`, the default options using GPU is a fair choice.
+- `rnd`, a random number generating function in order to create different weights for the trees. Default choice is a function created by `getRngFunction`.
 - `numTrees`, the number of trees to be grown in the random forest
 - `trainingSet`, data to train the random forest.
 
@@ -518,7 +535,11 @@ let randomForestClassifier options rnd numTrees (trainingSet : LabeledFeatureSet
     bootstrappedForestClassifier options weights trainingSet
 
 (**
-Only train stumps, i.e. a random forest with trees of depth 1.
+Trains only stumps, i.e. a random forest with trees of depth 1.
+
+- `rnd`, a random number generating function in order to create different weights for the trees. Default choice is a function created by `getRngFunction`.
+- `numTrees`, the number of trees to be grown in the random forest
+- `trainingSet`, data to train the random forest.
 *)
 let randomStumpsClassifier : (int -> int) -> int -> LabeledFeatureSet -> Model =
     randomForestClassifier { TreeOptions.Default with MaxDepth = 1 }

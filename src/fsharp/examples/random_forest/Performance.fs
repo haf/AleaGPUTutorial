@@ -1,7 +1,16 @@
-﻿(**
+﻿(*** hide ***)
+module Tutorial.Fs.examples.RandomForest.Performance
+
+open Alea.CUDA
+open Tutorial.Fs.examples.RandomForest.DataModel
+open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
+open Tutorial.Fs.examples.RandomForest.RandomForest
+open Tutorial.Fs.examples.RandomForest.Tests
+
+(**
 Performance measurement CPU vs GPU implementations.
 
-System has been a Intel Core [i7-4771 CPU @ 3.50GHz](http://ark.intel.com/products/77656/Intel-Core-i7-4771-Processor-8M-Cache-up-to-3_90-GHz) and 16 GB RAM.
+System has been an Intel Core [i7-4771 CPU @ 3.50GHz](http://ark.intel.com/products/77656/Intel-Core-i7-4771-Processor-8M-Cache-up-to-3_90-GHz) and 16 GB RAM.
 The GPU is a [Titan Black](http://www.nvidia.com/gtx-700-graphics-cards/gtx-titan-black/).
 
 The Following performance test consists of 20000 samples, 20 features, 2 classes and 1000 trees with maximal depth of 1.
@@ -25,7 +34,7 @@ on Linux (max depth = 1):
     Speed up: 55.9
     cpu time: 109988.196000, gpu time: 1968.456500
 
-We get a nice speedup of over 26 on Windows. On linux the the CPU version is much slower ([a known problem with mono in the past](http://flyingfrogblog.blogspot.ch/2009/01/mono-22.html),
+We get a nice speedup of over 26 on Windows. On Linux the CPU version is much slower ([a known problem with mono in the past](http://flyingfrogblog.blogspot.ch/2009/01/mono-22.html),
 now probably mainly due to the weaker garbage collector of mono) but the GPU version is still slightly faster than on Windows.
 
 In order to get a feeling for the time, we build a random forest using the same feature set with RandomForestClassifier from Pythons sklearn library:
@@ -58,7 +67,7 @@ In order to get a feeling for the time, we build a random forest using the same 
     print("elapsed time: " + str(end - start))
 
 which builds the 1000 trees in between 43 s (single CPU core) and 9.6 s (all CPU cores). This is much faster than our CPU implementation, which was expected
-as our code though reasonably well optimized is not expected to catch up with the higly optimized sklearn library. Our GPU implementation however still gets 
+as our code though reasonably well optimized is not expected to catch up with the highly optimized sklearn library. Our GPU implementation however still gets 
 a nice speed up of over 4 against the most parallel python.
 
 The same test can be done with deeper trees:
@@ -87,14 +96,6 @@ Python needs for this parameters between 3min 40s (single CPU core) and 44 s (al
 
 Performance test implementation:
 *)
-module Tutorial.Fs.examples.RandomForest.Performance
-
-open Alea.CUDA
-open Tutorial.Fs.examples.RandomForest.DataModel
-open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
-open Tutorial.Fs.examples.RandomForest.RandomForest
-open Tutorial.Fs.examples.RandomForest.Tests
-
 let ``Speed of training random forests``() =
     let measureRandomForestTraining options numTrees trainingData =
         printfn "Options:\n%A" options

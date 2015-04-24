@@ -1,12 +1,10 @@
-﻿(**
-Several functionality on arrays and sequences.
-*)
+﻿(*** hide ***)
 module Tutorial.Fs.examples.RandomForest.Array
 
 open Tutorial.Fs.examples.RandomForest.DataModel
 
 (**
-Functionality to find non-zero indices, and store them to an array.
+Functionality to find non-zero indices, and store them in an array.
 *)
 let findNextNonZeroIdx (v : _[]) startIdx =
     let mutable i = startIdx
@@ -34,7 +32,7 @@ let projectIdcs (indices : _[]) (weights : _[]) =
     Array.init indices.Length (fun i -> weights.[indices.[i]])
 
 (**
-apply `projectIdcs` to all features.
+Apply `projectIdcs` to all features.
 *)
 let expandWeights indicesPerFeature weights =
     indicesPerFeature |> Array.Parallel.map (fun indices -> projectIdcs indices weights)
@@ -51,15 +49,26 @@ let findNonZeroWeights (weightsPerFeature : Weights[]) =
     let nonZeroIdcsPerFeature = weightsPerFeature |> Array.Parallel.map (findNonZeroIdcs countNonZero)
     nonZeroIdcsPerFeature
 
-/// `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
+(**
+Shuffle the elements in an array.
+The function `rnd` is a randomNumber provider, a function taking an int `l` and returning a random number between 0 and `l`.
+You can use `DataModel.getRngFunction` as default.
+*)
 let shuffle (rnd : int -> int) arr = arr |> Seq.sortBy (fun _ -> rnd(System.Int32.MaxValue))
 
-/// Returns array of length `k` with uniqe random integer numbers from 0 to `n` - 1.
-/// `rnd` is a randomNumber provider, a funtion taking an int `l` and returning a random number between 0 and `l`.
+(**
+Returns array of length `k` with unique random integer numbers from 0 to `n` - 1.
+The function `rnd` is a random-number provider, a function taking an int `l` and returning a random number between 0 and `l`.
+You can use `DataModel.getRngFunction` as default.
+*)
 let randomSubIndices rnd n k =
     seq { 0..n - 1 } |> shuffle rnd |> Seq.take k |> Seq.toArray
 
-/// `rnd` is a randomNumber provider, a function taking an int `l` and returning a random number between 0 and `l`.
+(**
+Selects randomly `k` elements (without replacement) of the array `x`.
+The function `rnd` is a random number provider, a function taking an int `l` and returning a random number between 0 and `l`.
+You can use `DataModel.getRngFunction` as default.
+*)
 let randomlySplitUpArray rnd k x =
     let shuffledSequence =
         x |> shuffle rnd |> Seq.toArray
@@ -67,9 +76,9 @@ let randomlySplitUpArray rnd k x =
 
 (**
 Returns value and position of minimum in a sequence.
-In case of multiple minima it returns the last occuring.
-This function has been written in non functional style in
-order to get higher performence.
+In case of multiple minima it returns the last occurring.
+This function has been written in non-functional style in
+order to get higher performance.
 *)
 let inline minAndArgMin (source : seq<'T>) : 'T*int =
     use e = source.GetEnumerator()
@@ -87,9 +96,9 @@ let inline minAndArgMin (source : seq<'T>) : 'T*int =
 
 (** 
 Returns value and position of maximum in a sequence.
-In case of multiple maxima it returns the last occuring.
-This function has been written in non functional style in
-order to get higher performence.
+In case of multiple maxima it returns the last occurring.
+This function has been written in non-functional style in
+order to get higher performance.
 *)
 let inline maxAndArgMax (source : seq<'T>) : 'T * int =
     use e = source.GetEnumerator()
