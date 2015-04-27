@@ -11,6 +11,8 @@ open Alea.CUDA.Unbound
 open Tutorial.Fs.examples.RandomForest.DataModel
 
 (**
+# Gpu Split Entropy
+
 GPU functionality for the `IEntropyOptimizer`'s method `Optimize` needed to train a decision tree. Two implementation using the same kernel exist, one uses CUDA-streams, one not.
 *)
 [<Literal>]

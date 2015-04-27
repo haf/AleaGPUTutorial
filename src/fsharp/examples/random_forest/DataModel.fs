@@ -6,6 +6,8 @@ type Label = int
 type FeatureValue = float
 
 (**
+# Data Model
+
 Array of `FeatureValue`s for a given sample,
 e.g.:
 

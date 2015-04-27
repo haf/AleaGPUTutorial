@@ -10,6 +10,8 @@ open Tutorial.Fs.examples.RandomForest.Array
 open Tutorial.Fs.examples.RandomForest.DataModel
 
 (**
+# Iris Example
+
 The [Iris flower data set](http://en.wikipedia.org/wiki/Iris_flower_data_set) contains four features (length and the width of both:
 [sepals and petals](http://en.wikipedia.org/wiki/Sepal#/media/File:Petal-sepal.jpg)) of three species:
 

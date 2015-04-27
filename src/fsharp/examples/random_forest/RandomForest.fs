@@ -10,6 +10,8 @@ open Tutorial.Fs.examples.RandomForest.Array
 let private DEBUG = false
 
 (**
+# Random Forest
+
 This file contains the main code for building a random forest excluding specific GPU & shared CPU/GPU code.
 
 Training data is expected in the `LabeledFeaterSet` form (see type below). It helps to transform `LabeledSamples` (input format) into `SortedFeatures` (working format).
@@ -21,8 +23,7 @@ i.e. an array of tuples consisting of a array with features (floats) and a label
 
 It follows the functionality for forecasting: `forecastTree` for decision trees and `forecast` for random forests. Small functions for the entropy calculation follow.
 The function `optimizeFeatures` is the CPU implementation for the `IEntropyOptimizer`'s `Optimize` member.
-`trainTrees` recursively trains a decision tree using the `Optimize` function (CPU or GPU implementation)
-
+`trainTrees` recursively trains decision trees using the `Optimize` function (CPU or GPU implementation).
 *)
 
 let sortFeature (labels : Labels) (featureValues : FeatureArray) =

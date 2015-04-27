@@ -8,7 +8,7 @@ open Tutorial.Fs.examples.RandomForest.RandomForest
 open Tutorial.Fs.examples.RandomForest.Tests
 
 (**
-Performance measurement CPU vs GPU implementations.
+# Performance measurement CPU vs GPU implementations.
 
 System has been an Intel Core [i7-4771 CPU @ 3.50GHz](http://ark.intel.com/products/77656/Intel-Core-i7-4771-Processor-8M-Cache-up-to-3_90-GHz) and 16 GB RAM.
 The GPU is a [Titan Black](http://www.nvidia.com/gtx-700-graphics-cards/gtx-titan-black/).

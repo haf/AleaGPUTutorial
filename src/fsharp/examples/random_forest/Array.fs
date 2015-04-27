@@ -4,6 +4,8 @@ module Tutorial.Fs.examples.RandomForest.Array
 open Tutorial.Fs.examples.RandomForest.DataModel
 
 (**
+# Array
+
 Functionality to find non-zero indices, and store them in an array.
 *)
 let findNextNonZeroIdx (v : _[]) startIdx =

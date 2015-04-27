@@ -5,6 +5,8 @@ open Alea.CUDA
 open Alea.CUDA.Utilities
 
 (**
+# Cublas
+
 The Class `Matrix` helps allocate, scatter and gather data on, to and from GPU memory.
 *)
 type internal MatrixLayout<'T> =
