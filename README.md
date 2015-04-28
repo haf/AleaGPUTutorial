@@ -4,6 +4,31 @@ This project contains tutorial and samples of [Alea GPU](http://quantalea.com) c
 
 ## How to build
 
+Before building the solution, please make sure you have a proper JIT license installed.
+
+If you have one and only one GeForce GPU device attached to your host, then you can follow these steps to verify and install a free community license:
+
+- go to solution folder and restore packages:
+  - `cd MySolutionFolder`
+  - `.paket\paket.bootstrapper.exe`
+  - `.paket\paket.exe restore`
+- in solution folder, run the following command to verify installed license for current user:
+  - `packages\Alea.CUDA\tools\LicenseManager.exe list`
+  - verify the output, you need a valid compilation license which support GeForce GPU
+- if you don't have community license, follow these steps to install one for free:
+  - go to [QuantAlea website](http://quantalea.com/accounts/login/), sign in our sign up an account
+  - then go to [My Licenses page](http://quantalea.com/licenses/), to get the free community license code
+  - in solution folder, run the following command to install your community license:
+    - `packages\Alea.CUDA\tools\LicenseManager.exe install -l %your_license_code%`
+  - verify installed license again via:
+    - `packages\Alea.CUDA\tools\LicenseManager.exe list`
+
+For more details on license, please reference:
+
+- [License introduction](http://quantalea.com/static/app/tutorial/quick_start/licensing_and_deployment.html)
+- [License Manager manual](http://quantalea.com/static/app/manual/compilation-license_manager.html)
+- [Licensing page](http://quantalea.com/licensing/)
+
 This project uses [Paket](http://fsprojects.github.io/Paket/) for package management.
 
 To build on Windows, simply run `build.bat` from command-line under the solution folder. This script will execute the following steps:
@@ -19,6 +44,16 @@ Then you can:
 - execute `release\Tutorial.CS.exe examplesnbodysimulation` to run NBody simulation written in C#.
 - execute `release\Tutorial.FS.exe` or `release\Tutorial.CS.exe` to see more examples.
 - Explore the source code with Visual Studio and run unit tests.
+
+To build within Visual Studio, it is recommended to restore the packages before open the solution, since there is an known issue of Fody and F# project (for more details on this issue, please reference [installation manual (especially the Remarks section)](http://quantalea.com/static/app/manual/compilation-installation.html)). Please follow following steps:
+
+- go to solution folder and restore packages:
+  - `cd MySolutionFolder`
+  - `.paket\paket.bootstrapper.exe`
+  - `.paket\paket.exe restore`
+- open solution with Visual Studio, then build solution with `Release` configuration
+- set debug argument to one example, such as `examplenbodysimulation`
+- run/debug the tutorial program
 
 ## How to collaborate
 

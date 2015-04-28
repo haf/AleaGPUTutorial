@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.30110.0
+VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{AF41D64B-52C6-4591-91DB-761D70D4E438}"
 	ProjectSection(SolutionItems) = preProject
@@ -35,6 +35,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{63D5DE30
 		docs\tools\directories.fsx = docs\tools\directories.fsx
 		docs\tools\formatting.fsx = docs\tools\formatting.fsx
 		docs\tools\generate.fsx = docs\tools\generate.fsx
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".root", ".root", "{DFB05563-82FC-4943-B88A-985BF4381618}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
 	EndProjectSection
 EndProject
 Global
@@ -73,8 +78,8 @@ Global
 		{809D1035-C566-4DAD-9415-D4BA61F81F1E} = {87EA75D3-9F1C-471E-8434-1004CDC9E941}
 		{7C95A1D5-A70B-4047-818D-0BBB38DD3E40} = {87EA75D3-9F1C-471E-8434-1004CDC9E941}
 		{6C5EE189-C6A5-4DA2-A178-60D544890C67} = {87EA75D3-9F1C-471E-8434-1004CDC9E941}
-		{457FEA7B-529B-4145-91A2-D7E9E02476A3} = {809D1035-C566-4DAD-9415-D4BA61F81F1E}
 		{354FF4F2-FFA5-4E58-91CC-E4EC1F4E1AA1} = {7C95A1D5-A70B-4047-818D-0BBB38DD3E40}
+		{457FEA7B-529B-4145-91A2-D7E9E02476A3} = {809D1035-C566-4DAD-9415-D4BA61F81F1E}
 		{E4E0D40F-6C10-42ED-B130-15D0B9CECDB2} = {6C5EE189-C6A5-4DA2-A178-60D544890C67}
 		{63D5DE30-464B-4A50-BEC8-99824D3CCDD6} = {2049EEA1-D631-49C2-8B00-C5C68A694653}
 	EndGlobalSection
