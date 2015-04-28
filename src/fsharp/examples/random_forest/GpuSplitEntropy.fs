@@ -13,7 +13,13 @@ open Tutorial.Fs.examples.RandomForest.DataModel
 (**
 # Gpu Split Entropy
 
-GPU functionality for the `IEntropyOptimizer`'s method `Optimize` needed to train a decision tree. Two implementation using the same kernel exist, one uses CUDA-streams, one not.
+This file contains all the functionality for the GPU implementation of `Optimizer`, as well as the function `entropyTerm` shared between CPU and GPU:
+
+- Code in order to calculate minAndArgmin using the `BlockReduce` algorithms from Alea CUDA.
+- Code to calculate cumulative sums using the `Alea.CUDA.Unbound` framework.
+- Type `EntropyOptimizationOptions` containing the parameters for the entropy optimization.
+- Records `EntropyOptimizationProblem` and `EntropyOptimizationMemories` entropy optimization related matrices.
+- Type `EntropyOptimizationModule` with the methods both called `Optimize` one of them using CUDA-streams one of them not.
 *)
 [<Literal>]
 let private DEBUG = false
@@ -308,7 +314,7 @@ Creates an object of class `EntropyOptimizationProblem` containing the optimizat
           IndicesPerFeature = indicesPerFeature }
 
 (**
-Allocates needed memory on GPU using the Cublas.Matrix class. The record must be disposed of.
+Allocates needed memory on GPU using the `Cublas.Matrix` class. The record must be disposed of.
 *)
     member this.CreateMemories(problem : EntropyOptimizationProblem) =
         let worker = this.GPUWorker
@@ -369,8 +375,7 @@ Returns for every initial weight (before sorting samples) if it has been non-zer
             weightMatrix.[matrixIdx] <- min weight 1
 
 (**
-Writes indices where initial weight is non-zero into `indexMatrix`.
-Note in `cumWeightMatrix` weights have been $\in \{0,1\}$.
+Writes indices where initial weight is non-zero into `indexMatrix`. Note in `cumWeightMatrix` weights have been $\in \{0,1\}$.
 *)
     [<Kernel; ReflectedDefinition>]
     member private this.FindNonZeroIndicesKernel (indexMatrix : deviceptr<int>) (cumWeightMatrix : deviceptr<int>) (numSamples : int) =
@@ -475,8 +480,7 @@ Launches `ExpandWeights` in order to get initial weights (before sorting samples
                    memories.NonZeroIdcsPerFeature.DeviceData.Ptr)
 
 (**
-Kernel calculating entropy for all features and samples, where samples are indexed using the x-dimension and
-features are indexed in the y-dimension.
+Kernel calculating entropy for all features and samples, where samples are indexed using the x-dimension and features are indexed in the y-dimension.
 *)
     [<Kernel; ReflectedDefinition>]
     member private this.EntropyKernel (entropyMatrix : deviceptr<float>) (cumSumsMatrix : deviceptr<int>)
@@ -531,6 +535,7 @@ Method launching of the entropy kernel without CUDA-streams.
         let lp = (lp problem.NumFeatures numValid).NewWithSharedMemorySize(problem.NumClasses * sizeof<int>)
         this.LaunchEntropyKernel.Value lp memories.EntropyMatrix.DeviceData.Ptr cumSumsMatrix.DeviceData.Ptr numValid
             problem.NumSamples problem.NumClasses minWeight roundingFactor memories.GpuMask.DeviceData.Ptr
+
 (**
 Method launching of the entropy kernel with CUDA-streams.
 *)
@@ -648,7 +653,19 @@ Method searching for every feature the best split according to the already calcu
 
 (**
 Optimization not using CUDA-streams.
-Returns an array consisting of entropy and split-index.
+Returns an array consisting of entropy and split-index by:
+
+- Masking features using the `FeatureSelector`.
+- Scattering memory to GPU
+- Running `FindNonZeroIndices`:
+    - Launches the `LogicalWeightExpansionKernel`: returning if the initial weights of a given sample has been zero before sorting.
+    - Make a cumulative sum.
+    - launch the `NonZeroIndicesKernel`
+- Summing up weights.
+- Expanding weights using the `ExpandWeights`, i.e. returning the index of a given sample before sorting.
+- Makeing a cumulative sum using the `CumSumKernel` kernel.
+- Calculating the Entropy for all features and samples using the `Entropy` kernel.
+- Calculating the minimum entropy using the `OptAndArgOptKernelDoubleWithIdcs`kernel.
 *)
     member this.Optimize(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, options : EntropyOptimizationOptions, weights : Weights) =
         this.GPUWorker.Eval <| fun _ ->
@@ -664,7 +681,7 @@ Returns an array consisting of entropy and split-index.
 
 (**
 Optimization using CUDA-streams.
-Returns an array consisting of entropy and split-index.
+Returns an array consisting of entropy and split-index in a similar way as the method above but using CUDA-streams.
 *)
     member this.Optimize(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories)[], options : EntropyOptimizationOptions, weights : Weights[]) =
         this.GPUWorker.Eval <| fun _ ->

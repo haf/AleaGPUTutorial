@@ -63,7 +63,7 @@ Train random forest and perform an out-of-sample test.
 1. Randomly split up data in a `training` and `test` set.
 2. Create set of parameters for random forest.
 3. Train the model using the `training` - set.
-4. Predict labels of the  `test`-set and calculate the fraction of correct predictions.
+4. Predict labels of the `test`-set and calculate the fraction of correct predictions.
 
 Similar code in Python looks like (some parameters might be different):
 

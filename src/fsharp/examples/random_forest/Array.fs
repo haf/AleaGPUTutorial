@@ -15,6 +15,9 @@ let findNextNonZeroIdx (v : _[]) startIdx =
     if (i >= v.Length) then None
     else Some i
 
+(**
+Returns indices of non-zero indices in an array.
+*)
 let findNonZeroIdcs count (mask : _[]) =
     let dst = Array.zeroCreate count
     let mutable maskIdx = 0
@@ -53,7 +56,7 @@ let findNonZeroWeights (weightsPerFeature : Weights[]) =
 
 (**
 Shuffle the elements in an array.
-The function `rnd` is a randomNumber provider, a function taking an int `l` and returning a random number between 0 and `l`.
+The function `rnd` is a random-number provider, a function taking an int `l` and returning a random number between 0 and `l`.
 You can use `DataModel.getRngFunction` as default.
 *)
 let shuffle (rnd : int -> int) arr = arr |> Seq.sortBy (fun _ -> rnd(System.Int32.MaxValue))
@@ -68,7 +71,7 @@ let randomSubIndices rnd n k =
 
 (**
 Selects randomly `k` elements (without replacement) of the array `x`.
-The function `rnd` is a random number provider, a function taking an int `l` and returning a random number between 0 and `l`.
+The function `rnd` is a random-number provider, a function taking an int `l` and returning a random number between 0 and `l`.
 You can use `DataModel.getRngFunction` as default.
 *)
 let randomlySplitUpArray rnd k x =

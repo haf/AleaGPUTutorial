@@ -12,7 +12,15 @@ let private DEBUG = false
 (**
 # Random Forest
 
-This file contains the main code for building a random forest excluding specific GPU & shared CPU/GPU code.
+This file contains the CPU tree-building and evaluating algorithms as well as infrastructure code to integrate the GPU code:
+
+- Types for labels.
+- Evaluation function: `forecastTree` and `forecast`.
+- Several functions to calculate histograms & entropy needed in the function `optimizeFeatures` the CPU implementation of `Optimizer`.
+- The recursive function `trainTrees` training trees using a `sortedTrainingSet` as well as `weights` and a `IEntropyOptimizer` with the method `Optimizer`.
+    
+- Infrastructure code such as the type `EntropyDevice` creating an instance of `IEntropyOptimizer`.
+- The end-user functions `randomForestClassifier` and `randomStumpsClassifier` for training a random forest.
 
 Training data is expected in the `LabeledFeaterSet` form (see type below). It helps to transform `LabeledSamples` (input format) into `SortedFeatures` (working format).
 The input format has the form:
@@ -20,10 +28,6 @@ The input format has the form:
     [|([| sepalLength; sepalWidth; petalLength; petalWidth |], 1)|]
 
 i.e. an array of tuples consisting of a array with features (floats) and a label (int).
-
-It follows the functionality for forecasting: `forecastTree` for decision trees and `forecast` for random forests. Small functions for the entropy calculation follow.
-The function `optimizeFeatures` is the CPU implementation for the `IEntropyOptimizer`'s `Optimize` member.
-`trainTrees` recursively trains decision trees using the `Optimize` function (CPU or GPU implementation).
 *)
 
 let sortFeature (labels : Labels) (featureValues : FeatureArray) =
@@ -36,8 +40,8 @@ let sortAllFeatures labels domains = domains |> Array.Parallel.map (sortFeature 
 (**
 The `LabeledFeatureSet` contains the training data which can be saved in three different ways, where only the first is important to the end user:
 
-1. As `LabeledSamples`, i.e. an array containing touples of feature vectors & a label and is the most canonical way for entering a dataset.
-2. As `LabeledFeatures`, i.e. a tuple of a `FeatureArray` (where instead of having a features of a sample together, all features of different samples are saved in an array) and an array of Labels.
+1. As `LabeledSamples`, i.e. an array containing tuples of feature vectors & a label and is the most canonical way for entering a dataset.
+2. As `LabeledFeatures`, i.e. a tuple of a `FeatureArray` (where instead of having features of a sample together, all features of different samples are saved in an array) and an array of Labels.
 3. As `SortedFeatures`, where for every feature all the values are sorted in ascending order as well as labelled and completed with the index before sorting. It is mainly used for finding the best split. The indices are needed in order to find the weights before ordering the features.
 *)
 type LabeledFeatureSet =
@@ -107,8 +111,7 @@ Function returning a histogram on `labels` weighted by `weights`.
 let countTotals numClasses labels weights = Seq.last <| cumHistograms numClasses labels weights
 
 (**
-Function calculating the entropy for a given branch,
-summing entropies for all bins in histogram.
+Function calculating the entropy for a given branch, summing entropies for all bins in histogram.
 *)
 let private entropyTermSum node =
     let hist, total = node
@@ -118,8 +121,7 @@ let private entropyTermSum node =
         (sumLogs + entropyTerm total)
 
 (**
-Sums up entropy for all new branches after this split
-(only two for the continuous case).
+Sums up entropy for all new branches after this split (only two for the continuous case).
 *)
 let entropy total (nodes : LabelHistogram seq) =
     if (total = 0) then 0.0
@@ -128,8 +130,7 @@ let entropy total (nodes : LabelHistogram seq) =
         entropySum / (float total)
 
 (**
-Returns the complementary histogram, i.e. the
-difference between the `total`- and the `left`-histogram.
+Returns the complementary histogram, i.e. the difference between the `total`- and the `left`-histogram.
 *)
 let complementHist (total : LabelHistogram) (left : LabelHistogram) : LabelHistogram =
     let totalHist, totalCount = total
@@ -149,8 +150,7 @@ let splitEntropies (mask : bool seq) (countsPerSplit : LabelHistogram seq) (tota
         else System.Double.PositiveInfinity)
 
 (**
-Returns value in the middle between `splidIdx` and next non-empty index if it exists,
-else returns None.
+Returns value in the middle between `splidIdx` and next non-empty index if it exists, else returns None.
 *)
 let featureArrayThreshold weights (featureArray : _[]) splitIdx =
     let nextIdx = Array.findNextNonZeroIdx weights (splitIdx + 1)
@@ -177,8 +177,8 @@ let findMajorityClass weights numClasses labels =
     |> maxAndArgMax |> snd
 
 (**
-Masks out splits which have for sure no optimal entropy.
-Increases performance of CPU implementation.
+Masks out splits which are known to have non optimal entropy.
+It increases performance of CPU implementation.
 *)
 let entropyMask (weights : _[]) (labels : _[]) totalWeight absMinWeight =
     let findNextWeight = Array.findNextNonZeroIdx weights
@@ -219,8 +219,21 @@ type IEntropyOptimizer =
     abstract Optimize : Weights[] -> (float * int)[][]
 
 (**
-CPU implementation of the Optimizer function. Uses Array.Parallel.mapi for parallelization.
-Returns best entropy to split and its corresponding index for every feature.
+CPU implementation of the Optimizer function. Uses `Array.Parallel.mapi` for parallelization.
+Returns for every feature the best split entropy to and its corresponding index.
+The following steps are taken:
+
+- Weights are expanded: As the labels are sorted according to their value, the weights do not correspond any more to the samples. Expanding weights means here to re-sort the weights such that every sample of every feature has the same weight as before sorting.
+- Creation of a mapper function which uses `Array.map` or `Array.mapi` depending on the `mode` (`Sequential` or `Parallel`).
+- Moving non-zero weighted features to the beginning of the array (this is what the function `projector` does).
+- The function `translator` changes the index from the array without non-zero weights back to the normal array and returns the end of the initial array, if the optimal split is at the sample with the last non-zero weight.
+- The mapping function:
+    - Takes the weights for a given feature (which is not masked by the feature Selector).
+    - Calculates the histogram on the splits.
+    - Masks splits obviously non optimal.
+    - Calculates the entropy on the remaining splits.
+    - Calculates the minimum and its position.
+    - Translates the position back using the `translator` function.
 *)
 let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) numClasses (labelsPerFeature : Labels[])
     (indicesPerFeature : Indices[]) weights =
@@ -249,12 +262,12 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
     // heuristic for avoiding small splits
     let combinedMinWeight = options.MinWeight numClasses total
     let rounding (value : float) = System.Math.Round(value, options.Decimals)
-    let mask = options.FeatureSelector(labelsPerFeature |> Array.length)
+    let featureSelectingMask = options.FeatureSelector(labelsPerFeature |> Array.length)
 
     // for each feature find minimum entropy and corresponding index
     let mapping =
         (fun featureIdx labels ->
-        if (mask.[featureIdx]) <> 0 then
+        if (featureSelectingMask.[featureIdx]) <> 0 then
             let featureWeights = weightsPerFeature.[featureIdx]
             let countsPerSplit = cumHistograms numClasses labels featureWeights
             let mask = entropyMask featureWeights labels total combinedMinWeight
@@ -269,32 +282,39 @@ let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) num
     if DEBUG then printfn "%A" r
     r
 
+(**
+The methods `restrict`, `restrictBelow` and `restrictAbove` are used in order to set weights for samples to zero, if they do not belong the current branch.
+*)
 let restrict startIdx count (source : _[]) =
     let target = Array.zeroCreate source.Length
     Array.blit source startIdx target startIdx count
     target
 
-let restrictBelow idx (source : _[]) = source |> restrict 0 (idx + 1)
-let restrictAbove idx (source : _[]) = source |> restrict idx (source.Length - idx)
+let restrictBelow idx (source : _[]) = restrict 0 (idx + 1) source
+let restrictAbove idx (source : _[]) = restrict idx (source.Length - idx) source
 
 (**
-`FeatureArrays` need to be sorted in ascending order.
+Main function to train a decision tree.
+
+Per recursion the following steps are done:
+
+- Calculate triples: entropy, split index and feature index with the minimal split entropy.
+- Find middle between the values to split using the function `featureArrayThreshold`. If no non-zero index exists, stop branching and create a leaf.
+- Set weights for samples with value below / above the split-value to zero for the lower / upper branch of the next iteration.
+- If depth = 0 then return the tree, else train new trees on lower and upper branch.
+
+*Note:* `FeatureArrays` need to be sorted in ascending order.
 *)
 let rec trainTrees depth (optimizer : IEntropyOptimizer) numClasses
         (sortedTrainingSet : (FeatureArray*Labels*Indices)[]) (weights : Weights[]) =
     let triples =
         if depth = 0 then weights |> Array.map (fun weights -> nan, weights.GetUpperBound(0), 0)
         else
-            optimizer.Optimize(weights) |> Array.map (fun results ->
-                let fst a = 
-                    let a1, _, _ = a
-                    a1
-
-                let a = results |> Array.mapi (fun i (entropy, splitIdx) -> entropy, splitIdx, i)
-                let b = a |> Array.minBy (fun (entropy, _, _) -> entropy)
-                if DEBUG then printfn "triplet: %A" b
-                if fst a.[0] = fst b then a.[0]
-                else b)
+            optimizer.Optimize(weights)
+                |> Array.map (fun results ->
+                    results
+                    |> Array.mapi (fun i (entropy, splitIdx) -> entropy, splitIdx, i)
+                    |> Array.minBy (fun (entropy, _, _) -> entropy))
 
     let trees0 =
         triples |> Array.mapi (fun i (entropy, splitIdx, featureIdx) ->
@@ -313,13 +333,13 @@ let rec trainTrees depth (optimizer : IEntropyOptimizer) numClasses
             match threshold with
             | Some num ->
                 // set weights to 0 for elements which aren't included in left and right branches respectively
-                let lowWeights = sortedWeights |> restrictBelow splitIdx
-                let highWeights = sortedWeights |> restrictAbove (splitIdx + 1)
+                let lowWeights = restrictBelow splitIdx sortedWeights
+                let highWeights = restrictAbove (splitIdx + 1) sortedWeights
                 if DEBUG then
                     printfn "Low  counts: %A" (countSamples lowWeights numClasses labels)
                     printfn "High counts: %A" (countSamples highWeights numClasses labels)
-                let lowWeights = lowWeights |> Array.permByIdcs indices
-                let highWeights = highWeights |> Array.permByIdcs indices
+                let lowWeights = Array.permByIdcs indices lowWeights
+                let highWeights = Array.permByIdcs indices highWeights
 
                 let set (lowTree : Tree) (highTree : Tree) =
                     match lowTree, highTree with
@@ -354,8 +374,7 @@ let trainStump optimizer numClasses sortedTrainingSet weights =
     trainTrees 1 optimizer numClasses sortedTrainingSet weights
 
 (**
-Types for deciding which computational device should run in what mode.
-And method to create an entropy device.
+Types for deciding which computational device should run in what mode and method to create an entropy device.
 *)
 type GpuModuleProvider =
     | DefaultModule
@@ -373,8 +392,11 @@ type PoolMode =
     | EqualPartition
 
 type EntropyDevice =
+    // GPU mode
     | GPU of mode : GpuMode * provider : GpuModuleProvider
+    /// CPU mode
     | CPU of mode : CpuMode
+    /// Problem will be split in n partitions and is run on a pool of devices.
     | Pool of mode : PoolMode * devices : EntropyDevice seq
 
     member this.Create options numClasses (sortedTrainingSet : (_*Labels*Indices)[]) : IEntropyOptimizer =

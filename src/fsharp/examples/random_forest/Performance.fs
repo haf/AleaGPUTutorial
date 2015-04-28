@@ -10,91 +10,21 @@ open Tutorial.Fs.examples.RandomForest.Tests
 (**
 # Performance measurement CPU vs GPU implementations.
 
-System has been an Intel Core [i7-4771 CPU @ 3.50GHz](http://ark.intel.com/products/77656/Intel-Core-i7-4771-Processor-8M-Cache-up-to-3_90-GHz) and 16 GB RAM.
-The GPU is a [Titan Black](http://www.nvidia.com/gtx-700-graphics-cards/gtx-titan-black/).
+We use the following parameters:
 
-The Following performance test consists of 20000 samples, 20 features, 2 classes and 1000 trees with maximal depth of 1.
-CPU version runs parallel on two cores, GPU implementation with and without streams.
-
-on Windows we get the following performance (max depth = 1):
-
-    GPU without stream     : 00:00:03.9269281
-    GPU with stream        : 00:00:02.2141418
-    GPU pool 2 with stream : 00:00:03.7811637
-    CPU pool 2 parallel    : 00:00:58.9696802
-    Speed up: 26.6
-    cpu time: 58969.680200, gpu time: 2214.141800
-
-on Linux (max depth = 1):
-
-    GPU without stream     : 00:00:03.0450348
-    GPU with stream        : 00:00:01.9684565
-    GPU pool 2 with stream : 00:00:03.4957762
-    CPU pool 2 parallel    : 00:01:49.9881960
-    Speed up: 55.9
-    cpu time: 109988.196000, gpu time: 1968.456500
-
-We get a nice speedup of over 26 on Windows. On Linux the CPU version is much slower ([a known problem with mono in the past](http://flyingfrogblog.blogspot.ch/2009/01/mono-22.html),
-now probably mainly due to the weaker garbage collector of mono) but the GPU version is still slightly faster than on Windows.
-
-In order to get a feeling for the time, we build a random forest using the same feature set with RandomForestClassifier from Pythons sklearn library:
-
-    import csv
-    from sklearn.ensemble import RandomForestClassifier
-    import time
-
+    numSamples = 20000
+    numFeatures = 20
+    numClasses = 2
     numTrees = 1000
     maxDepth = 1
-    nJobs = -1  # If -1, then the number of jobs is set to the number of cores.
 
-    features = []
-    labels = []
-    with open('Test.csv', 'rb') as csvfile:
-        sampleReader = csv.reader(csvfile, delimiter=',')
-        for row in sampleReader:
-            d = map(float, row)
-            features.append(d[0:19])
-            labels.append(d[20])
+to do a performance test on training random forests using the following parallelization modes:
 
-    # creating random forest
-    start = time.clock()
-    forest = RandomForestClassifier(n_estimators=numTrees, criterion="entropy", max_features=None,
-                                    max_depth=maxDepth, n_jobs=nJobs)
-
-    forestFit = forest.fit(features, labels)
-    end = time.clock()
-
-    print("elapsed time: " + str(end - start))
-
-which builds the 1000 trees in between 43 s (single CPU core) and 9.6 s (all CPU cores). This is much faster than our CPU implementation, which was expected
-as our code though reasonably well optimized is not expected to catch up with the highly optimized sklearn library. Our GPU implementation however still gets 
-a nice speed up of over 4 against the most parallel python.
-
-The same test can be done with deeper trees:
-
-on Windows we get the following performance (max depth = 5):
-
-    GPU without stream     : 00:01:02.9673374
-    GPU with stream        : 00:00:33.9749665
-    GPU pool 2 with stream : 00:00:48.6911049
-    CPU pool 2 parallel    : 00:05:24.8222738
-    Speed up: 9.6
-    cpu time: 324822.273800, gpu time: 33974.966500
-
-on Linux (max depth = 5):
-
-    GPU without stream     : 00:00:36.0482717
-    GPU with stream        : 00:00:24.6314113
-    GPU pool 2 with stream : 00:00:30.7857099
-    CPU pool 2 parallel    : 00:17:49.6928148
-    Speed up: 43.4
-    cpu time: 1069692.814800, gpu time: 24631.411300
-
-Here the speedup is smaller. This was expected as the GPU implementation is parallel on the number of samples and they shrink after every split.
-
-Python needs for this parameters between 3min 40s (single CPU core) and 44 s (all CPU cores).
-
-Performance test implementation:
+- CPU (Parallel) 
+- GPU 
+    - without CUDA-streams
+    - with CUDA-streams
+    - in a pool of two GPU instances (both using CUDA-Streams) but only one graphics card
 *)
 let ``Speed of training random forests``() =
     let measureRandomForestTraining options numTrees trainingData =
@@ -174,3 +104,88 @@ let ``Speed of training random forests``() =
     let maxDepth = 1
     let gpuTime, cpuTime = measureGpuVsCpu numSamples numFeatures numClasses numTrees maxDepth 2
     printf "cpu time: %f, gpu time: %f" cpuTime gpuTime
+
+(**
+The test machine has an Intel Core [i7-4771 CPU @ 3.50GHz](http://ark.intel.com/products/77656/Intel-Core-i7-4771-Processor-8M-Cache-up-to-3_90-GHz), 16 GB RAM
+and a NVIDIA [Titan Black](http://www.nvidia.com/gtx-700-graphics-cards/gtx-titan-black/) GPU.
+
+The CPU version runs parallel on two cores, the GPU implementation runs with and without CUDA-streams as well as in a pool of 2 GPU instances sharing one graphics card.
+
+on Windows we get the following performance (max depth = 1):
+
+    GPU without stream     : 00:00:03.9269281
+    GPU with stream        : 00:00:02.2141418
+    GPU pool 2 with stream : 00:00:03.7811637
+    CPU pool 2 parallel    : 00:00:58.9696802
+    Speed up: 26.6
+    cpu time: 58969.680200, gpu time: 2214.141800
+
+on Linux (max depth = 1):
+
+    GPU without stream     : 00:00:03.0450348
+    GPU with stream        : 00:00:01.9684565
+    GPU pool 2 with stream : 00:00:03.4957762
+    CPU pool 2 parallel    : 00:01:49.9881960
+    Speed up: 55.9
+    cpu time: 109988.196000, gpu time: 1968.456500
+
+We get a nice speedup of more than 26 on Windows. On Linux the CPU version is much slower ([a known problem with mono in the past](http://flyingfrogblog.blogspot.ch/2009/01/mono-22.html),
+now probably mainly due to the weaker garbage collector of mono) the GPU version however is slightly faster than on Windows.
+
+In order to get a feeling for the time, we build a random forest using the same feature set with the `RandomForestClassifier` from Pythons `sklearn` library (Note this comparison is only valid to some point, as our .Net implementation is not a copy of Python's `RandomForestClassifier`):
+
+    import csv
+    from sklearn.ensemble import RandomForestClassifier
+    import time
+
+    numTrees = 1000
+    maxDepth = 1
+    nJobs = -1  # If -1, then the number of jobs is set to the number of cores.
+
+    features = []
+    labels = []
+    with open('Test.csv', 'rb') as csvfile:
+        sampleReader = csv.reader(csvfile, delimiter=',')
+        for row in sampleReader:
+            d = map(float, row)
+            features.append(d[0:19])
+            labels.append(d[20])
+
+    # creating random forest
+    start = time.clock()
+    forest = RandomForestClassifier(n_estimators=numTrees, criterion="entropy", max_features=None,
+                                    max_depth=maxDepth, n_jobs=nJobs)
+
+    forestFit = forest.fit(features, labels)
+    end = time.clock()
+
+    print("elapsed time: " + str(end - start))
+
+which builds the 1000 trees in between 43 s (single CPU core) and 9.6 s (all CPU cores). This is much faster than our CPU implementation, which was expected
+as our code though reasonably well optimized is not expected to catch up with the highly optimized sklearn library. Our GPU implementation however still gets 
+a nice speed up of over 4 against the most parallel Python run.
+
+The same test can be done with deeper trees:
+
+on Windows we get the following performance (max depth = 5):
+
+    GPU without stream     : 00:01:02.9673374
+    GPU with stream        : 00:00:33.9749665
+    GPU pool 2 with stream : 00:00:48.6911049
+    CPU pool 2 parallel    : 00:05:24.8222738
+    Speed up: 9.6
+    cpu time: 324822.273800, gpu time: 33974.966500
+
+on Linux (max depth = 5):
+
+    GPU without stream     : 00:00:36.0482717
+    GPU with stream        : 00:00:24.6314113
+    GPU pool 2 with stream : 00:00:30.7857099
+    CPU pool 2 parallel    : 00:17:49.6928148
+    Speed up: 43.4
+    cpu time: 1069692.814800, gpu time: 24631.411300
+
+Here the speedup is smaller. This was expected as the GPU implementation is parallel on the number of samples and they shrink after every split.
+
+Python needs for this parameters between 3min 40s (single CPU core) and 44 s (all CPU cores).
+*)
