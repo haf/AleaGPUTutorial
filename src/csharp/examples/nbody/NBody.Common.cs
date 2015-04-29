@@ -1,11 +1,11 @@
-﻿//[startCommon]
-using System;
+﻿using System;
 using System.Linq;
 using Alea.CUDA;
 using NUnit.Framework;
 
 namespace Tutorial.Cs.examples.nbody
 {
+    //[startCommon]
     //[/startCommon]
 
     //[ISimulator]
@@ -64,11 +64,12 @@ namespace Tutorial.Cs.examples.nbody
                                accum.w + momentum.w));
             Console.WriteLine("total momentum and mass 0 = {0}", totalMomentum);
 
+            var len = velocities.Length;
             // adjust velocities
             velocities = velocities.Select((vel, i) => new float4(
-                vel.x - totalMomentum.x / totalMomentum.w,
-                vel.y - totalMomentum.y / totalMomentum.w,
-                vel.z - totalMomentum.z / totalMomentum.w,
+                vel.x - totalMomentum.x / len / vel.w,
+                vel.y - totalMomentum.y / len / vel.w,
+                vel.z - totalMomentum.z / len / vel.w,
                 vel.w)).ToArray();
 
             // see total momentum after adjustment

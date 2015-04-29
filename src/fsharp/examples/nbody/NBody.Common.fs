@@ -1,7 +1,4 @@
-﻿(**
-Functionality common to the different implementations.
-*)
-(*** define:startCommon ***)
+﻿(*** hide ***)
 [<AutoOpen>]
 module Tutorial.Fs.examples.nbody.Common
 
@@ -9,17 +6,13 @@ open Alea.CUDA
 open FsUnit
 
 (**
-Abstract simulator type.
+We introduce an abstract simulator type in order to have a common interface for the different implementations to run and test.
 *)
 (*** define:ISimulator ***)
 type ISimulator =
     abstract Description : string
     abstract Integrate : newPos:deviceptr<float4> -> oldPos:deviceptr<float4> -> vel:deviceptr<float4> -> numBodies:int -> deltaTime:float32 -> softeningSquared:float32 -> damping:float32 -> unit
 
-(**
-Abstract simulation testing type.
-*)
-(*** define:ISimulatorTester ***)
 type ISimulatorTester =
     abstract Description : string
     abstract Integrate : pos:float4[] -> vel:float4[] -> numBodies:int -> deltaTime:float32 -> softeningSquared:float32 -> damping:float32 -> steps:int -> unit
@@ -27,23 +20,25 @@ type ISimulatorTester =
 let float4Zero = float4(0.0f, 0.0f, 0.0f, 0.0f)
 
 (**
-Adjust the velocity array to make the total momentum towards zero.
+We will need some initialization methods, which require an adjustment of the velocities such that total momentum to zero and the center of gravity moves out of the screen.
 *)
 (*** define:adjustMomentum ***)
-let adjustMomentum (vel:float4[]) =
+let adjustMomentum (vel : float4[]) =
     // we assume the mass is stored in vel.w
     let totalMomentum = vel |> Array.fold (fun (acc:float4) e -> 
         float4(acc.x + e.x*e.w, acc.y + e.y*e.w, acc.z + e.z*e.w, acc.w + e.w)) float4Zero
 
     printfn "total momentum and mass 0 = %A" totalMomentum
 
+    let len = Array.length vel |> float32
+
     let vel = vel |> Array.map (fun e ->
-        float4(e.x - totalMomentum.x / totalMomentum.w,
-               e.y - totalMomentum.y / totalMomentum.w,
-               e.z - totalMomentum.z / totalMomentum.w,
+        float4(e.x - totalMomentum.x / len / e.w,
+               e.y - totalMomentum.y / len / e.w,
+               e.z - totalMomentum.z / len / e.w,
                e.w)) // initialize with total momentum = 0
 
-    let totalMomentum = vel |> Array.fold (fun (acc:float4) e -> 
+    let totalMomentum = vel |> Array.fold (fun (acc:float4) e ->
         float4(acc.x + e.x*e.w, acc.y + e.y*e.w, acc.z + e.z*e.w, acc.w + e.w)) float4Zero
 
     printfn "total momentum and mass 1 = %A" totalMomentum
@@ -63,7 +58,7 @@ let initializeBodies1 clusterScale velocityScale numBodies =
     let randomPos _ = scale * random 1.0 0.5
     let randomVel _ = vscale * random 1.0 0.5
 
-    let pos = Array.init numBodies (fun _ -> float4(randomPos(), randomPos(), randomPos() + 50.0f, 1.0f))
+    let pos = Array.init numBodies (fun _ -> float4(randomPos(), randomPos(), randomPos(), 1.0f))
     let vel = Array.init numBodies (fun _ -> float4(randomVel(), randomVel(), randomVel(), 1.0f))
 
     pos, vel |> adjustMomentum
@@ -82,8 +77,8 @@ let initializeBodies2 clusterScale velocityScale numBodies =
     let randomVel _ = vscale * random 1.0 0.5
 
     let pos = Array.init numBodies (fun i -> 
-        if i < numBodies/2 then float4(randomPos() + 0.5f*scale, randomPos(), randomPos() + 50.0f, 1.0f)
-        else float4(randomPos() - 0.5f*scale, randomPos(), randomPos() + 50.0f, 1.0f) )
+        if i < numBodies/2 then float4(randomPos() + 0.5f*scale, randomPos(), randomPos(), 1.0f)
+        else float4(randomPos() - 0.5f*scale, randomPos(), randomPos(), 1.0f) )
     let vel = Array.init numBodies (fun i -> 
         if i < numBodies/2 then float4(randomVel(), randomVel() + 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), 1.0f)
         else float4(randomVel(), randomVel() - 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), 1.0f) )
@@ -104,13 +99,13 @@ let initializeBodies3 clusterScale velocityScale numBodies =
     let randomPos _ = scale * random 1.0 0.5
     let randomVel _ = vscale * random 1.0 0.5
     let randomMass _ =
-        let maxv = 1.3
-        let minv = 0.7
-        (rng.NextDouble() * (maxv - minv) + minv) |> float32
+        let maxM = 1.3
+        let minM = 0.7
+        (rng.NextDouble() * (maxM - minM) + minM) |> float32
 
     let pos = Array.init numBodies (fun i -> 
-        if i < numBodies/2 then float4(randomPos() + 0.5f*scale, randomPos(), randomPos() + 50.0f, randomMass())
-        else float4(randomPos() - 0.5f*scale, randomPos(), randomPos() + 50.0f, randomMass()) )
+        if i < numBodies/2 then float4(randomPos() + 0.5f*scale, randomPos(), randomPos(), randomMass())
+        else float4(randomPos() - 0.5f*scale, randomPos(), randomPos(), randomMass()) )
     let vel = Array.init numBodies (fun i -> 
         if i < numBodies/2 then float4(randomVel(), randomVel() + 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), pos.[i].w)
         else float4(randomVel(), randomVel() - 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), pos.[i].w) )
@@ -118,10 +113,10 @@ let initializeBodies3 clusterScale velocityScale numBodies =
     pos, vel |> adjustMomentum
 
 (**
-Testing if two simulations behave the same up to some tolerance.
+Test if two simulations behave the same up to some tolerance.
 *)
 (*** define:commonTester ***)
-let test (expectedSimulator:ISimulatorTester) (actualSimulator:ISimulatorTester) numBodies =
+let test (expectedSimulator : ISimulatorTester) (actualSimulator : ISimulatorTester) numBodies =
     let clusterScale = 1.0f
     let velocityScale = 1.0f
     let deltaTime = 0.001f
@@ -155,7 +150,7 @@ let test (expectedSimulator:ISimulatorTester) (actualSimulator:ISimulatorTester)
 Measure the performence of a simulation method.
 *)
 (*** define:commonPerfTester ***)
-let performance (simulator:ISimulatorTester) numBodies =
+let performance (simulator : ISimulatorTester) numBodies =
     let clusterScale = 1.0f
     let velocityScale = 1.0f
     let deltaTime = 0.001f
@@ -189,7 +184,7 @@ The function `__nv_rsqrtf` calculates $f(x) = \frac{1}{\sqrt{x}}$ faster and wit
 *)
 (*** define:bodyBodyInteraction ***)
 [<ReflectedDefinition>]
-let bodyBodyInteraction softeningSquared (ai:float3) (bi:float4) (bj:float4) =
+let bodyBodyInteraction softeningSquared (ai : float3) (bi : float4) (bj : float4) =
     // r_ij  [3 FLOPS]
     let r = float3(bj.x - bi.x, bj.y - bi.y, bj.z - bi.z)
 
@@ -205,4 +200,3 @@ let bodyBodyInteraction softeningSquared (ai:float3) (bi:float4) (bj:float4) =
 
     // a_i =  a_i + s * r_ij [6 FLOPS]
     float3(ai.x + r.x*s, ai.y + r.y*s, ai.z + r.z*s)
-

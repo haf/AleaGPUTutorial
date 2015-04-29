@@ -29,9 +29,9 @@ implementation for comparison.
 (*** define:DynamicComputeBodyAccel ***)
     [<ReflectedDefinition>]
     member this.ComputeBodyAccel softeningSquared
-                                 (bodyPos:float4)
-                                 (positions:deviceptr<float4>)
-                                 (numTiles:int) =
+                                 (bodyPos : float4)
+                                 (positions : deviceptr<float4>)
+                                 (numTiles : int) =
         let sharedPos = __shared__.ExternArray<float4>()
 
         let mutable acc = float3(0.0f, 0.0f, 0.0f)
@@ -53,14 +53,14 @@ Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation 
 *)
 (*** define:DynamicStartKernel ***)
     [<Kernel;ReflectedDefinition>]
-    member this.IntegrateBodies (newPos:deviceptr<float4>)
-                                (oldPos:deviceptr<float4>)
-                                (vel:deviceptr<float4>)
-                                (numBodies:int)
-                                (deltaTime:float32)
-                                (softeningSquared:float32)
-                                (damping:float32)
-                                (numTiles:int) =
+    member this.IntegrateBodies (newPos : deviceptr<float4>)
+                                (oldPos : deviceptr<float4>)
+                                (vel : deviceptr<float4>)
+                                (numBodies : int)
+                                (deltaTime : float32)
+                                (softeningSquared : float32)
+                                (damping : float32)
+                                (numTiles : int) =
 
         let index = threadIdx.x + blockIdx.x*blockDim.x
 
@@ -96,14 +96,14 @@ Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation 
 Prepare and launch kernel.
 *)
 (*** define:DynamicPrepareAndLaunchKernel ***)
-    member this.IntegrateNbodySystem (newPos:deviceptr<float4>)
-                                     (oldPos:deviceptr<float4>)
-                                     (vel:deviceptr<float4>)
-                                     (numBodies:int)
-                                     (deltaTime:float32)
-                                     (softeningSquared:float32)
-                                     (damping:float32)
-                                     (blockSize:int) =
+    member this.IntegrateNbodySystem (newPos : deviceptr<float4>)
+                                     (oldPos : deviceptr<float4>)
+                                     (vel : deviceptr<float4>)
+                                     (numBodies : int)
+                                     (deltaTime : float32)
+                                     (softeningSquared : float32)
+                                     (damping : float32)
+                                     (blockSize : int) =
 
         let numBlocks = divup numBodies blockSize
         let numTiles = divup numBodies blockSize
@@ -115,7 +115,7 @@ Prepare and launch kernel.
 Creating infrastructure for launching.
 *)
 (*** define:DynamicCreateInfrastructure ***)
-    member this.CreateSimulator(blockSize:int) =
+    member this.CreateSimulator(blockSize : int) =
         let description = sprintf "GPU.DynamicBlockSize(%d)" blockSize
         { new ISimulator with
 
@@ -125,7 +125,7 @@ Creating infrastructure for launching.
                 this.IntegrateNbodySystem newPos oldPos vel numBodies deltaTime softeningSquared damping blockSize
         }
 
-    member this.CreateSimulatorTester(blockSize:int) =
+    member this.CreateSimulatorTester(blockSize : int) =
         let description = sprintf "GPU.DynamicBlockSize(%d)" blockSize
         { new ISimulatorTester with
 
@@ -156,9 +156,8 @@ Infrastructure for (performance) testing.
 let Correctness256() =
     let target = GPUModuleTarget.DefaultWorker
     let numBodies = 256*56
-    let expectedSimulatorModule = Impl.CPU.Simple.SimulatorModule()
     use actualSimulatorModule = new SimulatorModule(target)
-    let expectedSimulator = expectedSimulatorModule.CreateSimulatorTester(numBodies)
+    let expectedSimulator = Impl.CPU.Simple.createSimulatorTester(numBodies)
     let actualSimulator = actualSimulatorModule.CreateSimulatorTester(256)
     test expectedSimulator actualSimulator numBodies
 

@@ -59,7 +59,6 @@ Create several simulators: dynamic & static with different `blockSize`s, so thei
         let simulators = Queue<ISimulator>()
         let target = GPUModuleTarget.Worker(worker)
 
-        let simulatorCPUSimpleModule = Impl.CPU.Simple.SimulatorModule()
         let simulatorGPUDynamicBlockSizeModule = new Impl.GPU.DynamicBlockSize.SimulatorModule(target)
         let simulatorGPUStaticBlockSizeModule64 = new Impl.GPU.StaticBlockSize.SimulatorModule64(target)
         let simulatorGPUStaticBlockSizeModule128 = new Impl.GPU.StaticBlockSize.SimulatorModule128(target)
@@ -244,7 +243,7 @@ Render function:
         lockPos <| fun pos0 pos1 -> simulator.Integrate pos1 pos0 vel.Ptr numBodies deltaTime softeningSquared damping
 
         GL.Clear(ClearBufferMask.ColorBufferBit ||| ClearBufferMask.DepthBufferBit)
-        let modelview = Matrix4.LookAt(Vector3.Zero, Vector3.UnitZ, Vector3.UnitY)
+        let modelview = Matrix4.LookAt(Vector3(0.0f, 0.0f, 50.0f), Vector3.UnitZ, Vector3.UnitY)
         GL.MatrixMode(MatrixMode.Modelview)
         GL.LoadMatrix(ref modelview)
 

@@ -22,9 +22,9 @@ In this version the `blockSize` is known at compile time, in contrast to the `Dy
 (*** define:StaticComputeBodyAccel ***)
     [<ReflectedDefinition>]
     member this.ComputeBodyAccel softeningSquared 
-                                 (bodyPos:float4) 
-                                 (positions:deviceptr<float4>) 
-                                 (numTiles:int) =
+                                 (bodyPos : float4) 
+                                 (positions : deviceptr<float4>) 
+                                 (numTiles : int) =
         let sharedPos = __shared__.Array<float4>(blockSize)
 
         let mutable acc = float3(0.0f, 0.0f, 0.0f)
@@ -48,14 +48,14 @@ Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation 
 *)
 (*** define:StaticStartKernel ***)
     [<Kernel;ReflectedDefinition>]
-    member this.IntegrateBodies (newPos:deviceptr<float4>)
-                                (oldPos:deviceptr<float4>)
-                                (vel:deviceptr<float4>)
-                                (numBodies:int)
-                                (deltaTime:float32)
-                                (softeningSquared:float32)
-                                (damping:float32)
-                                (numTiles:int) =
+    member this.IntegrateBodies (newPos : deviceptr<float4>)
+                                (oldPos : deviceptr<float4>)
+                                (vel : deviceptr<float4>)
+                                (numBodies : int)
+                                (deltaTime : float32)
+                                (softeningSquared : float32)
+                                (damping : float32)
+                                (numTiles : int) =
 
         let index = threadIdx.x + blockIdx.x*blockSize
 
@@ -92,13 +92,13 @@ Prepare and launch kernel.
 Note: `blockSize` will be used as a compile-time constant.
 *)
 (*** define:StaticPrepareAndLaunchKernel ***)
-    member this.IntegrateNbodySystem (newPos:deviceptr<float4>)
-                                     (oldPos:deviceptr<float4>)
-                                     (vel:deviceptr<float4>)
-                                     (numBodies:int)
-                                     (deltaTime:float32)
-                                     (softeningSquared:float32)
-                                     (damping:float32) =
+    member this.IntegrateNbodySystem (newPos : deviceptr<float4>)
+                                     (oldPos : deviceptr<float4>)
+                                     (vel : deviceptr<float4>)
+                                     (numBodies : int)
+                                     (deltaTime : float32)
+                                     (softeningSquared : float32)
+                                     (damping : float32) =
 
         let numBlocks = divup numBodies blockSize
         let numTiles = divup numBodies blockSize
@@ -160,9 +160,8 @@ Infrastructure for (performance) testing.
 let Correctness256() =
     let target = GPUModuleTarget.DefaultWorker
     let numBodies = 256*56
-    let expectedSimulatorModule = Impl.CPU.Simple.SimulatorModule()
     use actualSimulatorModule = new SimulatorModule256(target)
-    let expectedSimulator = expectedSimulatorModule.CreateSimulatorTester(numBodies)
+    let expectedSimulator = Impl.CPU.Simple.createSimulatorTester(numBodies)
     let actualSimulator = actualSimulatorModule.CreateSimulatorTester()
     test expectedSimulator actualSimulator numBodies
 
