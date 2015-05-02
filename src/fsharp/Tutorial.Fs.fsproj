@@ -118,6 +118,7 @@
     <None Include="Scripts\load-references.fsx" />
     <None Include="Scripts\load-project.fsx" />
     <None Include="Transform.fsx" />
+    <Compile Include="examples\cudnn\Mnist.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
