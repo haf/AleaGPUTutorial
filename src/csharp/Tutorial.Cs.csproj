@@ -64,7 +64,10 @@
     <Compile Include="examples\cublas\Axpy.cs" />
     <Compile Include="examples\cublas\Gemm.cs" />
     <Compile Include="examples\cublas\GemmBatched.cs" />
+    <Compile Include="examples\cudnn\Data.cs" />
+    <Compile Include="examples\cudnn\Layer.cs" />
     <Compile Include="examples\cudnn\Mnist.cs" />
+    <Compile Include="examples\cudnn\Network.cs" />
     <Compile Include="examples\generic_reduce\Plan.cs" />
     <Compile Include="examples\generic_reduce\Reduce.cs" />
     <Compile Include="examples\generic_reduce\ReduceApi.cs" />

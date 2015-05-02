@@ -19,6 +19,7 @@ namespace Tutorial.Cs
             Console.WriteLine("        ExamplescuBlasAxpyTest            |");
             Console.WriteLine("        ExamplescuBlasGemmTest            |");
             Console.WriteLine("        ExamplescuBlasGemmBatchedTest     |");
+            Console.WriteLine("        ExamplesCUDNNMnistTest            |");
             Console.WriteLine("        ExamplesUnboundDeviceReduceTest   |");
             Console.WriteLine("        ExamplesUnboundDeviceScanTest     |");
             Console.WriteLine("        ExamplesUnboundGemm               |");
@@ -83,6 +84,10 @@ namespace Tutorial.Cs
                         examples.cublas.Test.DgemmBatchedTest();
                         break;
 
+                    case "examplescudnnmnisttest":
+                        examples.cudnn.Test.MnistTest();
+                        break;
+
                     case "examplesunbounddevicereducetest":
                         examples.unbound.Test.DeviceReduceTest();
                         break;
@@ -126,6 +131,7 @@ namespace Tutorial.Cs
                         examples.cublas.Test.DgemmTest();
                         examples.cublas.Test.ZgemmTest();
                         examples.cublas.Test.DgemmBatchedTest();
+                        examples.cudnn.Test.MnistTest();
                         examples.unbound.Test.DeviceReduceTest();
                         examples.unbound.Test.DeviceScanInclusiveTest();
                         examples.unbound.Test.Gemm1DArrayTest();
