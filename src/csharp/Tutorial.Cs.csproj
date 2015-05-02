@@ -64,6 +64,7 @@
     <Compile Include="examples\cublas\Axpy.cs" />
     <Compile Include="examples\cublas\Gemm.cs" />
     <Compile Include="examples\cublas\GemmBatched.cs" />
+    <Compile Include="examples\cudnn\Mnist.cs" />
     <Compile Include="examples\generic_reduce\Plan.cs" />
     <Compile Include="examples\generic_reduce\Reduce.cs" />
     <Compile Include="examples\generic_reduce\ReduceApi.cs" />
@@ -226,6 +227,7 @@
       <Paket>True</Paket>
     </Reference>
   </ItemGroup>
+  <ItemGroup />
   <Choose>
     <When Condition="($(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.0' Or $(TargetFrameworkVersion) == 'v4.5' Or $(TargetFrameworkVersion) == 'v4.5.1' Or $(TargetFrameworkVersion) == 'v4.5.2' Or $(TargetFrameworkVersion) == 'v4.5.3' Or $(TargetFrameworkVersion) == 'v4.6')) Or ($(TargetFrameworkIdentifier) == 'MonoAndroid') Or ($(TargetFrameworkIdentifier) == 'MonoTouch')">
       <ItemGroup>
