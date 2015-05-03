@@ -94,6 +94,7 @@
     <Compile Include="examples\cublas\Axpy.fs" />
     <Compile Include="examples\cublas\Gemm.fs" />
     <Compile Include="examples\cublas\GemmBatched.fs" />
+    <Compile Include="examples\cudnn\Mnist.fs" />
     <Compile Include="examples\nbody\NBody.Common.fs" />
     <Compile Include="examples\nbody\NBody.CPU.fs" />
     <Compile Include="examples\nbody\NBody.GPU.DynamicBlockSize.fs" />
@@ -118,7 +119,7 @@
     <None Include="Scripts\load-references.fsx" />
     <None Include="Scripts\load-project.fsx" />
     <None Include="Transform.fsx" />
-    <Compile Include="examples\cudnn\Mnist.fs" />
+    
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

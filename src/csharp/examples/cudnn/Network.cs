@@ -141,6 +141,7 @@ namespace Tutorial.Cs.examples.cudnn
             Resize(ref dstData, nchw.N * nchw.C * nchw.H * nchw.W);
             const float alpha = 1.0f;
             const float beta = 0.0f;
+            //Console.WriteLine("n,c,h,w ======> {0}, {1}, {2}, {3}", nchw.N, nchw.C, nchw.H, nchw.W);
             _cudnn.PoolingForward(_poolingDesc, alpha, _srcTensorDesc, srcData.Ptr, beta, _dstTensorDesc, dstData.Ptr);
         }
 

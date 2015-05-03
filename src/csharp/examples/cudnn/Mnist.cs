@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Configuration;
+using System.Net.Configuration;
 using Alea.CUDA;
 using NUnit.Framework;
 
@@ -7,10 +9,13 @@ namespace Tutorial.Cs.examples.cudnn
     public class Test
     {
 
+        
+
         [Test]
         public static void MnistTest()
         {
             var worker = Worker.Default;
+            
             using (var network = new Network(worker))
             {
 
