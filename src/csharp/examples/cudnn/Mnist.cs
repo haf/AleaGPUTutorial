@@ -1,16 +1,12 @@
 ﻿using System;
-using System.Configuration;
-using System.Net.Configuration;
 using Alea.CUDA;
 using NUnit.Framework;
 
 namespace Tutorial.Cs.examples.cudnn
 {
+    //[mnistTest]
     public class Test
     {
-
-        
-
         [Test]
         public static void MnistTest()
         {
@@ -18,7 +14,6 @@ namespace Tutorial.Cs.examples.cudnn
             
             using (var network = new Network(worker))
             {
-
                 var conv1 = Layer.Conv1(worker);
                 var conv2 = Layer.Conv2(worker);
                 var ip1 = Layer.Ip1(worker);
@@ -43,6 +38,6 @@ namespace Tutorial.Cs.examples.cudnn
                 Assert.AreEqual(i3, 5);
             }
         }
-
     }
+    //[mnistTest]
 }

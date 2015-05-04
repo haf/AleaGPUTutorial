@@ -1,4 +1,5 @@
-﻿module Tutorial.Fs.examples.cudnn.Mnist
+﻿(*** hide ***)
+module Tutorial.Fs.examples.cudnn.Mnist
 open System
 open System.IO
 open Alea.CUDA
@@ -6,6 +7,15 @@ open Alea.CUDA.CULib
 open Alea.CUDA.CULib.CUBLASInterop
 open Alea.CUDA.CULib.CUDNNInterop
 open NUnit.Framework
+
+(**
+# CUDNN
+
+Before starting with this tutorial you will need to download the CUDNN library [here](https://developer.nvidia.com/cuDNN).
+The code below is a port of the C++ MNist sample which accompanies the [library](https://developer.nvidia.com/cuDNN).
+
+The example demonstrats how to use the CUDNN library to implement forward pass.
+*)
 
 let datadir = @"../src/csharp/examples/cudnn/data"
 
@@ -35,6 +45,11 @@ let Ip1BiasBin = "ip1.bias.bin"
 let Ip2Bin = "ip2.bin"
 let Ip2BiasBin = "ip2.bias.bin"
 
+(**
+We will first implement a simple record to represent a layer within the neural network.
+*)
+
+(*** define:mnistLayer ***)
 type Layer = 
     {
         Inputs : int
@@ -65,11 +80,22 @@ type Layer =
     static member ip1 worker = Layer.create worker 800 500 1 Ip1Bin Ip1BiasBin
     static member ip2 worker = Layer.create worker 500 10 1 Ip2Bin Ip2BiasBin
 
+(**
+The `nchw_t` record is used to clean up the code a little bit.  In the original C++ version these integers are passed as
+separate parameters.
+*)
+
+(*** define:mnistNCHW ***)
 type nchw_t = 
     {mutable N:int; mutable C:int; mutable H:int; mutable W:int}
     member x.set n c h w = x.N <- n; x.C <- c; x.H <- h; x.W <- w
     static member create n c h w = {N = n; C = c; H = h; W = w}
 
+(**
+Here is an F# version of the network class.
+*)
+
+(*** define:mnistNetwork ***)
 type Network(worker:Worker) =
     inherit DisposableObject()
 
@@ -115,9 +141,8 @@ type Network(worker:Worker) =
         convDesc.Set2D(0, 0, 1, 1, 1, 1, CUDNNInterop.cudnnConvolutionMode_t.CUDNN_CROSS_CORRELATION)
         // find dimension of convoltion output
         // outputDim = 1 + (inputDim + 2*pad - filterDim) / convolutionStride
-        let mutable n, c, h, w = ref 0, ref 0, ref 0, ref 0
-        convDesc.Get2DForwardOutputDim(srcTensorDesc, filterDesc, n, c, h, w)
-        nchw.set !n !c !h !w
+        let n,c,h,w = convDesc.Get2DForwardOutputDim(srcTensorDesc, filterDesc)
+        nchw.set n c h w
         dstTensorDesc.Set4D(TensorFormat, DataType, nchw.N, nchw.C, nchw.H, nchw.W)
         let algo = cudnn.GetConvolutionForwardAlgorithm(srcTensorDesc, filterDesc, convDesc, dstTensorDesc, CUDNNInterop.cudnnConvolutionFwdPreference_t.CUDNN_CONVOLUTION_FWD_PREFER_FASTEST, IntPtr 0)
 
@@ -203,7 +228,12 @@ type Network(worker:Worker) =
         printfn "Classification Complete.\n"
         id
 
-let test() =
+(**
+And finally we code a testing function.
+*)
+
+(*** define:mnistTest ***)
+let [<Test>] test() =
     use worker = Worker.Default
     use network = new Network(worker)
     let conv1, conv2 = Layer.conv1 worker, Layer.conv2 worker
