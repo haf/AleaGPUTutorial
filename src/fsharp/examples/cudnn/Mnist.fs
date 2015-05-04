@@ -45,7 +45,7 @@ let Ip1BiasBin = "ip1.bias.bin"
 let Ip2Bin = "ip2.bin"
 let Ip2BiasBin = "ip2.bias.bin"
 
-
+(*** define:mnistLayer ***)
 type Layer = 
     {
         Inputs : int

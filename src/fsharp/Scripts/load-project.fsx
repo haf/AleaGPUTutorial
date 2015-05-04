@@ -30,4 +30,5 @@
       @"..\examples\cublas\Axpy.fs"
       @"..\examples\cublas\Gemm.fs"
       @"..\examples\cublas\GemmBatched.fs"
+      @"..\examples\cudnn\Mnist.fs"
       @"..\Program.fs"
