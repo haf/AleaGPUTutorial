@@ -2,7 +2,6 @@
 
 namespace Tutorial.Cs.examples.cudnn
 {
-    //[mnistLayer]
     public class Layer
     {
         public int Inputs { get; set; }
@@ -60,5 +59,4 @@ namespace Tutorial.Cs.examples.cudnn
         }
         
     }
-    //[/mnistLayer]
 }

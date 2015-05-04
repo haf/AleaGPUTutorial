@@ -14,7 +14,7 @@ open NUnit.Framework
 Before starting with this tutorial you will need to download the CUDNN library [here](https://developer.nvidia.com/cuDNN).
 The code below is a port of the C++ MNist sample which accompanies the [library](https://developer.nvidia.com/cuDNN).
 
-The example demonstrats how to use the CUDNN library to implement forward pass.
+The example demonstrates how to use the CUDNN library to implement forward pass.
 *)
 
 let datadir = @"../src/csharp/examples/cudnn/data"
@@ -45,11 +45,7 @@ let Ip1BiasBin = "ip1.bias.bin"
 let Ip2Bin = "ip2.bin"
 let Ip2BiasBin = "ip2.bias.bin"
 
-(**
-We will first implement a simple record to represent a layer within the neural network.
-*)
 
-(*** define:mnistLayer ***)
 type Layer = 
     {
         Inputs : int
@@ -80,22 +76,13 @@ type Layer =
     static member ip1 worker = Layer.create worker 800 500 1 Ip1Bin Ip1BiasBin
     static member ip2 worker = Layer.create worker 500 10 1 Ip2Bin Ip2BiasBin
 
-(**
-The `nchw_t` record is used to clean up the code a little bit.  In the original C++ version these integers are passed as
-separate parameters.
-*)
 
-(*** define:mnistNCHW ***)
 type nchw_t = 
     {mutable N:int; mutable C:int; mutable H:int; mutable W:int}
     member x.set n c h w = x.N <- n; x.C <- c; x.H <- h; x.W <- w
     static member create n c h w = {N = n; C = c; H = h; W = w}
 
-(**
-Here is an F# version of the network class.
-*)
 
-(*** define:mnistNetwork ***)
 type Network(worker:Worker) =
     inherit DisposableObject()
 
@@ -228,11 +215,7 @@ type Network(worker:Worker) =
         printfn "Classification Complete.\n"
         id
 
-(**
-And finally we code a testing function.
-*)
 
-(*** define:mnistTest ***)
 let [<Test>] test() =
     use worker = Worker.Default
     use network = new Network(worker)

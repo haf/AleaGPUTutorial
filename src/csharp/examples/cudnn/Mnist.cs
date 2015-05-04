@@ -4,7 +4,6 @@ using NUnit.Framework;
 
 namespace Tutorial.Cs.examples.cudnn
 {
-    //[mnistTest]
     public class Test
     {
         [Test]
@@ -39,5 +38,4 @@ namespace Tutorial.Cs.examples.cudnn
             }
         }
     }
-    //[mnistTest]
 }

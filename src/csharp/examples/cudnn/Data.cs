@@ -4,7 +4,6 @@ using System.Linq;
 
 namespace Tutorial.Cs.examples.cudnn
 {
-    //[mnistData]
     public static class Data
     {
         public const string FirstImage = "one_28x28.pgm";
@@ -47,5 +46,4 @@ namespace Tutorial.Cs.examples.cudnn
             return File.ReadAllBytes(p).Skip(52).ToArray();
         }
     }
-    //[/mnistData]
 }
