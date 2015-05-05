@@ -1,8 +1,4 @@
-﻿(**
-GPU implementation with static `blockSize`, i.e. the `blockSize` is known at compile-time and loop over threads can be unrolled.
-Infrastructure around kernel might be slightly more coplex, but the compiler can optimize the code better.
-*)
-(*** define:startStatic ***)
+﻿(*** hide ***)
 module Tutorial.Fs.examples.nbody.Impl.GPU.StaticBlockSize
 
 open Alea.CUDA
@@ -10,6 +6,15 @@ open Alea.CUDA.Utilities
 open NUnit.Framework
 open Tutorial.Fs.examples.nbody
 
+
+(**
+# N-Body GPU implementation with static-block-size
+
+GPU implementation of the N-Body problem where the block-size is known at compile time. Infrastructure around kernel might be slightly more coplex, but the compiler can optimize the code better.
+
+Define a class `SimulatorModule` which takes the `blockSize` as an argument. We will use additional classes in order to inhere from `SimulatorModule` and which specialize for specific `blockSize`s.
+*)
+(*** define:startStatic ***)
 type SimulatorModule(target, blockSize:int) =
     inherit GPUModule(target)
 
@@ -17,7 +22,8 @@ type SimulatorModule(target, blockSize:int) =
 Computation of the accelerations between the particles. The parallelization strategy is nicely described in: 
 [GPU Gems 3](http://http.developer.nvidia.com/GPUGems3/gpugems3_ch31.html),
 essentailly it is parallelized over the particles. Particle positions for `blockDim.x` are loaded to shared memory in order to have faster access.
-In this version the `blockSize` is known at compile time, in contrast to the `DynamicBlockSize` implementation.
+In this version the `blockSize` is known at compile time, in contrast to the `DynamicBlockSize` implementation. Hence the size of shared memory can be set here and does 
+not need to be handed over via launch parameters.
 *)
 (*** define:StaticComputeBodyAccel ***)
     [<ReflectedDefinition>]
@@ -103,7 +109,8 @@ Note: `blockSize` will be used as a compile-time constant.
         let numBlocks = divup numBodies blockSize
         let numTiles = divup numBodies blockSize
         let lp = LaunchParam(numBlocks, blockSize)
-        this.GPULaunch <@this.IntegrateBodies @> lp newPos oldPos vel numBodies deltaTime softeningSquared damping numTiles
+        this.GPULaunch <@this.IntegrateBodies @> lp newPos oldPos vel numBodies deltaTime 
+                                                    softeningSquared damping numTiles
 
 (**
 Creating infrastructure for launching and testing.
@@ -116,7 +123,8 @@ Creating infrastructure for launching and testing.
             member x.Description = description
 
             member x.Integrate newPos oldPos vel numBodies deltaTime softeningSquared damping =
-                this.IntegrateNbodySystem newPos oldPos vel numBodies deltaTime softeningSquared damping
+                this.IntegrateNbodySystem newPos oldPos vel numBodies deltaTime 
+                                          softeningSquared damping
         }
 
     member this.CreateSimulatorTester() =
@@ -136,7 +144,8 @@ Creating infrastructure for launching and testing.
                     let pos' = pos0
                     pos0 <- pos1
                     pos1 <- pos'
-                    this.IntegrateNbodySystem pos1 pos0 dvel.Ptr numBodies deltaTime softeningSquared damping
+                    this.IntegrateNbodySystem pos1 pos0 dvel.Ptr numBodies deltaTime 
+                                              softeningSquared damping
 
                 this.GPUWorker.Gather(pos1, pos)
                 this.GPUWorker.Gather(dvel.Ptr, vel)
@@ -147,10 +156,14 @@ Fixing `blockSize` and compile.
 Compile for all architectures: `sm20`, `sm30`, `sm35` separately.
 *)
 (*** define:CompileArchitectures ***)
-type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule64(target) = inherit SimulatorModule(target, 64)
-type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule128(target) = inherit SimulatorModule(target, 128)
-type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule256(target) = inherit SimulatorModule(target, 256)
-type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule512(target) = inherit SimulatorModule(target, 512)
+type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule64(target) = 
+    inherit SimulatorModule(target, 64)
+type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule128(target) = 
+    inherit SimulatorModule(target, 128)
+type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule256(target) = 
+    inherit SimulatorModule(target, 256)
+type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule512(target) = 
+    inherit SimulatorModule(target, 512)
 
 (**
 Infrastructure for (performance) testing.

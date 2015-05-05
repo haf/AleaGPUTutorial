@@ -1,14 +1,18 @@
-﻿(**
-CPU implementation of the NBody simulation. It is mainly given to test the GPU implementations and show the difference in performance.
-*)
-(*** define:StartCPU ***)
+﻿(*** hide ***)
 module Tutorial.Fs.examples.nbody.Impl.CPU.Simple
 
 open Alea.CUDA
 open Tutorial.Fs.examples.nbody.Common
 
 (**
-CPU integration method. First calculates all forces, then integrates including damping the volicity using a `damping`-factor.
+# CPU implementation of the NBody simulation. 
+
+It consists of:
+
+- An integration method (or function in the case of F#)
+- Methods creating instances of the classes `ISimulator` and `ISimulatorTester` defined in `Common`.
+
+CPU integration method. First calculates all forces, then integrates including damping the velocity using the `damping`-factor.
 *)
 (*** define:IntegrateCommonNbodySystem ***)
 let integrateNbodySystem (accel : float3[])
@@ -19,8 +23,8 @@ let integrateNbodySystem (accel : float3[])
                          (softeningSquared : float32)
                          (damping : float32) =
 
-    // Force of i particle on itselfe is 0 because of the regularisatino of the force.
-    // As fij = -fji we could save half of time, but implement it here as on GPU.
+    // Force of particle i on itselfe is 0 because of the regularisatino of the force.
+    // As fij = -fji we could save half of the time, but implement it here as on GPU.
     for i = 0 to numBodies - 1 do
         let mutable acc = float3(0.0f, 0.0f, 0.0f)
         for j = 0 to numBodies - 1 do
@@ -46,17 +50,15 @@ let integrateNbodySystem (accel : float3[])
         velocity.y <- velocity.y * damping
         velocity.z <- velocity.z * damping
 
-        // new position = old position + velocity*deltaTime
         position.x <- position.x + velocity.x * deltaTime
         position.y <- position.y + velocity.y * deltaTime
         position.z <- position.z + velocity.z * deltaTime
 
-        // store new position and velocity
         pos.[i] <- position
         vel.[i] <- velocity
 
 (**
-Creator functionality for Simulator and SimulatorTester
+Creator functionality for `Simulator` and `SimulatorTester`.
 *)
 (*** define:CPUTestFunctionality ***)
 let createSimulator(worker : Worker, numBodies : int) =

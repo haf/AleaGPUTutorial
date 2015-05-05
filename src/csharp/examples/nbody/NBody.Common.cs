@@ -5,24 +5,22 @@ using NUnit.Framework;
 
 namespace Tutorial.Cs.examples.nbody
 {
-    //[startCommon]
-    //[/startCommon]
 
     //[ISimulator]
     public interface ISimulator
     {
         string Description { get; }
-        void Integrate(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel, int numBodies, float deltaTime, float softeningSquared, float damping);
+        void Integrate(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel, 
+                       int numBodies, float deltaTime, float softeningSquared, float damping);
     }
-    //[/ISimulator]
 
-    //[ISimulatorTester]
     public interface ISimulatorTester
     {
         string Description { get; }
-        void Integrate(float4[] pos, float4[] vel, int numBodies, float deltaTime, float softeningSquared, float damping, int steps);
+        void Integrate(float4[] pos, float4[] vel, int numBodies, float deltaTime, 
+                       float softeningSquared, float damping, int steps);
     }
-    //[/ISimulatorTester]
+    //[/ISimulator]
 
     public abstract class BodyInitializer
     {
@@ -43,8 +41,9 @@ namespace Tutorial.Cs.examples.nbody
                               mass);
         }
 
-        static public void Initialize(BodyInitializer initializer, float clusterScale, float velocityScale, int numBodies,
-            out float4[] positions, out float4[] velocities)
+        static public void Initialize(BodyInitializer initializer, float clusterScale,
+                                      float velocityScale, int numBodies, 
+                                      out float4[] positions, out float4[] velocities)
         {
             var pscale = clusterScale*Math.Max(1.0f, numBodies/1024.0f);
             var vscale = velocityScale*pscale;
@@ -216,11 +215,13 @@ namespace Tutorial.Cs.examples.nbody
         {
             if (i < NumBodies / 2)
             {
-                return new float4(RandV(), RandV() + 0.01f * VScale * position.x * position.x, RandV(), position.w);
+                return new float4(RandV(), RandV() + 0.01f * VScale * position.x * position.x, RandV(),
+                                  position.w);
             }
             else
             {
-                return new float4(RandV(), RandV() - 0.01f * VScale * position.x * position.x, RandV(), position.w);
+                return new float4(RandV(), RandV() - 0.01f * VScale * position.x * position.x, RandV(), 
+                                  position.w);
             }
         }
     }
@@ -249,7 +250,8 @@ namespace Tutorial.Cs.examples.nbody
             Console.WriteLine("Using body initializer {0}...", initializer);
 
             float4[] expectedPos, expectedVel;
-            BodyInitializer.Initialize(initializer, clusterScale, velocityScale, numBodies, out expectedPos, out expectedVel);
+            BodyInitializer.Initialize(initializer, clusterScale, velocityScale, numBodies, 
+                                       out expectedPos, out expectedVel);
 
             for (var i = 0; i < steps; i++)
             {
@@ -258,8 +260,10 @@ namespace Tutorial.Cs.examples.nbody
                 var actualVel = new float4[numBodies];
                 Array.Copy(expectedPos, actualPos, numBodies);
                 Array.Copy(expectedVel, actualVel, numBodies);
-                expectedSimulator.Integrate(expectedPos, expectedVel, numBodies, deltaTime, softeningSquared, damping, 1);
-                actualSimulator.Integrate(actualPos, actualVel, numBodies, deltaTime, softeningSquared, damping, 1);
+                expectedSimulator.Integrate(expectedPos, expectedVel, numBodies, deltaTime, 
+                                            softeningSquared, damping, 1);
+                actualSimulator.Integrate(actualPos, actualVel, numBodies, deltaTime, 
+                                          softeningSquared, damping, 1);
                 for (var j = 0; j < expectedPos.Length; j++)
                 {
                     Assert.AreEqual(actualPos[j].x, expectedPos[j].x, tol);
@@ -270,7 +274,8 @@ namespace Tutorial.Cs.examples.nbody
             }
         }
 
-        public static void Test(ISimulatorTester expectedSimulator, ISimulatorTester actualSimulator, int numBodies)
+        public static void Test(ISimulatorTester expectedSimulator, ISimulatorTester actualSimulator,
+                                int numBodies)
         {
             Test(new BodyInitializer1(), expectedSimulator, actualSimulator, numBodies);
             Test(new BodyInitializer3(), expectedSimulator, actualSimulator, numBodies);
@@ -290,7 +295,8 @@ namespace Tutorial.Cs.examples.nbody
             Console.WriteLine("Perfomancing {0} with {1} bodies...", simulator.Description, numBodies);
 
             float4[] pos, vel;
-            BodyInitializer.Initialize(new BodyInitializer1(), clusterScale, velocityScale, numBodies, out pos, out vel);
+            BodyInitializer.Initialize(new BodyInitializer1(), clusterScale, velocityScale, numBodies, 
+                                       out pos, out vel);
             simulator.Integrate(pos, vel, numBodies, deltaTime, softeningSquared, damping, steps);
         }
         //[/commonPerfTester]

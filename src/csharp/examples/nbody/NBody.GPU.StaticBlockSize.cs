@@ -19,7 +19,8 @@ namespace Tutorial.Cs.examples.nbody
         //[/startStatic]
 
         //[StaticComputeBodyAccel]
-        public float3 ComputeBodyAccel(float softeningSquared, float4 bodyPos, deviceptr<float4> positions, int numTiles)
+        public float3 ComputeBodyAccel(float softeningSquared, float4 bodyPos, deviceptr<float4> positions,
+                                       int numTiles)
         {
             var sharedPos = __shared__.Array<float4>(_blockSize);
             var acc = new float3(0.0f, 0.0f, 0.0f);
@@ -79,8 +80,9 @@ namespace Tutorial.Cs.examples.nbody
         //[/StaticStartKernel]
 
         //[StaticPrepareAndLaunchKernel]
-        public void IntegrateNbodySystem(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel,
-            int numBodies, float deltaTime, float softeningSquared, float damping)
+        public void IntegrateNbodySystem(deviceptr<float4> newPos, deviceptr<float4> oldPos, 
+                                         deviceptr<float4> vel, int numBodies, float deltaTime, 
+                                         float softeningSquared, float damping)
         {
             var numBlocks = Alea.CUDA.Utilities.Common.divup(numBodies, _blockSize);
             var numTiles = Alea.CUDA.Utilities.Common.divup(numBodies, _blockSize);
@@ -97,7 +99,7 @@ namespace Tutorial.Cs.examples.nbody
         }
 
         void ISimulator.Integrate(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel,
-            int numBodies, float deltaTime, float softeningSquared, float damping)
+                                  int numBodies, float deltaTime, float softeningSquared, float damping)
         {
             IntegrateNbodySystem(newPos, oldPos, vel, numBodies, deltaTime, softeningSquared, damping);
         }
@@ -108,7 +110,7 @@ namespace Tutorial.Cs.examples.nbody
         }
 
         void ISimulatorTester.Integrate(float4[] pos, float4[] vel, int numBodies, float deltaTime,
-            float softeningSquared, float damping, int steps)
+                                        float softeningSquared, float damping, int steps)
         {
             using (var dpos0 = GPUWorker.Malloc<float4>(numBodies))
             using (var dpos1 = GPUWorker.Malloc(pos))

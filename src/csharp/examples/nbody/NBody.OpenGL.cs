@@ -1,5 +1,4 @@
-﻿//[StartOpenGL]
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Alea.CUDA;
@@ -10,11 +9,10 @@ using OpenTK.Input;
 
 namespace Tutorial.Cs.examples.nbody
 {
+    //[startSimWindow]
     public delegate void Disposer();
     public delegate void Del(deviceptr<float4> a, deviceptr<float4> b);
-    //[/StartOpenGL]
 
-    //[startSimWindow]
     public class SimWindow : GameWindow
     {
         private readonly int _numBodies;
@@ -77,8 +75,10 @@ namespace Tutorial.Cs.examples.nbody
             var handle1 = IntPtr.Zero;
             unsafe
             {
-                CUDAInterop.cuSafeCall(CUDAInterop.cuGraphicsResourceGetMappedPointer(&handle0, &bytes, _resources[0]));
-                CUDAInterop.cuSafeCall(CUDAInterop.cuGraphicsResourceGetMappedPointer(&handle1, &bytes, _resources[1]));
+                CUDAInterop.cuSafeCall(CUDAInterop.cuGraphicsResourceGetMappedPointer(&handle0, &bytes, 
+                                                                                      _resources[0]));
+                CUDAInterop.cuSafeCall(CUDAInterop.cuGraphicsResourceGetMappedPointer(&handle1, &bytes, 
+                                                                                      _resources[1]));
             }
             var pos0 = new deviceptr<float4>(handle0);
             var pos1 = new deviceptr<float4>(handle1);
@@ -196,7 +196,8 @@ namespace Tutorial.Cs.examples.nbody
             _vel = _worker.Malloc<float4>(_numBodies);
 
             float4[] hpos, hvel;
-            BodyInitializer.Initialize(new BodyInitializer3(), clusterScale, velocityScale, _numBodies, out hpos, out hvel);
+            BodyInitializer.Initialize(new BodyInitializer3(), clusterScale, velocityScale, _numBodies, 
+                                       out hpos, out hvel);
             _worker.Scatter(hvel, _vel.Ptr, Microsoft.FSharp.Core.FSharpOption<int>.None,
                 Microsoft.FSharp.Core.FSharpOption<int>.None);
             LockPos(
@@ -282,7 +283,8 @@ namespace Tutorial.Cs.examples.nbody
         {
             base.OnResize(e);
             GL.Viewport(ClientRectangle.X, ClientRectangle.Y, ClientRectangle.Width, ClientRectangle.Height);
-            var projection = Matrix4.CreatePerspectiveFieldOfView((float) Math.PI/4.0f, (float) Width/Height, 1.0f, 64.0f);
+            var projection = Matrix4.CreatePerspectiveFieldOfView((float) Math.PI/4.0f, 
+                                                                  (float) Width/Height, 1.0f, 64.0f);
             GL.MatrixMode(MatrixMode.Projection);
             GL.LoadMatrix(ref projection);
         }
@@ -301,7 +303,8 @@ namespace Tutorial.Cs.examples.nbody
             }
 
             SwapPos();
-            LockPos( (pos0,pos1) => _simulator.Integrate(pos1, pos0, _vel.Ptr, _numBodies, _deltaTime, _softeningSquared, _damping));
+            LockPos( (pos0,pos1) => _simulator.Integrate(pos1, pos0, _vel.Ptr, _numBodies, _deltaTime, 
+                                    _softeningSquared, _damping));
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             var modelview = Matrix4.LookAt(Vector3.Zero, Vector3.UnitZ, Vector3.UnitY);

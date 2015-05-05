@@ -6,23 +6,34 @@ open Alea.CUDA
 open FsUnit
 
 (**
+# Common code for the N-Body simulation
+It consists of 
+
+- Types to get a common interface between CPU and the two GPU implementations
+- Initialization functions
+- Test functions
+- A function calculation the particle-particle interaction called `bodyBodyInteraction`, which is shared between all implementations.
+
 We introduce an abstract simulator type in order to have a common interface for the different implementations to run and test.
 *)
 (*** define:ISimulator ***)
 type ISimulator =
     abstract Description : string
-    abstract Integrate : newPos:deviceptr<float4> -> oldPos:deviceptr<float4> -> vel:deviceptr<float4> -> numBodies:int -> deltaTime:float32 -> softeningSquared:float32 -> damping:float32 -> unit
+    abstract Integrate : newPos:deviceptr<float4> -> oldPos:deviceptr<float4> -> vel:deviceptr<float4> -> 
+                         numBodies:int -> deltaTime:float32 -> softeningSquared:float32 -> 
+                         damping:float32 -> unit
 
 type ISimulatorTester =
     abstract Description : string
-    abstract Integrate : pos:float4[] -> vel:float4[] -> numBodies:int -> deltaTime:float32 -> softeningSquared:float32 -> damping:float32 -> steps:int -> unit
-
-let float4Zero = float4(0.0f, 0.0f, 0.0f, 0.0f)
+    abstract Integrate : pos:float4[] -> vel:float4[] -> numBodies:int -> deltaTime:float32 -> 
+                         softeningSquared:float32 -> damping:float32 -> steps:int -> unit
 
 (**
-We will need some initialization methods, which require an adjustment of the velocities such that total momentum to zero and the center of gravity moves out of the screen.
+We will need some initialization methods, which require an adjustment of the velocities such that the total momentum is set to zero and the center of gravity does not move out of the screen.
 *)
 (*** define:adjustMomentum ***)
+let float4Zero = float4(0.0f, 0.0f, 0.0f, 0.0f)
+
 let adjustMomentum (vel : float4[]) =
     // we assume the mass is stored in vel.w
     let totalMomentum = vel |> Array.fold (fun (acc:float4) e -> 
@@ -64,7 +75,7 @@ let initializeBodies1 clusterScale velocityScale numBodies =
     pos, vel |> adjustMomentum
 
 (**
-Initialize particles randomly in two cubes with angular momentum, s.t. some galaxy similar patterns emerge. Total momentum is set to zero.
+Initialize particles randomly in two cubes with angular momentum, s.t. some galaxy like patterns emerge. Total momentum is set to zero.
 *)
 (*** define:initializeBodies2 ***)
 let initializeBodies2 clusterScale velocityScale numBodies = 
@@ -80,13 +91,14 @@ let initializeBodies2 clusterScale velocityScale numBodies =
         if i < numBodies/2 then float4(randomPos() + 0.5f*scale, randomPos(), randomPos(), 1.0f)
         else float4(randomPos() - 0.5f*scale, randomPos(), randomPos(), 1.0f) )
     let vel = Array.init numBodies (fun i -> 
-        if i < numBodies/2 then float4(randomVel(), randomVel() + 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), 1.0f)
+        if i < numBodies/2 then float4(randomVel(), randomVel() + 0.01f*vscale*pos.[i].x*pos.[i].x,
+                                       randomVel(), 1.0f)
         else float4(randomVel(), randomVel() - 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), 1.0f) )
 
     pos, vel |> adjustMomentum
 
 (**
-Initialize particles randomly in two cubes with random velocities angular momentum, s.t. some galaxy similar patterns emerge.
+Initialize particles randomly in two cubes with random velocities angular momentum, s.t. some galaxy like patterns emerge.
 Give different particles random mass. Do not set a seed for the random number generator, hence simulations will have different behavour each call. Total momentum is set to zero.
 *)
 (*** define:initializeBodies3 ***)
@@ -107,7 +119,8 @@ let initializeBodies3 clusterScale velocityScale numBodies =
         if i < numBodies/2 then float4(randomPos() + 0.5f*scale, randomPos(), randomPos(), randomMass())
         else float4(randomPos() - 0.5f*scale, randomPos(), randomPos(), randomMass()) )
     let vel = Array.init numBodies (fun i -> 
-        if i < numBodies/2 then float4(randomVel(), randomVel() + 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), pos.[i].w)
+        if i < numBodies/2 then float4(randomVel(), randomVel() + 0.01f*vscale*pos.[i].x*pos.[i].x,
+                                       randomVel(), pos.[i].w)
         else float4(randomVel(), randomVel() - 0.01f*vscale*pos.[i].x*pos.[i].x, randomVel(), pos.[i].w) )
 
     pos, vel |> adjustMomentum
@@ -124,7 +137,8 @@ let test (expectedSimulator : ISimulatorTester) (actualSimulator : ISimulatorTes
     let damping = 0.9995f
     let steps = 5
 
-    printfn "Testing %A against %A with %d bodies..." actualSimulator.Description expectedSimulator.Description numBodies
+    printfn "Testing %A against %A with %d bodies..." actualSimulator.Description 
+                                                      expectedSimulator.Description numBodies
 
     let verify (expected:float4[]) (actual:float4[]) (tol:float) =
         (expected, actual) ||> Array.iter2 (fun expected actual ->
@@ -138,7 +152,8 @@ let test (expectedSimulator : ISimulatorTester) (actualSimulator : ISimulatorTes
         let actualPos = Array.copy expectedPos
         let actualVel = Array.copy expectedVel
         for i = 1 to steps do
-            expectedSimulator.Integrate expectedPos expectedVel numBodies deltaTime softeningSquared damping 1
+            expectedSimulator.Integrate expectedPos expectedVel numBodies deltaTime 
+                                        softeningSquared damping 1
             actualSimulator.Integrate actualPos actualVel numBodies deltaTime softeningSquared damping 1
             verify expectedPos actualPos tol
             verify expectedVel actualVel tol
@@ -168,7 +183,7 @@ let performance (simulator : ISimulatorTester) numBodies =
 
 (**
 Calculating the acceleration $a_{ij}$ particle at position `bj` exerts on particle with position `bi`, and adds it to the acceleration `ai` (resulting in total acceleration on particle with position `bi`, after calling this method for all particles `bj`) which will be returned.
-It is used for the CPU as well as for both GPU implementations.
+It is used for the CPU as well as for both GPU implementations (hence the [<ReflectedDefinition>] attribute in F#).
 
 The acceleration is calculated as:
 
