@@ -132,8 +132,8 @@ The last step is to copy the result back to the CPU by using the `Gather` method
 
 (*** define:parallelSquareLaunch ***)          
 let squareGPU (inputs:float[]) =
-    let dInputs = worker.Malloc(inputs)
-    let dOutputs = worker.Malloc(inputs.Length)
+    use dInputs = worker.Malloc(inputs)
+    use dOutputs = worker.Malloc(inputs.Length)
     let blockSize = 256
     let numSm = worker.Device.Attributes.MULTIPROCESSOR_COUNT
     let gridSize = Math.Min(16 * numSm, divup inputs.Length blockSize)
