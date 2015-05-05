@@ -124,22 +124,22 @@ namespace Tutorial.Cs.examples.nbody
             var simulatorGpuStaticBlockSizeModule256 = new GpuStaticSimulatorModule256(target);     // need dispose
             var simulatorGpuStaticBlockSizeModule512 = new GpuStaticSimulatorModule512(target);     // need dispose
 
-            // first, enquene one simulator which is 256 blocksize so we can compare with C code for performance
+            // First, enquene one simulator which is 256 blocksize so we can compare with C code for performance.
             _simulators.Enqueue(simulatorGpuStaticBlockSizeModule256);
 
-            // now, enqueue several dynamic block size simulators
+            // Enqueue several dynamic block size simulators.
             _simulators.Enqueue(simulatorGpuDynamicBlockSize64);
             _simulators.Enqueue(simulatorGpuDynamicBlockSize128);
             _simulators.Enqueue(simulatorGpuDynamicBlockSize256);
             _simulators.Enqueue(simulatorGpuDynamicBlockSize512);
 
-            // now, enqueue serveral static block size simulators
+            // Enqueue several static block size simulators.
             _simulators.Enqueue(simulatorGpuStaticBlockSizeModule64);
             _simulators.Enqueue(simulatorGpuStaticBlockSizeModule128);
             _simulators.Enqueue(simulatorGpuStaticBlockSizeModule256);
             _simulators.Enqueue(simulatorGpuStaticBlockSizeModule512);
 
-            // last, enqueue cpu simulator, this is quite quite slow, FPS = 0 :)
+            // We do not enqueue any cpu simulator as it is much too slow.
             //_simulators.Enqueue(new CpuSimulator(_worker, _numBodies));
 
             _disposeSimulators = () =>
@@ -165,8 +165,8 @@ namespace Tutorial.Cs.examples.nbody
             {
                 GL.BindBuffer(BufferTarget.ArrayBuffer, buffer);
                 GL.BufferData(BufferTarget.ArrayBuffer,
-                    (IntPtr) (Microsoft.FSharp.Core.Operators.SizeOf<float4>()*_numBodies), IntPtr.Zero,
-                    BufferUsageHint.DynamicDraw);
+                              (IntPtr) (Microsoft.FSharp.Core.Operators.SizeOf<float4>()*_numBodies), 
+                              IntPtr.Zero, BufferUsageHint.DynamicDraw);
                 var size = 0;
                 unsafe
                 {
@@ -304,7 +304,7 @@ namespace Tutorial.Cs.examples.nbody
 
             SwapPos();
             LockPos( (pos0,pos1) => _simulator.Integrate(pos1, pos0, _vel.Ptr, _numBodies, _deltaTime, 
-                                    _softeningSquared, _damping));
+                                                         _softeningSquared, _damping));
 
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             var modelview = Matrix4.LookAt(Vector3.Zero, Vector3.UnitZ, Vector3.UnitY);

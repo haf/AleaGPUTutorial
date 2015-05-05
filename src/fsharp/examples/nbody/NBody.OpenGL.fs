@@ -70,23 +70,23 @@ Create several simulators: dynamic & static with different `blockSize`s, it will
         let simulatorGPUStaticBlockSizeModule256 = new Impl.GPU.StaticBlockSize.SimulatorModule256(target)
         let simulatorGPUStaticBlockSizeModule512 = new Impl.GPU.StaticBlockSize.SimulatorModule512(target)
 
-        // first, enquene one simulator which is 256 blocksize so we 
-        // can compare with C code for performance
+        // First, enquene one simulator which is 256 blocksize so we 
+        // can compare with C code for performance.
         simulators.Enqueue(simulatorGPUStaticBlockSizeModule256.CreateSimulator())
 
-        // now, enqueue several dynamic block size simulators
+        // Enqueue several dynamic block size simulators.
         simulators.Enqueue(simulatorGPUDynamicBlockSizeModule.CreateSimulator(64))
         simulators.Enqueue(simulatorGPUDynamicBlockSizeModule.CreateSimulator(128))
         simulators.Enqueue(simulatorGPUDynamicBlockSizeModule.CreateSimulator(256))
         simulators.Enqueue(simulatorGPUDynamicBlockSizeModule.CreateSimulator(512))
 
-        // now, enqueue serveral static block size simulators
+        // Enqueue several static block size simulators
         simulators.Enqueue(simulatorGPUStaticBlockSizeModule64.CreateSimulator())
         simulators.Enqueue(simulatorGPUStaticBlockSizeModule128.CreateSimulator())
         simulators.Enqueue(simulatorGPUStaticBlockSizeModule256.CreateSimulator())
         simulators.Enqueue(simulatorGPUStaticBlockSizeModule512.CreateSimulator())
 
-        // last, enqueue cpu simulator, this is quite slow, FPS = 0 :)
+        // We do not enqueue any cpu simulator as it is much too slow.
         //simulators.Enqueue(simulatorCPUSimpleModule.CreateSimulator(worker, numBodies))
 
         let dispose() =
@@ -291,3 +291,20 @@ let runSim() =
 let runPerformance() =
     Impl.GPU.DynamicBlockSize.Performance()
     Impl.GPU.StaticBlockSize.Performance()
+
+(**
+You can start NBody Program using:
+
+    Tutorial.Fs.exe ExamplesNbodySimulation
+
+for F# or for C#:
+
+    Tutorial.Fs.exe ExamplesNbodySimulation
+
+on windows or use mone in order to run it on Mac OS X or Linux. 
+
+You should get something along the line of:
+
+<img src="../../content/images/NBodyMacScreenshot.png" width="500" alt="Screenshot NBody simulation on Mac OS X.">
+
+*)
