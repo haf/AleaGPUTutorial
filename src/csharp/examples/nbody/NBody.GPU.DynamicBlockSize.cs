@@ -1,13 +1,10 @@
-﻿//[dynamicStart]
-using Alea.CUDA;
+﻿using Alea.CUDA;
 using Alea.CUDA.IL;
 using Microsoft.FSharp.Core;
 using NUnit.Framework;
 
 namespace Tutorial.Cs.examples.nbody
 {
-    //[/dynamicStart]
-
     //[DynamicAOTCompile]
     [AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")]
     public class GpuDynamicSimulatorModule : ILGPUModule
@@ -18,7 +15,8 @@ namespace Tutorial.Cs.examples.nbody
         //[/DynamicAOTCompile]
 
         //[DynamicComputeBodyAccel]
-        public float3 ComputeBodyAccel(float softeningSquared, float4 bodyPos, deviceptr<float4> positions, int numTiles)
+        public float3 ComputeBodyAccel(float softeningSquared, float4 bodyPos, deviceptr<float4> positions, 
+                                       int numTiles)
         {
             var sharedPos = __shared__.ExternArray<float4>();
             var acc = new float3(0.0f, 0.0f, 0.0f);
@@ -78,14 +76,16 @@ namespace Tutorial.Cs.examples.nbody
         //[/DynamicStartKernel]
 
         //[DynamicPrepareAndLaunchKernel]
-        public void IntegrateNbodySystem(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel,
-            int numBodies, float deltaTime, float softeningSquared, float damping, int blockSize)
+        public void IntegrateNbodySystem(deviceptr<float4> newPos, deviceptr<float4> oldPos, 
+                                         deviceptr<float4> vel, int numBodies, float deltaTime, 
+                                         float softeningSquared, float damping, int blockSize)
         {
             var numBlocks = Alea.CUDA.Utilities.Common.divup(numBodies, blockSize);
             var numTiles = Alea.CUDA.Utilities.Common.divup(numBodies, blockSize);
             var sharedMemSize = blockSize * Operators.SizeOf<float4>();
             var lp = new LaunchParam(numBlocks, blockSize, sharedMemSize);
-            GPULaunch(IntegrateBodies, lp, newPos, oldPos, vel, numBodies, deltaTime, softeningSquared, damping, numTiles);
+            GPULaunch(IntegrateBodies, lp, newPos, oldPos, vel, numBodies, deltaTime, 
+                      softeningSquared, damping, numTiles);
         }
         //[/DynamicPrepareAndLaunchKernel]
 
@@ -114,9 +114,11 @@ namespace Tutorial.Cs.examples.nbody
             get { return _description; }
         }
 
-        void ISimulator.Integrate(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel, int numBodies, float deltaTime, float softeningSquared, float damping)
+        void ISimulator.Integrate(deviceptr<float4> newPos, deviceptr<float4> oldPos, deviceptr<float4> vel,
+                                  int numBodies, float deltaTime, float softeningSquared, float damping)
         {
-            _simMod.IntegrateNbodySystem(newPos, oldPos, vel, numBodies, deltaTime, softeningSquared, damping, _blockSize);
+            _simMod.IntegrateNbodySystem(newPos, oldPos, vel, numBodies, deltaTime, softeningSquared, 
+                                         damping, _blockSize);
         }
 
         string ISimulatorTester.Description
@@ -124,8 +126,8 @@ namespace Tutorial.Cs.examples.nbody
             get { return _description; }
         }
 
-        void ISimulatorTester.Integrate(float4[] pos, float4[] vel, int numBodies, float deltaTime, float softeningSquared, float damping,
-            int steps)
+        void ISimulatorTester.Integrate(float4[] pos, float4[] vel, int numBodies, float deltaTime, 
+                                        float softeningSquared, float damping, int steps)
         {
             using (var dpos0 = _simMod.GPUWorker.Malloc<float4>(numBodies))
             using (var dpos1 = _simMod.GPUWorker.Malloc(pos))
@@ -138,7 +140,8 @@ namespace Tutorial.Cs.examples.nbody
                     var tempPos = pos0;
                     pos0 = pos1;
                     pos1 = tempPos;
-                    _simMod.IntegrateNbodySystem(pos1, pos0, dvel.Ptr, numBodies, deltaTime, softeningSquared, damping, _blockSize);
+                    _simMod.IntegrateNbodySystem(pos1, pos0, dvel.Ptr, numBodies, deltaTime, 
+                                                 softeningSquared, damping, _blockSize);
                 }
                 _simMod.GPUWorker.Gather(pos1, pos, FSharpOption<int>.None, FSharpOption<int>.None);
                 _simMod.GPUWorker.Gather(dvel.Ptr, vel, FSharpOption<int>.None, FSharpOption<int>.None);

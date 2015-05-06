@@ -1,8 +1,4 @@
-﻿(**
-GPU implementation with static `blockSize`, i.e. the `blockSize` is known at compile-time and loop over threads can be unrolled.
-Infrastructure around kernel might be slightly more coplex, but the compiler can optimize the code better.
-*)
-(*** define:startStatic ***)
+﻿(*** hide ***)
 module Tutorial.Fs.examples.nbody.Impl.GPU.StaticBlockSize
 
 open Alea.CUDA
@@ -10,6 +6,15 @@ open Alea.CUDA.Utilities
 open NUnit.Framework
 open Tutorial.Fs.examples.nbody
 
+
+(**
+# GPU n-body implementation with static-block-size
+
+GPU implementation of the n-body problem where the block-size is known at compile time. Infrastructure around kernel might be slightly more coplex, but the compiler can optimize the code better.
+
+Define a class `SimulatorModule` which takes the `blockSize` as an argument. We will use additional classes in order to inhere from `SimulatorModule` and which specialize for specific `blockSize`s.
+*)
+(*** define:startStatic ***)
 type SimulatorModule(target, blockSize:int) =
     inherit GPUModule(target)
 
@@ -17,14 +22,15 @@ type SimulatorModule(target, blockSize:int) =
 Computation of the accelerations between the particles. The parallelization strategy is nicely described in: 
 [GPU Gems 3](http://http.developer.nvidia.com/GPUGems3/gpugems3_ch31.html),
 essentailly it is parallelized over the particles. Particle positions for `blockDim.x` are loaded to shared memory in order to have faster access.
-In this version the `blockSize` is known at compile time, in contrast to the `DynamicBlockSize` implementation.
+In this version the `blockSize` is known at compile time, in contrast to the `DynamicBlockSize` implementation. Hence the size of shared memory can be set here and does 
+not need to be handed over via launch parameters.
 *)
 (*** define:StaticComputeBodyAccel ***)
     [<ReflectedDefinition>]
     member this.ComputeBodyAccel softeningSquared 
-                                 (bodyPos:float4) 
-                                 (positions:deviceptr<float4>) 
-                                 (numTiles:int) =
+                                 (bodyPos : float4) 
+                                 (positions : deviceptr<float4>) 
+                                 (numTiles : int) =
         let sharedPos = __shared__.Array<float4>(blockSize)
 
         let mutable acc = float3(0.0f, 0.0f, 0.0f)
@@ -48,14 +54,14 @@ Integration method on GPU, calls `ComputeBodyAccel` and integrates the equation 
 *)
 (*** define:StaticStartKernel ***)
     [<Kernel;ReflectedDefinition>]
-    member this.IntegrateBodies (newPos:deviceptr<float4>)
-                                (oldPos:deviceptr<float4>)
-                                (vel:deviceptr<float4>)
-                                (numBodies:int)
-                                (deltaTime:float32)
-                                (softeningSquared:float32)
-                                (damping:float32)
-                                (numTiles:int) =
+    member this.IntegrateBodies (newPos : deviceptr<float4>)
+                                (oldPos : deviceptr<float4>)
+                                (vel : deviceptr<float4>)
+                                (numBodies : int)
+                                (deltaTime : float32)
+                                (softeningSquared : float32)
+                                (damping : float32)
+                                (numTiles : int) =
 
         let index = threadIdx.x + blockIdx.x*blockSize
 
@@ -92,18 +98,19 @@ Prepare and launch kernel.
 Note: `blockSize` will be used as a compile-time constant.
 *)
 (*** define:StaticPrepareAndLaunchKernel ***)
-    member this.IntegrateNbodySystem (newPos:deviceptr<float4>)
-                                     (oldPos:deviceptr<float4>)
-                                     (vel:deviceptr<float4>)
-                                     (numBodies:int)
-                                     (deltaTime:float32)
-                                     (softeningSquared:float32)
-                                     (damping:float32) =
+    member this.IntegrateNbodySystem (newPos : deviceptr<float4>)
+                                     (oldPos : deviceptr<float4>)
+                                     (vel : deviceptr<float4>)
+                                     (numBodies : int)
+                                     (deltaTime : float32)
+                                     (softeningSquared : float32)
+                                     (damping : float32) =
 
         let numBlocks = divup numBodies blockSize
         let numTiles = divup numBodies blockSize
         let lp = LaunchParam(numBlocks, blockSize)
-        this.GPULaunch <@this.IntegrateBodies @> lp newPos oldPos vel numBodies deltaTime softeningSquared damping numTiles
+        this.GPULaunch <@this.IntegrateBodies @> lp newPos oldPos vel numBodies deltaTime 
+                                                    softeningSquared damping numTiles
 
 (**
 Creating infrastructure for launching and testing.
@@ -116,7 +123,8 @@ Creating infrastructure for launching and testing.
             member x.Description = description
 
             member x.Integrate newPos oldPos vel numBodies deltaTime softeningSquared damping =
-                this.IntegrateNbodySystem newPos oldPos vel numBodies deltaTime softeningSquared damping
+                this.IntegrateNbodySystem newPos oldPos vel numBodies deltaTime 
+                                          softeningSquared damping
         }
 
     member this.CreateSimulatorTester() =
@@ -136,7 +144,8 @@ Creating infrastructure for launching and testing.
                     let pos' = pos0
                     pos0 <- pos1
                     pos1 <- pos'
-                    this.IntegrateNbodySystem pos1 pos0 dvel.Ptr numBodies deltaTime softeningSquared damping
+                    this.IntegrateNbodySystem pos1 pos0 dvel.Ptr numBodies deltaTime 
+                                              softeningSquared damping
 
                 this.GPUWorker.Gather(pos1, pos)
                 this.GPUWorker.Gather(dvel.Ptr, vel)
@@ -147,10 +156,14 @@ Fixing `blockSize` and compile.
 Compile for all architectures: `sm20`, `sm30`, `sm35` separately.
 *)
 (*** define:CompileArchitectures ***)
-type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule64(target) = inherit SimulatorModule(target, 64)
-type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule128(target) = inherit SimulatorModule(target, 128)
-type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule256(target) = inherit SimulatorModule(target, 256)
-type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule512(target) = inherit SimulatorModule(target, 512)
+type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule64(target) = 
+    inherit SimulatorModule(target, 64)
+type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule128(target) = 
+    inherit SimulatorModule(target, 128)
+type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule256(target) = 
+    inherit SimulatorModule(target, 256)
+type [<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>] SimulatorModule512(target) = 
+    inherit SimulatorModule(target, 512)
 
 (**
 Infrastructure for (performance) testing.
@@ -160,9 +173,8 @@ Infrastructure for (performance) testing.
 let Correctness256() =
     let target = GPUModuleTarget.DefaultWorker
     let numBodies = 256*56
-    let expectedSimulatorModule = Impl.CPU.Simple.SimulatorModule()
     use actualSimulatorModule = new SimulatorModule256(target)
-    let expectedSimulator = expectedSimulatorModule.CreateSimulatorTester(numBodies)
+    let expectedSimulator = Impl.CPU.Simple.createSimulatorTester(numBodies)
     let actualSimulator = actualSimulatorModule.CreateSimulatorTester()
     test expectedSimulator actualSimulator numBodies
 

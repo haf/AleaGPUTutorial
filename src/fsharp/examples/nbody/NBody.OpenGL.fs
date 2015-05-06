@@ -1,7 +1,4 @@
-﻿(**
-Visualizing simulation using [OpenGL](https://www.opengl.org/) respectively [OpenTK](http://www.opentk.com/).
-*)
-(*** define:StartOpenGL ***)
+﻿(*** hide ***)
 module Tutorial.Fs.examples.nbody.OpenGL
 open System
 open System.Collections.Generic
@@ -15,6 +12,14 @@ open Alea.CUDA
 #nowarn "51"
 
 (**
+# Visualization using OpenTK
+
+There exist essentially two different tools for displaying 3d objects: Microsoft’s [DirectX](http://en.wikipedia.org/wiki/DirectX) as well as the open graphics library 
+[OpenGL](http://de.wikipedia.org/wiki/OpenGL). The first is a graphics library implemented by Microsoft specifically for the Windows platform. 
+OpenGL on the other side is platform independent and can be used on Windows, Linux and Mac OS X. 
+For this example we will focus on OpenGL using [OpenTK (Open Tool Kit)](http://www.opentk.com/) which wraps OpenGL for .NET. We follow the [simple OpenTK demo](https://github.com/tkesselring/OpenTKDemo)
+but instead of reading from CPU memory we display data saved on GPU memory.
+
 We inhere from the [OpenTK](http://www.opentk.com/) class `GameWindow`.
 *)
 (*** define:startSimWindow ***)
@@ -52,36 +57,36 @@ Create worker using Cuda GL context generation function.
         Worker.CreateOnCurrentThread(generate)
 
 (**
-Create several simulators: dynamic & static with different `blockSize`s, so their performance can later be compared.
+Create several simulators: dynamic & static with different `blockSize`s, it will allow us to switch the simulator during runtime.
 *)
 (***  define:CreateSimulatros ***)
     let simulators, disposeSimulators =
         let simulators = Queue<ISimulator>()
         let target = GPUModuleTarget.Worker(worker)
 
-        let simulatorCPUSimpleModule = Impl.CPU.Simple.SimulatorModule()
         let simulatorGPUDynamicBlockSizeModule = new Impl.GPU.DynamicBlockSize.SimulatorModule(target)
         let simulatorGPUStaticBlockSizeModule64 = new Impl.GPU.StaticBlockSize.SimulatorModule64(target)
         let simulatorGPUStaticBlockSizeModule128 = new Impl.GPU.StaticBlockSize.SimulatorModule128(target)
         let simulatorGPUStaticBlockSizeModule256 = new Impl.GPU.StaticBlockSize.SimulatorModule256(target)
         let simulatorGPUStaticBlockSizeModule512 = new Impl.GPU.StaticBlockSize.SimulatorModule512(target)
 
-        // first, enquene one simulator which is 256 blocksize so we can compare with C code for performance
+        // First, enquene one simulator which is 256 blocksize so we 
+        // can compare with C code for performance.
         simulators.Enqueue(simulatorGPUStaticBlockSizeModule256.CreateSimulator())
 
-        // now, enqueue several dynamic block size simulators
+        // Enqueue several dynamic block size simulators.
         simulators.Enqueue(simulatorGPUDynamicBlockSizeModule.CreateSimulator(64))
         simulators.Enqueue(simulatorGPUDynamicBlockSizeModule.CreateSimulator(128))
         simulators.Enqueue(simulatorGPUDynamicBlockSizeModule.CreateSimulator(256))
         simulators.Enqueue(simulatorGPUDynamicBlockSizeModule.CreateSimulator(512))
 
-        // now, enqueue serveral static block size simulators
+        // Enqueue several static block size simulators
         simulators.Enqueue(simulatorGPUStaticBlockSizeModule64.CreateSimulator())
         simulators.Enqueue(simulatorGPUStaticBlockSizeModule128.CreateSimulator())
         simulators.Enqueue(simulatorGPUStaticBlockSizeModule256.CreateSimulator())
         simulators.Enqueue(simulatorGPUStaticBlockSizeModule512.CreateSimulator())
 
-        // last, enqueue cpu simulator, this is quite slow, FPS = 0 :)
+        // We do not enqueue any cpu simulator as it is much too slow.
         //simulators.Enqueue(simulatorCPUSimpleModule.CreateSimulator(worker, numBodies))
 
         let dispose() =
@@ -102,7 +107,10 @@ Method to describe simulation in window title.
     let description() =
         let time = stopWatch.ElapsedMilliseconds
         let fps = (float frameCounter) * 1000.0 / (float time)
-        this.Title <- sprintf "bodies %d, %s %A %d cores, %s, fps %f" numBodies worker.Device.Name worker.Device.Arch worker.Device.Cores simulator.Description fps
+        this.Title <- sprintf "bodies %d, %s %A %d cores, %s, fps %f" numBodies worker.Device.Name 
+                                                                      worker.Device.Arch 
+                                                                      worker.Device.Cores 
+                                                                      simulator.Description fps
         stopWatch.Restart()
 
 (**
@@ -127,7 +135,10 @@ Display options: exit simulation or switch simulator.
 
 (**
 Create `buffer`s and `vel`, where the particles position and velocities will be stored in.
-Positions are read from one `buffer` and stored to the other, hence the `buffer`s have to change between every integration step. This is what the method `swapPos` is for.
+Buffers need to be registered using `cuGLRegisterBufferObject` such that we can use them in 
+from Alea as well as from OpenTK.
+Positions are read from one `buffer` and stored to the other, hence the `buffer`s have to 
+change between every integration step. This is what the method `swapPos` is for.
 *)
 (*** define:CreateBuffers***)
     let buffers = 
@@ -136,7 +147,8 @@ Positions are read from one `buffer` and stored to the other, hence the `buffer`
 
         for buffer in buffers do
             GL.BindBuffer(BufferTarget.ArrayBuffer, buffer)            
-            GL.BufferData(BufferTarget.ArrayBuffer, nativeint (sizeof<float4>*numBodies), (null : _ []), BufferUsageHint.DynamicDraw )
+            GL.BufferData(BufferTarget.ArrayBuffer, nativeint (sizeof<float4>*numBodies), (null : _ []),
+                          BufferUsageHint.DynamicDraw)
             let size = ref 0
             GL.GetBufferParameter(BufferTarget.ArrayBuffer, BufferParameterName.BufferSize, size)
             if !size <> sizeof<float4>*numBodies then
@@ -168,8 +180,14 @@ This function is needed for whenever a non-OpenTK function accesses the data, e.
 *)
 (*** define:LockPositions ***)
     let lockPos(f:deviceptr<float4> -> deviceptr<float4> -> 'T) =
-        cuSafeCall(cuGraphicsResourceSetMapFlags(resources.[0], uint32 CUgraphicsMapResourceFlags.CU_GRAPHICS_MAP_RESOURCE_FLAGS_READ_ONLY))
-        cuSafeCall(cuGraphicsResourceSetMapFlags(resources.[1], uint32 CUgraphicsMapResourceFlags.CU_GRAPHICS_MAP_RESOURCE_FLAGS_WRITE_DISCARD))
+        cuSafeCall(
+            cuGraphicsResourceSetMapFlags(
+                resources.[0], 
+                uint32 CUgraphicsMapResourceFlags.CU_GRAPHICS_MAP_RESOURCE_FLAGS_READ_ONLY))
+        cuSafeCall(
+            cuGraphicsResourceSetMapFlags(
+                resources.[1], 
+                uint32 CUgraphicsMapResourceFlags.CU_GRAPHICS_MAP_RESOURCE_FLAGS_WRITE_DISCARD))
         cuSafeCall(cuGraphicsMapResourcesEx(2u, resources, 0n))
         let mutable bytes = 0n
         let mutable handle0 = 0n
@@ -219,8 +237,11 @@ Override needed functionality from `GameWindow`.
 
     override this.OnResize e =
         base.OnResize(e)
-        GL.Viewport(this.ClientRectangle.X, this.ClientRectangle.Y, this.ClientRectangle.Width, this.ClientRectangle.Height)
-        let projection = Matrix4.CreatePerspectiveFieldOfView((float32)Math.PI / 4.0f, float32 this.Width / (float32)this.Height, 1.0f, 64.0f)
+        GL.Viewport(this.ClientRectangle.X, this.ClientRectangle.Y, this.ClientRectangle.Width,
+                    this.ClientRectangle.Height)
+        let projection = Matrix4.CreatePerspectiveFieldOfView((float32)Math.PI / 4.0f, 
+                                                               float32 this.Width / (float32)this.Height, 
+                                                               1.0f, 64.0f)
         GL.MatrixMode(MatrixMode.Projection)
         GL.LoadMatrix(ref projection)
 
@@ -229,7 +250,7 @@ Render function:
 
 - Updates frame-per-second calculation and if needed description in title.
 - Calls `Integrate` method from choosen `simulator`.
-- Displays all the particles using [OpenTK](http://www.opentk.com/) functionality.
+- Displays all the particles using [OpenTK](http://www.opentk.com/) functionality, reading from GPU memory.
 *)
 (*** define:render ***)
     override this.OnRenderFrame e =
@@ -241,10 +262,11 @@ Render function:
             frameCounter <- 0
 
         swapPos()
-        lockPos <| fun pos0 pos1 -> simulator.Integrate pos1 pos0 vel.Ptr numBodies deltaTime softeningSquared damping
+        lockPos <| fun pos0 pos1 -> simulator.Integrate pos1 pos0 vel.Ptr numBodies deltaTime 
+                                                        softeningSquared damping
 
         GL.Clear(ClearBufferMask.ColorBufferBit ||| ClearBufferMask.DepthBufferBit)
-        let modelview = Matrix4.LookAt(Vector3.Zero, Vector3.UnitZ, Vector3.UnitY)
+        let modelview = Matrix4.LookAt(Vector3(0.0f, 0.0f, 50.0f), Vector3.UnitZ, Vector3.UnitY)
         GL.MatrixMode(MatrixMode.Modelview)
         GL.LoadMatrix(ref modelview)
 
@@ -269,3 +291,20 @@ let runSim() =
 let runPerformance() =
     Impl.GPU.DynamicBlockSize.Performance()
     Impl.GPU.StaticBlockSize.Performance()
+
+(**
+You can start n-body program using:
+
+    Tutorial.Fs.exe ExamplesNbodySimulation
+
+for F# or for C#:
+
+    Tutorial.Fs.exe ExamplesNbodySimulation
+
+on windows or use mone in order to run it on Mac OS X or Linux. 
+
+You should get something along the line of:
+
+<img src="../../content/images/NBodyMacScreenshot.png" width="500" alt="Screenshot n-body simulation on Mac OS X.">
+
+*)

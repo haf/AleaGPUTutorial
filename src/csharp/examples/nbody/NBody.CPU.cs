@@ -1,19 +1,16 @@
-﻿//[StartCPU]
-using Alea.CUDA;
+﻿using Alea.CUDA;
 using Microsoft.FSharp.Core;
 
 namespace Tutorial.Cs.examples.nbody
 {
     public static class CpuIntegrator
     {
-        //[/StartCPU]
-
         //[IntegrateCommonNbodySystem]
         public static void IntegrateNbodySystem(float3[] accel, float4[] pos, float4[] vel, int numBodies,
             float deltaTime, float softeningSquared, float damping)
         {
-            // Force of i particle on itselfe is 0 because of the regularisatino of the force.
-            // As fij = -fji we could save half of time, but implement it here as on GPU.
+            // Force of particle i on itselfe is 0 because of the regularisatino of the force.
+            // As fij = -fji we could save half of the time, but implement it here as on GPU.            
             for (var i = 0; i < numBodies; i++)
             {
                 var acc = new float3(0.0f, 0.0f, 0.0f);

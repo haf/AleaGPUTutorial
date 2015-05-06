@@ -7,7 +7,6 @@ open Alea.CUDA
 open Alea.CUDA.IL
 open Alea.CUDA.Utilities
 open NUnit.Framework
-open FsUnit
 
 (**
 # Simple Unary Transfrom Kernel 
