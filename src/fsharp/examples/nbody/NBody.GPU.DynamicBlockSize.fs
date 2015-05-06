@@ -6,9 +6,9 @@ open Alea.CUDA.Utilities
 open NUnit.Framework
 open Tutorial.Fs.examples.nbody
 (**
-# N-Body GPU implementation with dynamic-block-size
+# GPU n-body implementation with dynamic-block-size
 
-GPU implementation of the N-Body problem where the block-size is not known at compile time. It makes the infrastructure around the kernel a bit
+GPU implementation of the n-body problem where the block-size is not known at compile time. It makes the infrastructure around the kernel a bit
 simpler, but might give away possible performance gains due to better optization possibilities by the compiler.
 
 

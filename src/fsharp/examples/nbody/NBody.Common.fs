@@ -6,13 +6,13 @@ open Alea.CUDA
 open FsUnit
 
 (**
-# Common code for the N-Body simulation
+# Common code for the n-body simulation
 It consists of 
 
 - Types to get a common interface between CPU and the two GPU implementations
 - Initialization functions
 - Test functions
-- A function calculation the particle-particle interaction called `bodyBodyInteraction`, which is shared between all implementations.
+- A function calculating the particle-particle interaction called `bodyBodyInteraction`, which is shared between all implementations.
 
 We introduce an abstract simulator type in order to have a common interface for the different implementations to run and test.
 *)
@@ -189,10 +189,10 @@ The acceleration is calculated as:
 
 $$$
 \begin{equation}
-    a_{ij} = \frac{f_{ij}}{m_i} = \frac{r_{ij} m_j}{\sqrt{\left||r_{ij}\right||^2 + \varepsilon^2}^3},
+    a_{ij} = \frac{f_{ij}}{m_i} = \frac{r_{ij} m_j}{\sqrt{\left||r_{ij}\right||^2 + \varepsilon^2}^3}.
 \end{equation}
 
-note, we use artificial units where $G$ is set to 1.
+Note we use artificial units where $G$ is set to 1.
 
 CUDA datatypes `float3` (acceleration) and `float4` (position, 4-th element is the particles mass) are used. 
 The function `__nv_rsqrtf` calculates $f(x) = \frac{1}{\sqrt{x}}$ faster and with less registers than calling the two functions seperately.

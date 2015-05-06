@@ -293,7 +293,7 @@ let runPerformance() =
     Impl.GPU.StaticBlockSize.Performance()
 
 (**
-You can start NBody Program using:
+You can start n-body program using:
 
     Tutorial.Fs.exe ExamplesNbodySimulation
 
@@ -305,6 +305,6 @@ on windows or use mone in order to run it on Mac OS X or Linux.
 
 You should get something along the line of:
 
-<img src="../../content/images/NBodyMacScreenshot.png" width="500" alt="Screenshot NBody simulation on Mac OS X.">
+<img src="../../content/images/NBodyMacScreenshot.png" width="500" alt="Screenshot n-body simulation on Mac OS X.">
 
 *)

@@ -8,9 +8,9 @@ open Tutorial.Fs.examples.nbody
 
 
 (**
-# N-Body GPU implementation with static-block-size
+# GPU n-body implementation with static-block-size
 
-GPU implementation of the N-Body problem where the block-size is known at compile time. Infrastructure around kernel might be slightly more coplex, but the compiler can optimize the code better.
+GPU implementation of the n-body problem where the block-size is known at compile time. Infrastructure around kernel might be slightly more coplex, but the compiler can optimize the code better.
 
 Define a class `SimulatorModule` which takes the `blockSize` as an argument. We will use additional classes in order to inhere from `SimulatorModule` and which specialize for specific `blockSize`s.
 *)
