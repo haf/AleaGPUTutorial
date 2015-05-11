@@ -11,6 +11,7 @@ namespace Tutorial.Cs.examples.generic_reduce
         public static int LOG_WARP_SIZE = 5;
     }
 
+    //[genericReducePlan]
     public class Plan
     {
         public int NumThreads { get; set; }
@@ -67,6 +68,7 @@ namespace Tutorial.Cs.examples.generic_reduce
             BlockPerSm = 1
         };
     }
+    //[/genericReducePlan]
 
     public enum Planner
     {
