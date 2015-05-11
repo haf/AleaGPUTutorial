@@ -43,7 +43,7 @@ namespace Tutorial.Cs
                         advancedTechniques.GenericTransform.Test.SinCosTest();
                         break;
 
-                    case "examplebasicsintest":
+                    case "examplesbasicsintest":
                         examples.basic.Test.SinTest();
                         break;
 
