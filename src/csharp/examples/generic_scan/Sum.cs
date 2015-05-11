@@ -11,6 +11,7 @@ namespace Tutorial.Cs.examples.generic_scan
 {
     public class Sum<T> : ILGPUModule
     {
+        //[genericScanSumMultiScan]
         public Func<int, T, T, T> MultiScan(int numWarps, int logNumWarps, Func<T,T,T> sum)
         {
             var warpStride = Const.WARP_SIZE + Const.WARP_SIZE/2 + 1;
@@ -82,6 +83,7 @@ namespace Tutorial.Cs.examples.generic_scan
                     return sum(scan, totalsShared[warp]);
                 };
         } 
+        //[/genericScanSumMultiScan]
 
         public Sum(GPUModuleTarget target) : base(target)
         {

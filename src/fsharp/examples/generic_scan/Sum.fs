@@ -11,6 +11,7 @@ Sum multi-scan function for all warps in the block.
 
 Specialized version for sum without expression splicing and slightly more efficient implementation based on inclusive multiscan.
 *)
+(*** define:genericScanSumMultiScan ***)
 let inline multiScan numWarps logNumWarps =
     let warpStride = WARP_SIZE + WARP_SIZE / 2 + 1
     <@ fun tid (x:'T) (totalRef:'T ref) ->

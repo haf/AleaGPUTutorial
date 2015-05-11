@@ -5,9 +5,9 @@ using Alea.CUDA.Utilities;
 
 namespace Tutorial.Cs.examples.generic_reduce
 {
-    
     public class ReduceModule<T> : ILGPUModule
     {
+        //[genericReduceMultiReduce]
         public static Func<int, T, T> MultiReduce(Func<T> initFunc, Func<T, T, T> reductionOp, int numWarps,
             int logNumWarps)
         {
@@ -77,7 +77,8 @@ namespace Tutorial.Cs.examples.generic_reduce
 
                 };
         }
-
+        //[/genericReduceMultiReduce]
+        
         private readonly Func<T> _initFunc;
         private readonly Func<T,T,T> _reductionOp;
         private readonly Func<T,T> _transform;
@@ -98,6 +99,7 @@ namespace Tutorial.Cs.examples.generic_reduce
             _multiReduce = MultiReduce(initFunc, reductionOp, numWarps, logNumWarps);
         }
 
+        //[genericReduceUpsweepKernel]
         [Kernel]
         public void Upsweep(deviceptr<T> dValues, deviceptr<int> dRanges, deviceptr<T> dRangeTotals)
         {
@@ -123,7 +125,9 @@ namespace Tutorial.Cs.examples.generic_reduce
             if (tid == 0)
                 dRangeTotals[range] = total;
         }
+        //[/genericReduceUpsweepKernel]
 
+        //[genericReduceRangeTotalsKernel]
         [Kernel]
         public void ReduceRangeTotals(int numRanges, deviceptr<T> dRangeTotals)
         {
@@ -134,11 +138,17 @@ namespace Tutorial.Cs.examples.generic_reduce
             if (tid == 0)
                 dRangeTotals[0] = total;
         }
+        //[/genericReduceRangeTotalsKernel]
 
 
         public void Upsweep(LaunchParam lp, deviceptr<T> dValues, deviceptr<int> dRanges, deviceptr<T> dRangeTotals)
         {
             GPULaunch(Upsweep, lp, dValues, dRanges, dRangeTotals);
+        }
+
+        public void ReduceRangeTotals(LaunchParam lp, int numRanges, deviceptr<T> dRangeTotals)
+        {
+            GPULaunch(ReduceRangeTotals, lp, numRanges, dRangeTotals);
         }
 
         public T Apply(T[] values)

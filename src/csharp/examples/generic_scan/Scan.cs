@@ -9,6 +9,7 @@ namespace Tutorial.Cs.examples.generic_scan
     public class ScanModule<T> : ILGPUModule
     {
         // Multi-scan function for all warps in the block.
+        //[genericScanMultiScan]
         public static Func<int, T, FSharpRef<T>, T> MultiScan(Func<T> init, Func<T, T, T> scanOp, int numWarps, int logNumWarps)
         {
             var warpStride = Const.WARP_SIZE + Const.WARP_SIZE/2 + 1;
@@ -79,8 +80,10 @@ namespace Tutorial.Cs.examples.generic_scan
                     return scanOp(scan, totalsShared[warp]);
                 };
         } 
-        
+        //[/genericScanMultiScan]
+
         // Multi-scan function for all warps in the block.
+        //[genericScanMultiScanExcl]
         public static Func<int, T, FSharpRef<T>, T> MultiScanExcl(Func<T> init, Func<T, T, T> scanOp, int numWarps, int logNumWarps)
         {
             var warpStride = Const.WARP_SIZE + Const.WARP_SIZE/2 + 1;
@@ -163,6 +166,7 @@ namespace Tutorial.Cs.examples.generic_scan
 
                 };
         }
+        //[/genericScanMultiScanExcl]
 
         private readonly Func<T> _init;
         private readonly Func<T, T, T> _scanOp;
@@ -209,6 +213,7 @@ namespace Tutorial.Cs.examples.generic_scan
             _reduceModule = new ReduceModule<T>(target, init, scanOp, transform, plan);
         }
 
+        //[genericScanReduceKernel]
         [Kernel]
         public void ScanReduce(int numRanges, deviceptr<T> dRangeTotals)
         {
@@ -223,7 +228,9 @@ namespace Tutorial.Cs.examples.generic_scan
             if (tid == 0)
                 dRangeTotals[0] = _init();
         }
+        //[/genericScanReduceKernel]
 
+        //[genericScanDownsweepKernel]
         [Kernel]
         public void Downsweep(deviceptr<T> dValuesIn, deviceptr<T> dValuesOut, deviceptr<T> dRangeTotals,
             deviceptr<int> dRanges, int inclusive)
@@ -305,6 +312,7 @@ namespace Tutorial.Cs.examples.generic_scan
                 rangeX += _numValues;
             }
         }
+        //[/genericScanDownsweepKernel]
 
         public T[] Apply(T[] input, bool inclusive)
         {

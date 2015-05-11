@@ -9,6 +9,7 @@ open Plan
 (**
 Sum multi-reduce function for a warps in the block.
 *)
+(*** define:genericReduceSumMultiReduce ***)
 let inline multiReduce numWarps logNumWarps =
     let warpStride = WARP_SIZE + WARP_SIZE / 2 + 1
     let sharedSize = numWarps * warpStride
@@ -59,7 +60,8 @@ let inline multiReduce numWarps logNumWarps =
 
 (**
 Sum reduces ranges and store reduced values in array of the range totals.
-*)    
+*)
+(*** define:genericReduceSumUpsweepKernel ***)
 let inline reduceUpSweepKernel (plan:Plan) =
     let numThreads = plan.NumThreads
     let numWarps = plan.NumWarps
@@ -88,6 +90,7 @@ let inline reduceUpSweepKernel (plan:Plan) =
 (**
 Sum reduces range totals to a single total, which is written back to the first element in the range totals input array.
 *)
+(*** define:genericReduceSumRangeTotalsKernel ***)
 let inline reduceRangeTotalsKernel (plan:Plan) =
     let numThreads = plan.NumThreadsReduction
     let numWarps = plan.NumWarpsReduction

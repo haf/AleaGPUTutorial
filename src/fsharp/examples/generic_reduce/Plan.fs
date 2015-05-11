@@ -20,13 +20,12 @@ type Plan =
     member this.NumWarpsReduction = this.NumThreadsReduction / WARP_SIZE
     member this.NumValues = this.NumThreads * this.ValuesPerThread
 
-(**
-Finds the ranges for each block to process. 
-Note that each range must begin a multiple of the block size.
-It returns a sequence of length 1 + effective num blocks (which is equal to min numRanges numBricks)
-and the number off effective blocks, i.e. number of ranges
-The range pairs can be obtained by blockRanges numRanges count |> Seq.pairwise  
-*) 
+
+    /// Finds the ranges for each block to process. 
+    /// Note that each range must begin a multiple of the block size.
+    /// It returns a sequence of length 1 + effective num blocks (which is equal to min numRanges numBricks)
+    /// and the number off effective blocks, i.e. number of ranges
+    /// The range pairs can be obtained by blockRanges numRanges count |> Seq.pairwise  
     member this.BlockRanges numSm count =
         let numBlocks = min (this.BlockPerSm * numSm) this.NumThreadsReduction
         let blockSize = this.NumThreads * this.ValuesPerThread     

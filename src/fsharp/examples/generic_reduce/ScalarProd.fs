@@ -8,7 +8,7 @@ open Plan
 
 (**
 Scalar product reduces ranges and store reduced values in array of the range totals. 
-*)   
+*)
 let inline reduceUpSweepKernel (plan:Plan) =
     let numThreads = plan.NumThreads
     let numWarps = plan.NumWarps
