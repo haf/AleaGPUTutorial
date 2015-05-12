@@ -7,7 +7,7 @@ namespace Tutorial.Cs.examples.generic_reduce
 {
     public class ReduceModule<T> : ILGPUModule
     {
-        ///[genericReduceMultiReduce]
+        ///[GenericReduceMultiReduce]
         public static Func<int, T, T> MultiReduce(Func<T> initFunc, Func<T, T, T> reductionOp, int numWarps,
             int logNumWarps)
         {
@@ -77,7 +77,7 @@ namespace Tutorial.Cs.examples.generic_reduce
 
                 };
         }
-        ///[/genericReduceMultiReduce]
+        ///[/GenericReduceMultiReduce]
         
         private readonly Func<T> _initFunc;
         private readonly Func<T,T,T> _reductionOp;
@@ -99,7 +99,7 @@ namespace Tutorial.Cs.examples.generic_reduce
             _multiReduce = MultiReduce(initFunc, reductionOp, numWarps, logNumWarps);
         }
 
-        ///[genericReduceUpsweepKernel]
+        ///[GenericReduceUpsweepKernel]
         [Kernel]
         public void Upsweep(deviceptr<T> dValues, deviceptr<int> dRanges, deviceptr<T> dRangeTotals)
         {
@@ -130,9 +130,9 @@ namespace Tutorial.Cs.examples.generic_reduce
         {
             GPULaunch(Upsweep, lp, dValues, dRanges, dRangeTotals);
         }
-        ///[/genericReduceUpsweepKernel]
+        ///[/GenericReduceUpsweepKernel]
 
-        ///[genericReduceRangeTotalsKernel]
+        ///[GenericReduceRangeTotalsKernel]
         [Kernel]
         public void ReduceRangeTotals(int numRanges, deviceptr<T> dRangeTotals)
         {
@@ -148,7 +148,7 @@ namespace Tutorial.Cs.examples.generic_reduce
         {
             GPULaunch(ReduceRangeTotals, lp, numRanges, dRangeTotals);
         }
-        ///[/genericReduceRangeTotalsKernel]
+        ///[/GenericReduceRangeTotalsKernel]
         
         public T Apply(T[] values)
         {

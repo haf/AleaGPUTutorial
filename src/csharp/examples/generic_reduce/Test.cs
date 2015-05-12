@@ -1,84 +1,86 @@
 ﻿using System;
 using System.Linq;
+using Alea.CUDA.Utilities;
 using NUnit.Framework;
 
 namespace Tutorial.Cs.examples.generic_reduce
 {
-    class Test
+    public class Test
     {
-        public Random Rng = new Random();
-        public int[] Nums = { 1, 2, 8, 128, 100, 1024 };
-        public bool Verbose = false;
-        public int ShowLimit = 8;
+        public static Random Rng = new Random();
+        public static int[] Nums = { 1, 2, 8, 128, 100, 1024 };
+        public static bool Verbose = false;
+        public static int ShowLimit = 8;
 
-        [Test]
-        public void SumInts()
+        //[GenericReduceSumInts]
+        public static void SumInts()
         {
             foreach (var n in Nums)
             {
-                var values = Gen(() => Rng.Next(), n);
+                var values = Gen(Rng.Next, n);
                 var dr = ReduceApi.Sum(values);
                 var hr = cpuReduce((x, y) => x + y, values);
                 Assert.AreEqual(hr,dr);
             }
         }
+        //[/GenericReduceSumInts]
 
-        [Test]
-        public void SumDoubles()
+        //[GenericReduceSumDoubles]
+        public static void SumDoubles()
         {
             foreach (var n in Nums)
             {
-                var values = Gen(() => Rng.NextDouble(), n);
+                var values = Gen(Rng.NextDouble, n);
                 var dr = ReduceApi.Sum(values);
                 var hr = cpuReduce((x, y) => x + y, values);
                 Assert.AreEqual(hr, dr, 1e-11);
             }
         }
+        //[/GenericReduceSumDoubles]
 
-        [Test]
-        public void SumSingles()
+        //[GenericReduceScalarProdDoubles]
+        public static void ScalarProdDoubles()
         {
             foreach (var n in Nums)
             {
-                var values = Gen(() => (float)Rng.NextDouble(), n);
-                var dr = ReduceApi.Sum(values);
-                var hr = cpuReduce((x, y) => x + y, values);
-                Assert.AreEqual(hr, dr, 1e-3);
-            }
-        }
-
-        [Test]
-        public void GenericTests()
-        {
-            const bool inclusive = true;
-
-            foreach (var n in Nums)
-            {
-                var v1 = Gen(() => Rng.Next(), n);
-                var v2 = Gen(() => Rng.NextDouble(), n);
-                var hr1 = cpuReduce((x, y) => x + y, v1);
-                var hr2 = cpuReduce((x, y) => x + y, v2);
-                var dr1 = ReduceApi.Reduce(v1, (x, y) => x + y);
-                var dr2 = ReduceApi.Reduce(v2, (x, y) => x + y);
-                Assert.AreEqual(hr1, dr1);
-                Assert.AreEqual(hr2, dr2, 1e-11);
-            }
-        }
-
-        [Test]
-        public void ScalarProdDoubles()
-        {
-            foreach (var n in Nums)
-            {
-                var values1 = Gen(() => Rng.NextDouble(), n);
-                var values2 = Gen(() => Rng.NextDouble(), n);
+                var values1 = Gen(Rng.NextDouble, n);
+                var values2 = Gen(Rng.NextDouble, n);
                 var dr = ReduceApi.ScalarProd(values1, values2);
                 var hr = cpuScalarProd((x, y) => x + y, (x, y) => x*y, values1, values2);
                 Assert.AreEqual(hr, dr, 1e-11);
             }
         }
+        //[/GenericReduceScalarProdDoubles]
 
-        public T cpuReduce<T>(Func<T, T, T> op, T[] input)
+        //[GenericReduceMaxDoubles]
+        public static void MaxDoubles()
+        {
+            foreach (var n in Nums)
+            {
+                var values = Gen(Rng.NextDouble, n);
+                //var dr = ReduceApi.Reduce(() => double.NegativeInfinity, Math.Max, values);
+                var dr = ReduceApi.Reduce(LibDevice.__neginf<double>, Math.Max, values);
+                var hr = cpuReduce(Math.Max, values);
+                Assert.AreEqual(hr, dr, 1e-11);
+            }
+        }
+        //[/GenericReduceMaxDoubles]
+
+        //[GenericReduceMinDoubles]
+        public static void MinDoubles()
+        {
+            foreach (var n in Nums)
+            {
+                var values = Gen(Rng.NextDouble, n);
+                //var dr = ReduceApi.Reduce(() => double.PositiveInfinity, Math.Min, values);
+                var dr = ReduceApi.Reduce(LibDevice.__posinf<double>, Math.Min, values);
+                var hr = cpuReduce(Math.Min, values);
+                Assert.AreEqual(hr, dr, 1e-11);
+            }
+        }
+        //[/GenericReduceMinDoubles]
+
+        public static T cpuReduce<T>(Func<T, T, T> op, T[] input)
         {
             var r = input[0];
             for (var i = 1; i < input.Length; i++)
@@ -86,7 +88,7 @@ namespace Tutorial.Cs.examples.generic_reduce
             return r;
         }
 
-        public T cpuScalarProd<T>(Func<T, T, T> add, Func<T, T, T> mult, T[] values1, T[] values2)
+        public static T cpuScalarProd<T>(Func<T, T, T> add, Func<T, T, T> mult, T[] values1, T[] values2)
         {
             return 
                 cpuReduce(  add,
@@ -94,12 +96,21 @@ namespace Tutorial.Cs.examples.generic_reduce
                             .Select(i => mult(values1[i], values2[i])).ToArray());
         }
 
-        public T[] Gen<T>(Func<T> g, int n)
+        public static T[] Gen<T>(Func<T> g, int n)
         {
             return Enumerable.Range(0, n).Select(_ => g()).ToArray();
         }
 
-        
-
+        //[GenericReduceTests]
+        [Test]
+        public static void ReduceTest()
+        {
+            SumInts();
+            SumDoubles();
+            ScalarProdDoubles();
+            MaxDoubles();
+            MinDoubles();
+        }
+        //[/GenericReduceTests]
     }
 }

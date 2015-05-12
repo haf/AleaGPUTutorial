@@ -9,7 +9,7 @@ open Plan
 (**
 Multi-reduce function for all warps in the block.
 *)
-(*** define:genericReduceMultiReduce ***)
+(*** define:GenericReduceMultiReduce ***)
 let multiReduce (initExpr:Expr<unit -> 'T>) (opExpr:Expr<'T -> 'T -> 'T>) numWarps logNumWarps =
     let warpStride = WARP_SIZE + WARP_SIZE / 2 + 1
     let sharedSize = numWarps * warpStride
@@ -64,7 +64,7 @@ let multiReduce (initExpr:Expr<unit -> 'T>) (opExpr:Expr<'T -> 'T -> 'T>) numWar
 (**
 Reduces ranges and store reduced values in array of the range totals.  
 *)
-(*** define:genericReduceUpsweepKernel ***)   
+(*** define:GenericReduceUpsweepKernel ***)   
 let reduceUpSweepKernel (initExpr:Expr<unit -> 'T>) (opExpr:Expr<'T -> 'T -> 'T>) (transfExpr:Expr<'T -> 'T>) (plan:Plan) =
     let numThreads = plan.NumThreads
     let numWarps = plan.NumWarps
@@ -98,7 +98,7 @@ let reduceUpSweepKernel (initExpr:Expr<unit -> 'T>) (opExpr:Expr<'T -> 'T -> 'T>
 (**
 Reduces range totals to a single total, which is written back to the first element in the range totals input array.
 *)
-(*** define:genericReduceRangeTotalsKernel ***)
+(*** define:GenericReduceRangeTotalsKernel ***)
 let reduceRangeTotalsKernel (initExpr:Expr<unit -> 'T>) (opExpr:Expr<'T -> 'T -> 'T>) (plan:Plan) =
     let numThreads = plan.NumThreadsReduction
     let numWarps = plan.NumWarpsReduction

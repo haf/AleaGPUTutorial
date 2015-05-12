@@ -11,7 +11,7 @@ namespace Tutorial.Cs.examples.generic_reduce
         public static int LOG_WARP_SIZE = 5;
     }
 
-    //[genericReducePlan]
+    //[GenericReducePlan]
     public class Plan
     {
         public int NumThreads { get; set; }
@@ -23,11 +23,6 @@ namespace Tutorial.Cs.examples.generic_reduce
         public int NumWarps { get { return NumThreads/Const.WARP_SIZE; } }
         public int NumWarpsReduction { get { return NumThreadsReduction/Const.WARP_SIZE; } }
         public int NumValues { get { return NumThreads*ValuesPerThread; } }
-
-        public Plan()
-        {
-            
-        }
 
         /// Finds the ranges for each block to process.
         /// Note that each range must begin a multiple of the block size.
@@ -74,7 +69,7 @@ namespace Tutorial.Cs.examples.generic_reduce
             BlockPerSm = 1
         };
     }
-    //[/genericReducePlan]
+    //[/GenericReducePlan]
 
     public enum Planner
     {

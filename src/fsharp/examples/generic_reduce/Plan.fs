@@ -6,7 +6,7 @@ open Alea.CUDA.Utilities
 let WARP_SIZE = 32
 let LOG_WARP_SIZE = 5
 
-(*** define:genericReducePlan ***)
+(*** define:GenericReducePlan ***)
 type Plan =
     {
         NumThreads : int

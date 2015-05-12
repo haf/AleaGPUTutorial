@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace Tutorial.Cs.examples.generic_scan
 {
-    class Test
+    public class Test
     {
         public Random Rng = new Random();
         public int[] Nums = {1, 2, 8, 128, 100, 1024 };
@@ -140,6 +140,12 @@ namespace Tutorial.Cs.examples.generic_scan
         {
             for (var i = 0; i < hr.Length; i++)
                 Assert.AreEqual(hr[i], dr[i], delta);
+        }
+
+        [Test]
+        public static void ScanTest()
+        {
+            
         }
     }
 }

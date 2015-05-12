@@ -23,7 +23,7 @@ namespace Tutorial.Cs.examples.generic_reduce
             _reduce = new ReduceModule<T>(target, init, add, x => x, plan);
         }
 
-        ///[genericReduceScalarProdUpsweepKernel]
+        //[GenericReduceSPUK]
         [Kernel]
         public void Upsweep(deviceptr<T> dValues1, deviceptr<T> dValues2, deviceptr<int> dRanges, deviceptr<T> dRangeTotals)
         {
@@ -54,7 +54,7 @@ namespace Tutorial.Cs.examples.generic_reduce
         {
             GPULaunch(Upsweep, lp, dValues1, dValues2, dRanges, dRangeTotals);
         }
-        ///[/genericReduceScalarProdUpsweepKernel]
+        //[/GenericReduceSPUK]
         
         ///[genericReduceScalarProdUse]
         public T Apply(T[] values1, T[] values2)

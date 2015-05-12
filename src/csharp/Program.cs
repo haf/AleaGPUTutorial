@@ -11,6 +11,8 @@ namespace Tutorial.Cs
             Console.WriteLine("        QuickStartSquareTest              |");
             Console.WriteLine("        AdvancedSinCosTest                |");
             Console.WriteLine("        ExamplesBasicSinTest              |");
+            Console.WriteLine("        ExamplesReduceTest                |");
+            Console.WriteLine("        ExamplesScanTest                  |");
             Console.WriteLine("        ExamplesMatrixMultTest            |");
             Console.WriteLine("        ExamplesMatrixTranspPerformance   |");
             Console.WriteLine("        ExamplesTriDiagSolverTest         |");
@@ -45,6 +47,14 @@ namespace Tutorial.Cs
 
                     case "examplesbasicsintest":
                         examples.basic.Test.SinTest();
+                        break;
+
+                    case "examplesreducetest":
+                        examples.generic_reduce.Test.ReduceTest();
+                        break;
+
+                    case "examplesscantest":
+                        examples.generic_scan.Test.ScanTest();
                         break;
 
                     case "examplesmatrixmulttest":
@@ -106,6 +116,8 @@ namespace Tutorial.Cs
                         quick_start.ParallelSquare.SquareTest();
                         advancedTechniques.GenericTransform.Test.SinCosTest();
                         examples.basic.Test.SinTest();
+                        examples.generic_reduce.Test.ReduceTest();
+                        examples.generic_scan.Test.ScanTest();
                         examples.matrixMultiplication.Test.MatrixMultiplyTest();
                         examples.matrixTranspose.Test.MatrixTransposePerformance();
                         examples.tridiagSolver.Test.TriDiagSolverTest();

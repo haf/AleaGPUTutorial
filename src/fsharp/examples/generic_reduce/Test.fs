@@ -12,7 +12,9 @@ open Tutorial.Fs.examples.genericReduce.ReduceApi
 
 let worker = Worker.Default
 
-/// Creating a sum reduction work flow with data in CPU memory
+(**
+Creating a sum reduction work flow with data in CPU memory
+*)
 let inline sum () = cuda {      
     let! reducer = rawSum Planner.Default  
     return Entry(fun program (values:'T[]) ->
@@ -26,11 +28,13 @@ let inline sum () = cuda {
         rangeTotals.[0]
     ) }
 
-/// Creating a scalar product reduction work flow with data in CPU memory
+(**
+Creating a scalar product reduction work flow with data in CPU memory
+*)
 let inline scalarProd () = cuda {      
     let! reducer = rawScalarProd Planner.Default  
     return Entry(fun program (values1:'T[]) (values2:'T[]) ->
-        if values1.Length <> values2.Length then failwith "lenght of vectors must be equal"
+        if values1.Length <> values2.Length then failwith "length of vectors must be equal"
         let worker = program.Worker
         let reducer = reducer program values1.Length
         use ranges = worker.Malloc(reducer.Ranges)
@@ -42,7 +46,9 @@ let inline scalarProd () = cuda {
         rangeTotals.[0]
     ) }
 
-/// Create a generic reduction work flow with data in CPU memory
+(**
+Create a generic reduction work flow with data in CPU memory
+*)
 let inline reduce init op transf = cuda {      
     let! reducer = rawGeneric Planner.Default init op transf 
     return Entry(fun program (values:'T[]) ->
@@ -56,6 +62,14 @@ let inline reduce init op transf = cuda {
         rangeTotals.[0]
     ) }
 
+(**
+Finally we test the different reduce interfaces with a few different types.
+*)
+
+(**
+Sum reduction of integers.
+*)
+(*** define:GenericReduceSumInts ***)
 let ``sum<int>`` () =
 
     let sum = sum() |> Compiler.load Worker.Default
@@ -78,6 +92,10 @@ let ``sum<int>`` () =
 
     [1; 2; 8; 10; 128; 100; 1024; 1<<<22] |> Seq.iter (test) 
 
+(**
+Sum reduction of doubles.
+*)
+(*** define:GenericReduceSumDoubles ***)
 let ``sum<float>`` () =
 
     let sum = sum() |> Compiler.load Worker.Default
@@ -100,6 +118,10 @@ let ``sum<float>`` () =
 
     [1, 1e-11; 2, 1e-11; 8, 1e-11; 10, 1e-11; 128, 1e-11; 100, 1e-11; 1024, 1e-11; 1<<<22, 1e-8] |> Seq.iter (test) 
 
+(**
+Scalar product reduction of doubles.
+*)
+(*** define:GenericReduceScalarProdDoubles ***)
 let ``scalar product<float>`` () =
 
     let scalarProd = scalarProd() |> Compiler.load Worker.Default
@@ -122,6 +144,12 @@ let ``scalar product<float>`` () =
 
     [1, 1e-11; 2, 1e-11; 8, 1e-10; 10, 1e-10; 128, 1e-10; 100, 1e-10; 1024, 1e-10; 1<<<22, 1e-6] |> Seq.iter (test) 
 
+(**
+Max reduction of doubles.  Note the specification of an init function; here we are using `__neginf()`
+from the `Alea.CUDA.Utilities.LibDevice` module.  Using `() => System.Double.NegativeInfinity` would
+work as well, but the LibDevice variation will yield better performance.
+*)
+(*** define:GenericReduceMaxDoubles ***)
 let ``max<float>`` () =    
 
     let reduce = reduce <@ fun () -> __neginf() @> <@ max @> <@ id @> |> Compiler.load Worker.Default
@@ -136,6 +164,12 @@ let ``max<float>`` () =
 
     [1, 1e-11; 2, 1e-11; 8, 1e-10; 10, 1e-10; 128, 1e-10; 100, 1e-10; 1024, 1e-10; 1<<<22, 1e-6] |> Seq.iter (test) 
 
+(**
+Min reduction of doubles.  Note the specification of an init function; here we are using `__posinf()`
+from the `Alea.CUDA.Utilities.LibDevice` module.  Using `() => System.Double.PositiveInfinity` would
+work as well, but the LibDevice variation will yield better performance.
+*)
+(*** define:GenericReduceMinDoubles ***)
 let ``min<float>`` () =    
 
     let reduce = reduce <@ fun () -> __posinf() @> <@ min @> <@ id @> |> Compiler.load Worker.Default
@@ -150,6 +184,10 @@ let ``min<float>`` () =
 
     [1, 1e-11; 2, 1e-11; 8, 1e-10; 10, 1e-10; 128, 1e-10; 100, 1e-10; 1024, 1e-10; 1<<<22, 1e-6] |> Seq.iter (test) 
 
+(**
+Reduction tests.
+*)
+(*** define:GenericReduceTests ***)
 [<Test>]
 let reduceTest () =
     ``sum<int>`` ()
