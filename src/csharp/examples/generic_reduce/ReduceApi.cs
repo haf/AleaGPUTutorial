@@ -60,13 +60,13 @@ namespace Tutorial.Cs.examples.generic_reduce
         /// x => x for the transf function.
         public static T Reduce<T>(Func<T, T, T> reductionOp, T[] input)
         {
-            return Reduce(GPUModuleTarget.DefaultWorker, () => default(T), reductionOp, x => x, input);
+            return Reduce(() => default(T), reductionOp, input);
         }
 
         /// Generic reduction using the default worker and x => x for the transf function.
         public static T Reduce<T>(Func<T> init, Func<T, T, T> reductionOp, T[] input)
         {
-            return Reduce(GPUModuleTarget.DefaultWorker, init, reductionOp, x => x, input);
+            return Reduce(init, reductionOp, x => x, input);
         }
 
         /// Generic reduction using the default worker.
