@@ -65,12 +65,33 @@ namespace Tutorial.Cs.examples.generic_reduce
             }
         }
 
+        [Test]
+        public void ScalarProdDoubles()
+        {
+            foreach (var n in Nums)
+            {
+                var values1 = Gen(() => Rng.NextDouble(), n);
+                var values2 = Gen(() => Rng.NextDouble(), n);
+                var dr = ReduceApi.ScalarProd(values1, values2);
+                var hr = cpuScalarProd((x, y) => x + y, (x, y) => x*y, values1, values2);
+                Assert.AreEqual(hr, dr, 1e-11);
+            }
+        }
+
         public T cpuReduce<T>(Func<T, T, T> op, T[] input)
         {
             var r = input[0];
             for (var i = 1; i < input.Length; i++)
                 r = op(r, input[i]);
             return r;
+        }
+
+        public T cpuScalarProd<T>(Func<T, T, T> add, Func<T, T, T> mult, T[] values1, T[] values2)
+        {
+            return 
+                cpuReduce(  add,
+                            Enumerable.Range(0, values1.Length)
+                            .Select(i => mult(values1[i], values2[i])).ToArray());
         }
 
         public T[] Gen<T>(Func<T> g, int n)

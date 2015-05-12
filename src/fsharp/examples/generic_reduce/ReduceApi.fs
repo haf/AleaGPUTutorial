@@ -78,6 +78,7 @@ let inline rawSum planner =
 // UpsweepKernel2 values ranges rangeTotals
 type UpsweepKernel2<'T> = deviceptr<'T> -> deviceptr<'T> -> deviceptr<int> -> deviceptr<'T> -> unit
 
+//(*** define:genericReduceScalarProdUse ***)
 type Raw2<'T when 'T:unmanaged> =
     /// num ranges
     abstract NumRanges : int

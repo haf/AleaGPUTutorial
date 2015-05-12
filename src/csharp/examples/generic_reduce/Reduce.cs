@@ -7,7 +7,7 @@ namespace Tutorial.Cs.examples.generic_reduce
 {
     public class ReduceModule<T> : ILGPUModule
     {
-        //[genericReduceMultiReduce]
+        ///[genericReduceMultiReduce]
         public static Func<int, T, T> MultiReduce(Func<T> initFunc, Func<T, T, T> reductionOp, int numWarps,
             int logNumWarps)
         {
@@ -77,7 +77,7 @@ namespace Tutorial.Cs.examples.generic_reduce
 
                 };
         }
-        //[/genericReduceMultiReduce]
+        ///[/genericReduceMultiReduce]
         
         private readonly Func<T> _initFunc;
         private readonly Func<T,T,T> _reductionOp;
@@ -99,7 +99,7 @@ namespace Tutorial.Cs.examples.generic_reduce
             _multiReduce = MultiReduce(initFunc, reductionOp, numWarps, logNumWarps);
         }
 
-        //[genericReduceUpsweepKernel]
+        ///[genericReduceUpsweepKernel]
         [Kernel]
         public void Upsweep(deviceptr<T> dValues, deviceptr<int> dRanges, deviceptr<T> dRangeTotals)
         {
@@ -125,9 +125,14 @@ namespace Tutorial.Cs.examples.generic_reduce
             if (tid == 0)
                 dRangeTotals[range] = total;
         }
-        //[/genericReduceUpsweepKernel]
 
-        //[genericReduceRangeTotalsKernel]
+        public void Upsweep(LaunchParam lp, deviceptr<T> dValues, deviceptr<int> dRanges, deviceptr<T> dRangeTotals)
+        {
+            GPULaunch(Upsweep, lp, dValues, dRanges, dRangeTotals);
+        }
+        ///[/genericReduceUpsweepKernel]
+
+        ///[genericReduceRangeTotalsKernel]
         [Kernel]
         public void ReduceRangeTotals(int numRanges, deviceptr<T> dRangeTotals)
         {
@@ -138,19 +143,13 @@ namespace Tutorial.Cs.examples.generic_reduce
             if (tid == 0)
                 dRangeTotals[0] = total;
         }
-        //[/genericReduceRangeTotalsKernel]
-
-
-        public void Upsweep(LaunchParam lp, deviceptr<T> dValues, deviceptr<int> dRanges, deviceptr<T> dRangeTotals)
-        {
-            GPULaunch(Upsweep, lp, dValues, dRanges, dRangeTotals);
-        }
 
         public void ReduceRangeTotals(LaunchParam lp, int numRanges, deviceptr<T> dRangeTotals)
         {
             GPULaunch(ReduceRangeTotals, lp, numRanges, dRangeTotals);
         }
-
+        ///[/genericReduceRangeTotalsKernel]
+        
         public T Apply(T[] values)
         {
             var n = values.Length;
