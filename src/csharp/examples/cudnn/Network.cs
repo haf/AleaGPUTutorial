@@ -75,6 +75,7 @@ namespace Tutorial.Cs.examples.cudnn
             _cudnn.AddTensor(CUDNNInterop.cudnnAddMode_t.CUDNN_ADD_SAME_C, alpha, _biasTensorDesc, layer.BiasD.Ptr, beta, dstTensorDesc, data.Ptr);
         }
 
+        //[CudnnMnistFCF]
         public void FullyConnectedForward(Layer ip, nchw_t nchw, DeviceMemory<float> srcData, ref DeviceMemory<float> dstData)
         {
             if (nchw.N != 1) throw new Exception("Not Implemented");
@@ -98,7 +99,9 @@ namespace Tutorial.Cs.examples.cudnn
             nchw.W = 1;
             nchw.C = dimY;
         }
+        //[/CudnnMnistFCF]
 
+        //[CudnnMnistCF]
         public void ConvoluteForward(Layer conv, nchw_t nchw, DeviceMemory<float> srcData, ref DeviceMemory<float> dstData)
         {
             _srcTensorDesc.Set4D(TensorFormat, DataType, nchw.N, nchw.C, nchw.H, nchw.W);
@@ -127,7 +130,9 @@ namespace Tutorial.Cs.examples.cudnn
                 AddBias(_dstTensorDesc, conv, c, dstData);
             }
         }
+        //[/CudnnMnistCF]
 
+        //[CudnnMnistPF]
         public void PoolForward(nchw_t nchw, DeviceMemory<float> srcData, ref DeviceMemory<float> dstData)
         {
             _poolingDesc.Set2D(CUDNNInterop.cudnnPoolingMode_t.CUDNN_POOLING_MAX, 2, 2, 0, 0, 2, 2);
@@ -141,7 +146,9 @@ namespace Tutorial.Cs.examples.cudnn
             const float beta = 0.0f;
             _cudnn.PoolingForward(_poolingDesc, alpha, _srcTensorDesc, srcData.Ptr, beta, _dstTensorDesc, dstData.Ptr);
         }
+        //[/CudnnMnistPF]
 
+        //[CudnnMnistSF]
         public void SoftmaxForward(nchw_t nchw, DeviceMemory<float> srcData, ref DeviceMemory<float> dstData)
         {
             Resize(ref dstData, nchw.N * nchw.C * nchw.H * nchw.W);
@@ -151,7 +158,9 @@ namespace Tutorial.Cs.examples.cudnn
             const float beta = 0.0f;
             _cudnn.SoftmaxForward(CUDNNInterop.cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE, CUDNNInterop.cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_CHANNEL, alpha, _srcTensorDesc, srcData.Ptr, beta, _dstTensorDesc, dstData.Ptr);
         }
+        //[/CudnnMnistSF]
 
+        //[CudnnMnistAF]
         public void ActivationForward(nchw_t nchw, DeviceMemory<float> srcData, ref DeviceMemory<float> dstData)
         {
             Resize(ref dstData, nchw.N * nchw.C * nchw.H * nchw.W);
@@ -161,7 +170,9 @@ namespace Tutorial.Cs.examples.cudnn
             const float beta = 0.0f;
             _cudnn.ActivationForward(CUDNNInterop.cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, alpha, _srcTensorDesc, srcData.Ptr, beta, _dstTensorDesc, dstData.Ptr);
         }
+        //[/CudnnMnistAF]
 
+        //[CudnnMnistClassify]
         public int ClassifyExample(string fname, Layer conv1, Layer conv2, Layer ip1, Layer ip2)
         {
             var nchw = new nchw_t()
@@ -214,7 +225,7 @@ namespace Tutorial.Cs.examples.cudnn
                 return id;
             }
         }
-
+        //[/CudnnMnistClassify]
     }
     //[/CudnnMnistNetwork]
 }
