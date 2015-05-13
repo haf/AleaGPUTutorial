@@ -94,6 +94,9 @@
     <Compile Include="examples\cublas\Axpy.fs" />
     <Compile Include="examples\cublas\Gemm.fs" />
     <Compile Include="examples\cublas\GemmBatched.fs" />
+    <Compile Include="examples\cudnn\Data.fs" />
+    <Compile Include="examples\cudnn\Layer.fs" />
+    <Compile Include="examples\cudnn\Network.fs" />
     <Compile Include="examples\cudnn\Mnist.fs" />
     <Compile Include="examples\cudnn\Data.fs" />
     <Compile Include="examples\cudnn\Layer.fs" />
