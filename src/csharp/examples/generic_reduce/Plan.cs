@@ -11,6 +11,7 @@ namespace Tutorial.Cs.examples.generic_reduce
         public static int LOG_WARP_SIZE = 5;
     }
 
+    //[GenericReducePlan]
     public class Plan
     {
         public int NumThreads { get; set; }
@@ -23,11 +24,10 @@ namespace Tutorial.Cs.examples.generic_reduce
         public int NumWarpsReduction { get { return NumThreadsReduction/Const.WARP_SIZE; } }
         public int NumValues { get { return NumThreads*ValuesPerThread; } }
 
-        public Plan()
-        {
-            
-        }
-
+        /// Finds the ranges for each block to process.
+        /// Note that each range must begin a multiple of the block size.
+        /// It returns a sequence of length 1 + effective num blocks (which is equal to min numRanges numBricks)
+        /// and the number off effective blocks, i.e. number of ranges
         public Tuple<int[],int> BlockRanges(int numSm, int count)
         {
             var numBlocks = Math.Min(BlockPerSm*numSm, NumThreadsReduction);
@@ -51,6 +51,7 @@ namespace Tutorial.Cs.examples.generic_reduce
             return new Tuple<int[], int>(ranges, ranges.Length - 1);
         }
         
+        /// Default plan for 32 bit types
         public static Plan Plan32 = new Plan()
         {
             NumThreads = 1024,
@@ -59,6 +60,7 @@ namespace Tutorial.Cs.examples.generic_reduce
             BlockPerSm = 1
         };
 
+        /// Default plan for 64 bit types
         public static Plan Plan64 = new Plan()
         {
             NumThreads = 512,
@@ -67,6 +69,7 @@ namespace Tutorial.Cs.examples.generic_reduce
             BlockPerSm = 1
         };
     }
+    //[/GenericReducePlan]
 
     public enum Planner
     {

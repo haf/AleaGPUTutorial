@@ -5,9 +5,9 @@ using Alea.CUDA.Utilities;
 
 namespace Tutorial.Cs.examples.generic_reduce
 {
-    
     public class ReduceModule<T> : ILGPUModule
     {
+        ///[GenericReduceMultiReduce]
         public static Func<int, T, T> MultiReduce(Func<T> initFunc, Func<T, T, T> reductionOp, int numWarps,
             int logNumWarps)
         {
@@ -77,7 +77,8 @@ namespace Tutorial.Cs.examples.generic_reduce
 
                 };
         }
-
+        ///[/GenericReduceMultiReduce]
+        
         private readonly Func<T> _initFunc;
         private readonly Func<T,T,T> _reductionOp;
         private readonly Func<T,T> _transform;
@@ -98,6 +99,7 @@ namespace Tutorial.Cs.examples.generic_reduce
             _multiReduce = MultiReduce(initFunc, reductionOp, numWarps, logNumWarps);
         }
 
+        ///[GenericReduceUpsweepKernel]
         [Kernel]
         public void Upsweep(deviceptr<T> dValues, deviceptr<int> dRanges, deviceptr<T> dRangeTotals)
         {
@@ -124,6 +126,13 @@ namespace Tutorial.Cs.examples.generic_reduce
                 dRangeTotals[range] = total;
         }
 
+        public void Upsweep(LaunchParam lp, deviceptr<T> dValues, deviceptr<int> dRanges, deviceptr<T> dRangeTotals)
+        {
+            GPULaunch(Upsweep, lp, dValues, dRanges, dRangeTotals);
+        }
+        ///[/GenericReduceUpsweepKernel]
+
+        ///[GenericReduceRangeTotalsKernel]
         [Kernel]
         public void ReduceRangeTotals(int numRanges, deviceptr<T> dRangeTotals)
         {
@@ -135,12 +144,12 @@ namespace Tutorial.Cs.examples.generic_reduce
                 dRangeTotals[0] = total;
         }
 
-
-        public void Upsweep(LaunchParam lp, deviceptr<T> dValues, deviceptr<int> dRanges, deviceptr<T> dRangeTotals)
+        public void ReduceRangeTotals(LaunchParam lp, int numRanges, deviceptr<T> dRangeTotals)
         {
-            GPULaunch(Upsweep, lp, dValues, dRanges, dRangeTotals);
+            GPULaunch(ReduceRangeTotals, lp, numRanges, dRangeTotals);
         }
-
+        ///[/GenericReduceRangeTotalsKernel]
+        
         public T Apply(T[] values)
         {
             var n = values.Length;

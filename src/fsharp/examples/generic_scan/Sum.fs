@@ -66,7 +66,9 @@ let inline multiScan numWarps logNumWarps =
         // Add the block scan to the inclusive scan for the block.
         scan + totalsShared.[warp] @>
 
-/// Multi-scan function for all warps in the block.
+(**
+Multi-scan function for all warps in the block.
+*)
 let inline multiScanExcl numWarps logNumWarps =
     let warpStride = WARP_SIZE + WARP_SIZE / 2 + 1
 
@@ -130,7 +132,9 @@ let inline multiScanExcl numWarps logNumWarps =
 
         exclScan.[tid] @>
 
-/// Exclusive scan of range totals.        
+(**
+Exclusive scan of range totals.
+*)
 let inline scanReduceKernel (plan:Plan)  =
     let numThreads = plan.NumThreadsReduction
     let numWarps = plan.NumWarpsReduction
@@ -147,6 +151,9 @@ let inline scanReduceKernel (plan:Plan)  =
         // Have the first thread in the block set the scan total.
         if tid = 0 then dRangeTotals.[0] <- 0G @>
 
+(**
+Sum-specialized generic scan downsweep kernel.
+*)
 let inline scanDownSweepKernel (plan:Plan) =
     let numWarps = plan.NumWarps
     let numValues = plan.NumValues

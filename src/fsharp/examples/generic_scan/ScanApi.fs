@@ -7,6 +7,12 @@ open Alea.CUDA.Utilities
 open Plan
 open Tutorial.Fs.examples.genericReduce
 
+(**
+Note the significant deviation between the F# and C# scan APIs.  The type inference system of
+F# allows for more flexibility when using generics.
+*)
+(*** define:GenericScanApi ***)
+
 // UpsweepKernel values ranges rangeTotals
 type UpsweepKernel<'T> = ReduceApi.UpsweepKernel<'T>
 
@@ -19,11 +25,11 @@ type DownsweepKernel<'T> = deviceptr<'T> -> deviceptr<'T> -> deviceptr<'T> -> de
 let plan32 : Plan = { NumThreads = 1024; ValuesPerThread = 4; NumThreadsReduction = 256; BlockPerSm = 1 }
 let plan64 : Plan = { NumThreads = 512; ValuesPerThread = 4; NumThreadsReduction = 256; BlockPerSm = 1 }
 
-// Raw scanner interface. It is created by given the number of scanning values.
-// Then it calcuate the ranges, which is an integer array of size numRanges + 1.
-// The member NumRangeTotals gives you a hint on the minumal size requirement on rangeTotals.
-// The member Scan takes this signature:
-// Scan : program -> num range totals -> ranges -> rangeTotals -> values -> results -> inclusive -> unit
+/// Raw scanner interface. It is created by given the number of scanning values.
+/// Then it calcuate the ranges, which is an integer array of size numRanges + 1.
+/// The member NumRangeTotals gives you a hint on the minumal size requirement on rangeTotals.
+/// The member Scan takes this signature:
+/// Scan : program -> num range totals -> ranges -> rangeTotals -> values -> results -> inclusive -> unit
 type Raw<'T when 'T : unmanaged> =
     /// num ranges
     abstract NumRanges : int

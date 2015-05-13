@@ -68,11 +68,9 @@
     <Compile Include="examples\generic_reduce\Reduce.cs" />
     <Compile Include="examples\generic_reduce\ReduceApi.cs" />
     <Compile Include="examples\generic_reduce\ScalarProd.cs" />
-    <Compile Include="examples\generic_reduce\Sum.cs" />
     <Compile Include="examples\generic_reduce\Test.cs" />
     <Compile Include="examples\generic_scan\Scan.cs" />
     <Compile Include="examples\generic_scan\ScanApi.cs" />
-    <Compile Include="examples\generic_scan\Sum.cs" />
     <Compile Include="examples\generic_scan\Test.cs" />
     <Compile Include="examples\matrix_multiplication\MatrixMult.cs" />
     <Compile Include="examples\matrix_transpose\MatrixTransp.cs" />

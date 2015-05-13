@@ -6,6 +6,12 @@ open Alea.CUDA
 open Alea.CUDA.Utilities
 open Plan
 
+(**
+Note the significant deviation between the F# and C# reduce APIs.  The type inference system
+of F# allows for more flexibility when using generics.
+*)
+(*** define:GenericReduceApi ***)
+
 // UpsweepKernel values ranges rangeTotals
 type UpsweepKernel<'T> = deviceptr<'T> -> deviceptr<int> -> deviceptr<'T> -> unit
 

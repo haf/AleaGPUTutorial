@@ -7,7 +7,8 @@ open Alea.CUDA.Utilities
 open Plan
 
 (**
-Sum multi-reduce function for a warps in the block.
+Sum multi-reduce function for all warps in the block.  This sum-specialized multi reduce function
+is unique to the F# implementation of generic reduce.
 *)
 let inline multiReduce numWarps logNumWarps =
     let warpStride = WARP_SIZE + WARP_SIZE / 2 + 1
@@ -58,8 +59,9 @@ let inline multiReduce numWarps logNumWarps =
         totalsShared.[2 * numWarps - 1] @>
 
 (**
-Sum reduces ranges and store reduced values in array of the range totals.
-*)    
+Sum reduces ranges and store reduced values in array of the range totals.  This sum-specialized 
+upsweep kernel is unique to the F# implementation of generic reduce.
+*)
 let inline reduceUpSweepKernel (plan:Plan) =
     let numThreads = plan.NumThreads
     let numWarps = plan.NumWarps
@@ -86,7 +88,9 @@ let inline reduceUpSweepKernel (plan:Plan) =
         if tid = 0 then dRangeTotals.[block] <- total @>
 
 (**
-Sum reduces range totals to a single total, which is written back to the first element in the range totals input array.
+Sum reduces range totals to a single total, which is written back to the first element in the 
+range totals input array.   This sum-specialized reduce range totals kernel is unique to the F# 
+implementation of generic reduce.
 *)
 let inline reduceRangeTotalsKernel (plan:Plan) =
     let numThreads = plan.NumThreadsReduction

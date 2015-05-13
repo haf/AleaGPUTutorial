@@ -4,111 +4,87 @@ using NUnit.Framework;
 
 namespace Tutorial.Cs.examples.generic_scan
 {
-    class Test
+    public static class Test
     {
-        public Random Rng = new Random();
-        public int[] Nums = {1, 2, 8, 128, 100, 1024 };
-        public bool Verbose = false;
-        public int ShowLimit = 8;
+        public static Random Rng = new Random();
+        public static int[] Nums = { 1, 2, 8, 128, 100, 1024 };
+        public static bool Verbose = false;
+        public static int ShowLimit = 8;
 
-        [Test]
-        public void InclusiveSumInts()
+        //[GenericScanSumInts]
+        public static void SumInts()
         {
             foreach (var n in Nums)
             {
-                var values = Gen(() => Rng.Next(), n);
-                var dr = ScanApi.Sum(values, true);
-                var hr = cpuScan((x,y)=> x+y, values, true);
-                Show(hr, dr);
-                Compare(hr,dr);
+                var values = Gen(Rng.Next, n);
+                // Inclusive scan
+                var dri = ScanApi.Sum(values, true);
+                var hri = cpuScan((x,y)=> x+y, values, true);
+                Compare(hri,dri);
+                // Exclusive scan
+                var dre = ScanApi.Sum(values, false);
+                var hre = cpuScan((x, y) => x + y, values, false);
+                Compare(hre, dre);
             }
         }
+        //[/GenericScanSumInts]
 
-        [Test]
-        public void ExclusiveSumInts()
+        //[GenericScanGenericSumInts]
+        public static void SumIntsGeneric()
         {
             foreach (var n in Nums)
             {
-                var values = Gen(() => Rng.Next(), n);
-                var dr = ScanApi.Sum(values, false);
-                var hr = cpuScan((x, y) => x + y, values, false);
-                Show(hr, dr);
-                Compare(hr,dr);
+                var values = Gen(Rng.Next, n);
+                // Inclusive scan
+                var dri = ScanApi.Scan((x, y) => x + y, values, true);
+                var hri = cpuScan((x, y) => x + y, values, true);
+                Compare(hri,dri);
+                // Exclusive scan
+                var dre = ScanApi.Scan((x, y) => x + y, values, false);
+                var hre = cpuScan((x, y) => x + y, values, false);
+                Compare(hre, dre);
             }
         }
-        
-        [Test]
-        public void InclusiveSumDoubles()
+        //[/GenericScanGenericSumInts]
+
+        //[GenericScanSumDoubles]
+        public static void SumDoubles()
         {
             foreach (var n in Nums)
             {
-                var values = Gen(() => Rng.NextDouble(), n);
-                var dr = ScanApi.Sum(values, true);
-                var hr = cpuScan((x,y) => x + y, values, true);
-                Show(hr, dr);
-                Compare(hr,dr,1e-11);
+                var values = Gen(Rng.NextDouble, n);
+                // Inclusive scan
+                var dri = ScanApi.Sum(values, true);
+                var hri = cpuScan((x,y) => x + y, values, true);
+                Compare(hri,dri,1e-11);
+                // Exclusive scan
+                var dre = ScanApi.Sum(values, false);
+                var hre = cpuScan((x, y) => x + y, values, false);
+                Compare(hre, dre, 1e-11);
             }
         }
+        //[/GenericScanSumDoubles]
 
-        [Test]
-        public void ExclusiveSumDoubles()
+        //[GenericScanGenericSumDoubles]
+        public static void SumDoublesGeneric()
         {
             foreach (var n in Nums)
             {
-                var values = Gen(() => Rng.NextDouble(), n);
-                var dr = ScanApi.Sum(values, false);
-                var hr = cpuScan((x, y) => x + y, values, false);
-                Show(hr, dr);
-                Compare(hr, dr, 1e-11);
+                var values = Gen(Rng.NextDouble, n);
+                // Inclusive scan
+                var dri = ScanApi.Scan((x, y) => x + y, values, true);
+                var hri = cpuScan((x, y) => x + y, values, true);
+                Compare(hri, dri, 1e-11);
+                // Exclusive scan
+                var dre = ScanApi.Scan((x, y) => x + y, values, false);
+                var hre = cpuScan((x, y) => x + y, values, false);
+                Compare(hre, dre, 1e-11);
             }
         }
+        //[/GenericScanGenericSumDoubles]
 
-
-        [Test]
-        public void InclusiveSumSingles()
-        {
-            foreach (var n in Nums)
-            {
-                var values = Gen(() => (float) Rng.NextDouble(), n);
-                var dr = ScanApi.Sum(values, true);
-                var hr = cpuScan((x, y) => x + y, values, true);
-                Show(hr, dr);
-                Compare(hr, dr, 1e-3);
-            }            
-        }
-
-        [Test]
-        public void ExclusiveSumSingles()
-        {
-            foreach (var n in Nums)
-            {
-                var values = Gen(() => (float)Rng.NextDouble(), n);
-                var dr = ScanApi.Sum(values, false);
-                var hr = cpuScan((x, y) => x + y, values, false);
-                Show(hr, dr);
-                Compare(hr, dr, 1e-3);
-            }
-        }
-
-        [Test]
-        public void GenericTests()
-        {
-            const bool inclusive = true;
-
-            foreach (var n in Nums)
-            {
-                var v1 = Gen(() => Rng.Next(), n);
-                var v2 = Gen(() => Rng.NextDouble(), n);
-                var hr1 = cpuScan((x, y) => x + y, v1, inclusive);
-                var hr2 = cpuScan((x, y) => x + y, v2, inclusive);
-                var dr1 = ScanApi.Scan(v1, (x,y) => x+y, inclusive);
-                var dr2 = ScanApi.Scan(v2, (x, y) => x + y, inclusive);
-                Compare(hr1, dr1);
-                Compare(hr2, dr2, 1e-11);
-            }
-        }
-
-        public T[] cpuScan<T>(Func<T, T, T> op, T[] input, bool inclusive)
+        //[GenericScanCPUScan]
+        public static T[] cpuScan<T>(Func<T, T, T> op, T[] input, bool inclusive)
         {
             var result = new T[input.Length + 1];
             result[0] = default(T);
@@ -116,13 +92,14 @@ namespace Tutorial.Cs.examples.generic_scan
                 result[i] = op(result[i - 1], input[i - 1]);
             return inclusive ? result.Skip(1).ToArray() : result.Take(input.Length).ToArray();
         }
+        //[/GenericScanCPUScan]
 
-        public T[] Gen<T>(Func<T> g, int n)
+        public static T[] Gen<T>(Func<T> g, int n)
         {
             return Enumerable.Range(0, n).Select(_ => g()).ToArray();
         }
 
-        public void Show<T>(T[] hr, T[] dr)
+        public static void Show<T>(T[] hr, T[] dr)
         {
             if (Verbose && (hr.Length <= ShowLimit))
             {
@@ -131,15 +108,26 @@ namespace Tutorial.Cs.examples.generic_scan
             }
         }
 
-        public void Compare<T>(T[] hr, T[] dr)
+        public static void Compare<T>(T[] hr, T[] dr)
         {
             Compare(hr,dr,0.0);
         }
 
-        public void Compare<T>(T[] hr, T[] dr, dynamic delta)
+        public static void Compare<T>(T[] hr, T[] dr, dynamic delta)
         {
             for (var i = 0; i < hr.Length; i++)
                 Assert.AreEqual(hr[i], dr[i], delta);
         }
+
+        //[GenericScanTests]
+        [Test]
+        public static void ScanTest()
+        {
+            SumInts();
+            SumIntsGeneric();
+            SumDoubles();
+            SumDoublesGeneric();
+        }
+        //[/GenericScanTests]
     }
 }
