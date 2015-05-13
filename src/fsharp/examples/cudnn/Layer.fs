@@ -3,7 +3,6 @@ module Tutorial.Fs.examples.cudnn.Layer
 open System
 open System.IO
 open Alea.CUDA
-//open Data
 
 (*** define:CudnnMnistLayer ***)
 type Layer = 

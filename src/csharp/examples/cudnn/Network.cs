@@ -34,7 +34,8 @@ namespace Tutorial.Cs.examples.cudnn
             _poolingDesc = new CUDNNPoolingDescriptor();
         }
 
-        // @Aaron: we need implement IDisposable, we have lot of unmanaged resources
+        // It is a good idea to implement Network as a disposable object because we are using
+        // many unmanaged resources.
         public override void Dispose(bool disposing)
         {
             if (disposing)
@@ -76,9 +77,7 @@ namespace Tutorial.Cs.examples.cudnn
 
         public void FullyConnectedForward(Layer ip, nchw_t nchw, DeviceMemory<float> srcData, ref DeviceMemory<float> dstData)
         {
-
             if (nchw.N != 1) throw new Exception("Not Implemented");
-            //Console.WriteLine("fcf n,c,h,w ===> {0}, {1}, {2}, {3}", nchw.N, nchw.C, nchw.H, nchw.W);
             var dimX = nchw.C * nchw.H * nchw.W;
             var dimY = ip.Outputs;
             Resize(ref dstData, dimY);
@@ -86,11 +85,12 @@ namespace Tutorial.Cs.examples.cudnn
             const float alpha = 1.0f;
             const float beta = 1.0f;
 
-            // this cuMemcpyDtoD is raw CUDA API, should be guard with worker.eval
+            // This cuMemcpyDtoD is a raw CUDA API call so it should be guarded with worker.Eval
             var output = dstData;
             _worker.EvalAction(() => CUDAInterop.cuMemcpyDtoD(output.Ptr.Handle, ip.BiasD.Handle, (IntPtr)(dimY * sizeof(float))));
 
-            // this doesn't need worker.eval, cause cudnn is a thin wrapper, it has worke.eval 
+            // This cublas call doesn't need worker.Eval because cublas is a thin wrapper for the raw API 
+            // and it alreadyhas worke.eval  
             _cublas.Sgemv(CUBLASInterop.cublasOperation_t.CUBLAS_OP_T, dimX, dimY, alpha, ip.DataD.Ptr, dimX,
                 srcData.Ptr, 1, beta, dstData.Ptr, 1);
 
@@ -101,7 +101,6 @@ namespace Tutorial.Cs.examples.cudnn
 
         public void ConvoluteForward(Layer conv, nchw_t nchw, DeviceMemory<float> srcData, ref DeviceMemory<float> dstData)
         {
-            //Console.WriteLine("n,c,h,w ======> {0}, {1}, {2}, {3}", nchw.N, nchw.C, nchw.H, nchw.W);
             _srcTensorDesc.Set4D(TensorFormat, DataType, nchw.N, nchw.C, nchw.H, nchw.W);
             _filterDesc.Set4D(DataType, conv.Outputs, conv.Inputs, conv.KernelDim, conv.KernelDim);
             _convDesc.Set2D(0, 0, 1, 1, 1, 1, CUDNNInterop.cudnnConvolutionMode_t.CUDNN_CROSS_CORRELATION);
@@ -117,11 +116,9 @@ namespace Tutorial.Cs.examples.cudnn
             var algo = _cudnn.GetConvolutionForwardAlgorithm(_srcTensorDesc, _filterDesc, _convDesc, _dstTensorDesc,
                 CUDNNInterop.cudnnConvolutionFwdPreference_t.CUDNN_CONVOLUTION_FWD_PREFER_FASTEST, (IntPtr)0);
 
-            //Console.WriteLine("n,c,h,w ======> {0}, {1}, {2}, {3}", nchw.N, nchw.C, nchw.H, nchw.W);
             Resize(ref dstData, nchw.N * nchw.C * nchw.H * nchw.W);
             var sizeInBytes = _cudnn.GetConvolutionForwardWorkspaceSize(_srcTensorDesc, _filterDesc, _convDesc, _dstTensorDesc, algo);
 
-            // I changed the malloc, so it can support malloc(0), where malloc(0).Ptr = 0n
             using (var workSpace = _worker.Malloc<byte>(sizeInBytes.ToInt32()))
             {
                 const float alpha = 1.0f;
@@ -142,7 +139,6 @@ namespace Tutorial.Cs.examples.cudnn
             Resize(ref dstData, nchw.N * nchw.C * nchw.H * nchw.W);
             const float alpha = 1.0f;
             const float beta = 0.0f;
-            //Console.WriteLine("n,c,h,w ======> {0}, {1}, {2}, {3}", nchw.N, nchw.C, nchw.H, nchw.W);
             _cudnn.PoolingForward(_poolingDesc, alpha, _srcTensorDesc, srcData.Ptr, beta, _dstTensorDesc, dstData.Ptr);
         }
 
@@ -207,7 +203,7 @@ namespace Tutorial.Cs.examples.cudnn
                 SoftmaxForward(nchw, dst, ref src);
 
                 Console.WriteLine("Finished forward propigation.");
-                var maxDigits = 10;
+                const int maxDigits = 10;
                 var hsrc = src.Gather();
                 var result = hsrc.Take(maxDigits).ToArray();
                 var id = 0;
@@ -217,7 +213,6 @@ namespace Tutorial.Cs.examples.cudnn
                 Console.WriteLine("Classification Complete.\n");
                 return id;
             }
-
         }
 
     }

@@ -18,7 +18,7 @@ The code below is a port of the C++ MNist sample which accompanies the [library]
 
 The example demonstrates how to use the CUDNN library to implement forward pass.
 *)
-
+(*** define:CudnnMnistTest ***)
 let [<Test>] test() =
     use worker = Worker.Default
     use network = new Network(worker)

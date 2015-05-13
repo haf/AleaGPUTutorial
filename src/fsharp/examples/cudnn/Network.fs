@@ -15,6 +15,8 @@ type nchw_t =
 
 (*** define:CudnnMnistNetwork ***)
 type Network(worker:Worker) =
+    // It is a good idea to implement Network as a disposable object because we are using
+    // many unmanaged resources.
     inherit DisposableObject()
 
     let DataType = CUDNNInterop.cudnnDataType_t.CUDNN_DATA_FLOAT;
@@ -47,9 +49,10 @@ type Network(worker:Worker) =
         net.Resize(dstData, dimY)
 
         let alpha, beta = 1.f, 1.f
-        // this cuMemcpyDtoD is a raw CUDA API call so it should be guarded with worker.eval
+        // This cuMemcpyDtoD is a raw CUDA API call so it should be guarded with worker.Eval
         worker.Eval <| fun _ -> CUDAInterop.cuMemcpyDtoD(dstData.contents.Ptr.Handle, ip.BiasD.Handle, IntPtr(dimY * sizeof<float32>)) |> ignore
-        // this doesn't need worker.eval, cause cudnn is a thin wrapper, it has worke.eval 
+        // This cublas call doesn't need worker.Eval because cublas is a thin wrapper for the raw API 
+        // and it alreadyhas worke.eval 
         cublas.Sgemv(CUBLASInterop.cublasOperation_t.CUBLAS_OP_T, dimX, dimY, alpha, ip.DataD.Ptr, dimX, srcData.Ptr, 1, beta, dstData.contents.Ptr, 1)
         nchw.H <- 1; nchw.W <- 1; nchw.C <- dimY
 
@@ -66,7 +69,6 @@ type Network(worker:Worker) =
 
         net.Resize(dstData, nchw.N * nchw.C * nchw.H * nchw.W)
         let sizeInBytes = cudnn.GetConvolutionForwardWorkspaceSize(srcTensorDesc, filterDesc, convDesc, dstTensorDesc, algo)
-        // I changed the malloc, so it can support malloc(0), where malloc(0).Ptr = 0n
         use workSpace = worker.Malloc<byte>(sizeInBytes.ToInt32())
         let alpha, beta = 1.f, 0.f
         cudnn.ConvolutionForward(alpha, srcTensorDesc, srcData.Ptr, filterDesc, conv.DataD.Ptr, convDesc, algo, workSpace.Ptr, sizeInBytes, beta, dstTensorDesc, dstData.contents.Ptr)

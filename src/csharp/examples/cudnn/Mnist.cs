@@ -6,6 +6,7 @@ namespace Tutorial.Cs.examples.cudnn
 {
     public class Test
     {
+        //[CudnnMnistTest]
         [Test]
         public static void MnistTest()
         {
@@ -37,5 +38,6 @@ namespace Tutorial.Cs.examples.cudnn
                 Assert.AreEqual(i3, 5);
             }
         }
+        //[/CudnnMnistTest]
     }
 }
