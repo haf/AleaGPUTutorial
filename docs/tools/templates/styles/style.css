@@ -224,94 +224,14 @@ h6 a, h6 a:hover, h6 a:focus { color : inherit; text-decoration : inherit; outli
   display: none;
 }
 
-#san_header {
-  width: 100%;
-}
-
-#san_header #nav:after{
-  display: block;
-  clear: both;
-  content:"";
-}
-#san_header #nav .opener{display: none;}
-#san_header #nav .slide >ul > li{
-  display:inline-block;
-  vertical-align:top;
-  margin: 0 0 0 47px;
-  position: relative;
-}
-#san_header #nav .slide > ul > li:first-child{margin-left: 0;}
-#san_header #nav  .slide > ul > li > a{
-  font-size: 15px;
-  line-height: 18px;
-  text-transform: capitalize;
-  color:#245596;
-  display: block;
-  padding: 0 0 18px;
-  border-bottom: 9px solid transparent;
-  font-weight: bold;
-}
-#san_header #nav .slide > ul >.active > a,
-#san_header #nav .slide > ul > li:hover > a{
-  border-bottom: 9px solid #245596;
-}
-#san_header #nav .slide ul .dropdown{
-  display: none;
-  width: 248px;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  border:1px solid #eee9e1;
-  background:#fff;
-  z-index: 100;
-}
-#san_header #nav  .slide > ul li a.hover .dropdown{display: block;}
-#san_header #nav  ul ul li{margin: 0;}
-#san_header #nav  ul ul a{
-  display: block;
-  color:#333;
-  padding: 14px 25px 16px;
-}
-#san_header #nav  ul .dropdown a:hover{background:#eee9e1;}
-.main-heading{
-  width: 100%;
-  background:#245596;
-  margin: -1px 0 58px;
-}
-
-#header-box {
-  text-align: right;
-  margin: 0 0 4px auto;
-  overflow: hidden;
-}
-
-#san_header .san_header-holder {
-  max-width: 1136px;
-  margin: 0 auto;
-  padding: 15px 10px 0px 10px;
-}
-
-#san_header .san_header-box {
-  text-align: right;
-  margin: 0 0 4px auto;
-  overflow: hidden;
-}
-
-#san_header ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+#referenceContentInner {
+  display: flex;
 }
 
 #referenceContent .span3 {
-  position: absolute;
-  margin-left: 45px;
-}
-
-#referenceContent .span9 {
-  max-width: 1136px;
-  margin: 0 auto;
-  padding: 15px 10px 0px 10px;
+  min-width: 350px;
+  max-width: 400px;
+  width: 25%;
 }
 
 #referenceContent td {
