@@ -1,24 +1,37 @@
-@import url(http://fonts.googleapis.com/css?family=Droid+Sans|Droid+Sans+Mono|ABeeZee);
+@import url(https://fonts.googleapis.com/css?family=Droid+Sans|Droid+Sans+Mono|Open+Sans:400,600,700);
 
 /*-------------------------------------------------------------------------- 
   Formatting for F# code snippets 
 /*--------------------------------------------------------------------------*/
 
-/* identifier */
+/* strings --- and stlyes for other string related formats */
+span.s { color:#E0E268; }
+/* printf formatters */
+span.pf { color:#E0C57F; }
+/* escaped chars */
+span.e { color:#EA8675; }
+
+/* identifiers --- and styles for more specific identifier types */
 span.i { color:#d1d1d1; }
-/* string */
-span.s { color:#d4b43c; }
+/* type or module */
+span.t { color:#43AEC6; }
+/* function */
+span.f { color:#e1e1e1; }
+/* DU case or active pattern */
+span.p { color:#4ec9b0; }
+
 /* keywords */
-span.k { color:#4e98dc; }
+span.k { color:#FAB11D; }
 /* comment */
-span.c { color:#96C71D; }
+span.c { color:#808080; }
 /* operators */
 span.o { color:#af75c1; }
 /* numbers */
 span.n { color:#96C71D; }
 /* line number */
 span.l { color:#80b0b0; }
-
+/* mutable var or ref cell */
+span.v { color:#d1d1d1; font-weight: bold; }
 /* inactive code */
 span.inactive { color:#808080; }
 /* preprocessor */
@@ -28,43 +41,37 @@ span.fsi { color:#808080; }
 
 /* omitted */
 span.omitted { 
-        background:#3c4e52;
+  background:#3c4e52;
   border-radius:5px;
-        color:#808080;
-        padding:0px 0px 1px 0px;
+  color:#808080;
+  padding:0px 0px 1px 0px;
 }
 /* tool tip */
 div.tip {
-        background:#475b5f;
+  background:#475b5f;
   border-radius:4px;
   font:11pt 'Droid Sans', arial, sans-serif;
-        padding:6px 8px 6px 8px;
-        display:none;
+  padding:6px 8px 6px 8px;
+  display:none;
   color:#d1d1d1;
 }
 table.pre pre {
   padding:0px;
   margin:0px;
   border:none;
-}
-.container-fluid table.pre, .container-fluid pre.fssnip {
-  padding:45px 10px 10px 10px;
-}
-
+} 
 table.pre, pre.fssnip, pre {
   line-height:13pt;
   border:1px solid #d8d8d8;
   border-collapse:separate;
   white-space:pre;
-  font: 9pt 'Droid Sans Mono',consolas,monospace !important;
-  width:100%;
-  margin:0px;
+  font: 9pt 'Droid Sans Mono',consolas,monospace;
+  width:90%;
+  margin:10px 20px 20px 20px;
   background-color:#212d30;
   padding:10px;
   border-radius:5px;
-  color:#d1d1d1;
-  overflow: auto;
-  display: block;
+  color:#d1d1d1;  
 }
 table.pre pre {
   padding:0px;
@@ -86,7 +93,7 @@ table.pre td.lines {
 /*--------------------------------------------------------------------------*/
 
 body {
-  /*font-family: ABeeZee, serif;*/
+  font-family: 'Open Sans', serif;
   padding-top: 0px;
   padding-bottom: 40px;
 }
@@ -98,6 +105,10 @@ pre {
 /* Format the heading - nicer spacing etc. */
 .masthead {
   overflow: hidden;
+}
+.masthead .muted a {
+  text-decoration:none;
+  color:#999999;
 }
 .masthead ul, .masthead li {
   margin-bottom:0px;
@@ -123,7 +134,7 @@ td.title, thead {
 #menu {
   margin-top:50px;
   font-size:11pt;
-  padding-left:10px;
+  padding-left:20px;
 }
 
 #menu .nav-header {
@@ -136,45 +147,19 @@ td.title, thead {
   line-height:25px;
 }
 
-#menu li.nav-header {
-  margin-left:-10px;
-}
-
 /* Change font sizes for headings etc. */
-#main h1{
-  font-size: 2.333em !important;
-  line-height: 1.143em;
-  color:#245596;
-  font-weight: normal;
-  margin: 0 0 37px;
-}
-
-#main h2 { font-size: 20pt; margin:20px 0px 0px 0px; }
-#main h3 { font-size: 14pt; margin:15px 0px 0px 0px; }
-#main p  { font-size: 12pt; margin:5px 0px 15px 0px; }
-#main ul { font-size: 12pt; margin-top:10px; }
-#main li { font-size: 12pt; margin: 5px 0px 5px 0px; }
+#main h1 { font-size: 26pt; margin:10px 0px 15px 0px; font-weight:400; }
+#main h2 { font-size: 20pt; margin:20px 0px 0px 0px; font-weight:400; }
+#main h3 { font-size: 14pt; margin:15px 0px 0px 0px; font-weight:600; }
+#main p  { font-size: 11pt; margin:5px 0px 15px 0px; }
+#main ul { font-size: 11pt; margin-top:10px; }
+#main li { font-size: 11pt; margin: 5px 0px 5px 0px; }
+#main strong { font-weight:700; }
 
 /*-------------------------------------------------------------------------- 
   Formatting for API reference
 /*--------------------------------------------------------------------------*/
 
-#main h2 {               
-  font-size: 160%;
-  margin-top:40px;
-}
-
-#main  h2{
-	font:bold 1.4em/1.238em 'HelveticaNeueW02-Thin', Arial, Helvetica, sans-serif !important;
-	padding-top: 20px;
-	margin: 0 0 29px;
-}
-
-#main h3 {
-  font-size: 130%;
-  font-weight: bold;
-  margin-top: 20px;
-}
 .type-list .type-name, .module-list .module-name {
   width:25%;
   font-weight:bold;
@@ -190,28 +175,29 @@ td.title, thead {
   font-size:12pt;
   margin:10px 0px 0px 0px;
 }
-
-.nav-list > li > a {
-  padding-left: 7px;
+.github-link {
+  float:right;
+  text-decoration:none;
 }
-
-li.namespace, ul.namespace {
-  list-style-image: url('../images/namespace.png');
-  padding: 0px;
-  margin-left: 5px;
+.github-link img {
+  border-style:none;
+  margin-left:10px;
 }
+.github-link .hover { display:none; }
+.github-link:hover .hover { display:block; }
+.github-link .normal { display: block; }
+.github-link:hover .normal { display: none; }
 
-li.module, ul.module {
-  list-style-image: url('../images/module.png');
-  padding: 0px;
-  margin-left: 3px;
-}
+/*-------------------------------------------------------------------------- 
+  Links 
+/*--------------------------------------------------------------------------*/
 
-li.assembly, ul.assembly {
-  list-style-image: url('../images/assembly.png');
-  padding: 0px;
-  margin-left: 10px;
-}
+h1 a, h1 a:hover, h1 a:focus,
+h2 a, h2 a:hover, h2 a:focus,
+h3 a, h3 a:hover, h3 a:focus,
+h4 a, h4 a:hover, h4 a:focus,
+h5 a, h5 a:hover, h5 a:focus,
+h6 a, h6 a:hover, h6 a:focus { color : inherit; text-decoration : inherit; outline:none }
 
 /*-------------------------------------------------------------------------- 
   Additional formatting for the homepage 
@@ -234,136 +220,61 @@ li.assembly, ul.assembly {
   margin-top:15px;
 }
 
-/* Hide snippets on the home page snippet & nicely format table */
-#hp-snippet td.lines {
+#wrapper {
   display: none;
 }
-#hp-snippet .table {
-  width:80%;
-  margin-left:30px;
-}
 
-#anim-holder {
-  overflow:hidden;
-  position:relative;
-  border-radius:5px;
-}
-
-.tablink-0, .tablink-1, .tablink-2 {
-  cursor:pointer;
-  border-style:none;
-  color:#f0f8ff;
-  border-radius:5px;
-  background:#415d60;
-  opacity:0.7;
-  width:50px;
-  height:23px;
-  text-align:center;
-  padding-top:0px;
-  position:absolute;
-  top:15px;
-}
-
-.tablink-0 {
-  right:140px
-}
-
-.tablink-1 {
-  right:80px
-}
-
-.tablink-2 {
-  right:20px
-}
-
-.tab-0 {
-  display:block;
-  overflow:auto;
-}
-
-.tab-1 {
-  display:none;
-}
-
-.tab-2 {
-  display:none;
-  overflow:auto;
-}
-
-
-#anim-holder a img {
-  min-width:800px;
-}
-
-.nav-list > li > a.nflag {
-  float:right;
-  padding:0px;
-}
-.nav-list > li > a.nflag2 {
-  margin-right:18px;
-}
-
-.container {
-  margin: 0px;
+#san_header {
   width: 100%;
 }
 
-/* Unified styles */
-/* .san_header-holder */
-#referenceContent {
-  border-top-color: rgb(227, 232, 234);
-  border-top-style: solid;
-  border-top-width: 1px;
-  padding: 20px 10px;
+#san_header #nav:after{
+	display: block;
+	clear: both;
+	content:"";
 }
-
-#referenceContentInner {
-  max-width: 1136px;
-  margin: 0 auto;
-  padding-left: 20px;
+#san_header #nav .opener{display: none;}
+#san_header #nav .slide >ul > li{
+	display:inline-block;
+	vertical-align:top;
+	margin: 0 0 0 47px;
+	position: relative;
 }
-
-#referenceContent .nav-header {
-  padding: 3px 0px;
+#san_header #nav .slide > ul > li:first-child{margin-left: 0;}
+#san_header #nav  .slide > ul > li > a{
+	font-size: 15px;
+	line-height: 18px;
+	text-transform: capitalize;
+	color:#245596;
+	display: block;
+	padding: 0 0 18px;
+	border-bottom: 9px solid transparent;
+	font-weight: bold;
 }
-
-#referenceContent  a{
-  width:100%!important;
-  padding:0px;
-  margin:0px;
-  color:#225398;
-  text-transform:normal;
-  font: 16px/25px "HelveticaNeueW02-45Ligh",Helvetica,Arial,sans-serif;
+#san_header #nav .slide > ul >.active > a,
+#san_header #nav .slide > ul > li:hover > a{
+	border-bottom: 9px solid #245596;
 }
-
-#referenceContent li.module > a {
-  margin-left: -5px;
+#san_header #nav .slide ul .dropdown{
+	display: none;
+	width: 248px;
+	position: absolute;
+	top: 100%;
+	left: 0;
+	border:1px solid #eee9e1;
+	background:#fff;
+	z-index: 100;
 }
-
-#referenceContent .nav-list a {
-  margin-left:0px; /*-10px;*/
-  padding-left:5px;
-  margin-bottom:3px;
+#san_header #nav  .slide > ul li a.hover .dropdown{display: block;}
+#san_header #nav  ul ul li{margin: 0;}
+#san_header #nav  ul ul a{
+	display: block;
+	color:#333;
+	padding: 14px 25px 16px;
 }
-
-#referenceContent > td > a:hover,li > a:hover{
-  color:#8b8b8b;
-  background-color:transparent;
-  text-decoration:none;
-}
-
-#referenceContent .nav-list>.active>a, .nav-list>.active>a:hover {
-  background-color:#245596;
-  color:white;  
-}
-
-#referenceContent .span3 {
-  margin: 0px;
-  width:25%;
-  float:left;
-  min-width:180px;
-}
-
-#referenceContent .span9{
-  width:70%;
+#san_header #nav  ul .dropdown a:hover{background:#eee9e1;}
+.main-heading{
+	width: 100%;
+	background:#245596;
+	margin: -1px 0 58px;
 }

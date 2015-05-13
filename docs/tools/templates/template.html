@@ -9,11 +9,9 @@
     <link rel="shortcut icon" href="{root}/content/favicon.ico">
     <script src="{root}/content/jquery-1.8.0.min.js"></script>
     <script src="{root}/content/jquery-ui.1.8.23.min.js"></script>
-    <script src="{root}/content/bootstrap.2.2.1.min.js"></script>
-    <link href="{root}/content/bootstrap-combined.2.2.1.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
     <link href="{root}/content/style.css" type="text/css" rel="stylesheet"/>
-    <link href="{root}/content/all1.css" type="text/css" rel="stylesheet"/>
-    <link href="{root}/content/font-awesome.css" type="text/css" rel="stylesheet"/>
     <script src="{root}/content/tips.js" type="text/javascript"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <script type="text/javascript">
@@ -34,8 +32,6 @@
     <![endif]-->
 </head>
 <body>
-<div class="container">
-<!------------------------------------------------------ header of the page ------------------------------------------->
 <header id="san_header">
 <div class="san_header-holder">
 <div class="san_header-box">
@@ -43,7 +39,6 @@
       <li> <a href="http://quantalea.com/home">Home</a> </li>
       <li> <a href="http://quantalea.com/contact">Contact</a> </li>
     </ul>
-    <!--- social-icons-->
             <ul class="san_social-networks">
               <li> <a href="https://twitter.com/quantalea"><i class="icon-twitter"></i></a> </li>
               <li> <a href="https://www.linkedin.com/company/1141185"><i class="icon-linkin"></i></a> </li>
@@ -52,7 +47,6 @@
               <li> <a href="http://stackoverflow.com/users/4373731/quantalea"><i class="icon-ico"></i></a> </li>
             </ul>
           </div>
-          <!-- Logo of the page -->
           <div class="san_logo"> <a href="http://quantalea.com/"> <span data-picture="" data-alt="QuantAlea">
                   <span data-src="{root}/content/images/logo.png"></span>
                   <span data-height="67" data-width="313" data-src="{root}/content/images/logo2x.png" data-media="(-webkit-min-device-pixel-ratio:1.5), (min-resolution:1.5dppx)"></span>
@@ -67,7 +61,7 @@
                 <li><a href="http://quantalea.com/highlights">Highlights</a></li>
                 <li><a href="http://quantalea.com/news">News</a></li>
                 <li class="active"><a href="http://quantalea.com/static/app/tutorial/index.html">Docs</a>
-                  <ul class="sub-menu">
+                  <ul class="dropdown">
                     <li><a href="http://quantalea.com/static/app/tutorial/index.html">tutorial</a></li>
                     <li><a href="http://quantalea.com/static/app/manual/index.html">manual</a></li>
                     <li><a href="http://quantalea.com/releasenotes">release notes</a></li>
@@ -75,22 +69,26 @@
                 </li>
                 <li><a href="http://quantalea.com/static/app/manual/index.html">Download</a></li>
                 <li><a href="http://blog.quantalea.com">Blog</a></li>
-                <li><a href="http://quantalea.com/licensing">Licensing</a></li>
-                <li><a href="http://quantalea.com/support">Support</a></li>
+                <li><a>Licensing</a>
+                	<ul class="dropdown">
+						<li><a href="http://quantalea.com/licensing/">License Editions</a></li>
+						<li><a href="http://quantalea.com/eula/">EULA</a></li>
+					</ul>
+                </li>
+                <li><a>Support</a>
+					<ul class="dropdown">
+						<li><a href="http://quantalea.com/support/">Support</a></li>
+						<li><a href="http://quantalea.com/faq/">FAQ</a></li>
+					</ul>
+                </li>
                 <li ><a href="http://quantalea.com/accounts/login/">Client Login</a>
-                  <!--<ul class="sub-menu">
-                    <li><a href="http://quantaleablog.azurewebsites.net/?page_id=701">My licences</a></li>
-                    <li><a href="http://quantaleablog.azurewebsites.net/?page_id=851">My profile</a></li>
-                  </ul> -->
-                </li>
-                </li>
+                </li>              
               </ul>
             </div>
           </nav>
         </div>
       </header>  
-    <!------------------------header-end-------------------------->
-	<div id="referenceContent" class="row">
+    <div id="referenceContent" class="row">
     <div id="referenceContentInner">
   		<div class="span3">
   			<ul class="nav nav-list" id="menu">
@@ -105,39 +103,5 @@
   		</div>
     </div>
 	</div>
-    <!--------------------------------footer--------------------------------------->
-	<div id="wrapper">
-    <footer id="san_footer">
-    <div class="san_footer-holder">
-      <section class="san_three-columns">
-        <div class="san_col">
-          <h2>Site</h2>
-          <ul>
-            <li> <a href="http://quantalea.com/home">Home</a> </li>
-          </ul>
-        </div>
-        <div class="san_col">
-          <h2>Company</h2>
-          <ul>
-            <li> <a href="http://quantalea.com/company">QuantAlea &amp; InCube </a> </li>
-            <li> <a href="http://quantalea.com/news">Latest News</a> </li>
-            <li> <a href="http://quantalea.com/contact">Contact</a> </li>
-          </ul>
-        </div>
-        <div class="san_col">
-          <h2>Product</h2>
-          <ul>
-            <li> <a href="http://quantalea.com/highlights">Highlights</a> </li>
-            <li> <a href="http://quantalea.com/licensing">Licensing</a> </li>
-            <li> <a href="http://quantalea.com/support">Support</a> </li>
-            <li><a href="http://quantalea.com/faq">FAQ</a></li>
-          </ul>
-        </div>
-      </section>
-    </div>
-  </footer>
-  </div>
- <!----------------------------footer-end------------------------>
-    </div>
 </body>
 </html>
