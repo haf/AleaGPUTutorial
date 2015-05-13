@@ -4,6 +4,7 @@ using System.Linq;
 
 namespace Tutorial.Cs.examples.cudnn
 {
+    //[CudnnMnistData]
     public static class Data
     {
         public const string FirstImage = "one_28x28.pgm";
@@ -25,7 +26,7 @@ namespace Tutorial.Cs.examples.cudnn
 
         public static string GetPath(string fname)
         {
-            return Path.Combine(@"../src/csharp/examples/cudnn/data", fname);
+            return Path.Combine("./data", fname);
         }
 
         public static float[] ReadBinaryFile(string fname)
@@ -46,4 +47,5 @@ namespace Tutorial.Cs.examples.cudnn
             return File.ReadAllBytes(p).Skip(52).ToArray();
         }
     }
+    //[/CudnnMnistData]
 }

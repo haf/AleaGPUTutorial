@@ -5,6 +5,7 @@ using Alea.CUDA.CULib;
 
 namespace Tutorial.Cs.examples.cudnn
 {
+    //[CudnnMnistNetwork]
     public class Network : DisposableObject
     {
         private readonly Worker _worker;
@@ -220,4 +221,5 @@ namespace Tutorial.Cs.examples.cudnn
         }
 
     }
+    //[/CudnnMnistNetwork]
 }
