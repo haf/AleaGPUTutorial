@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Runtime.InteropServices;
 using Alea.CUDA;
-using NUnit.Framework;
 using Tutorial.Cs.examples.generic_reduce;
 
 namespace Tutorial.Cs.examples.generic_scan

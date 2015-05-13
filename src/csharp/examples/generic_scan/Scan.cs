@@ -8,8 +8,7 @@ namespace Tutorial.Cs.examples.generic_scan
 {
     public class ScanModule<T> : ILGPUModule
     {
-        // Multi-scan function for all warps in the block.
-        //[genericScanMultiScan]
+        //[GenericScanMultiScan]
         public static Func<int, T, FSharpRef<T>, T> MultiScan(Func<T> init, Func<T, T, T> scanOp, int numWarps, int logNumWarps)
         {
             var warpStride = Const.WARP_SIZE + Const.WARP_SIZE/2 + 1;
@@ -80,10 +79,9 @@ namespace Tutorial.Cs.examples.generic_scan
                     return scanOp(scan, totalsShared[warp]);
                 };
         } 
-        //[/genericScanMultiScan]
+        //[/GenericScanMultiScan]
 
-        // Multi-scan function for all warps in the block.
-        //[genericScanMultiScanExcl]
+        //[GenericScanMultiScanExcl]
         public static Func<int, T, FSharpRef<T>, T> MultiScanExcl(Func<T> init, Func<T, T, T> scanOp, int numWarps, int logNumWarps)
         {
             var warpStride = Const.WARP_SIZE + Const.WARP_SIZE/2 + 1;
@@ -166,7 +164,7 @@ namespace Tutorial.Cs.examples.generic_scan
 
                 };
         }
-        //[/genericScanMultiScanExcl]
+        //[/GenericScanMultiScanExcl]
 
         private readonly Func<T> _init;
         private readonly Func<T, T, T> _scanOp;
@@ -174,19 +172,15 @@ namespace Tutorial.Cs.examples.generic_scan
         public Plan Plan;
         // ScanReduce values
         private int _numThreadsScanReduce;
-        private readonly int _numWarpsScanReduce;
-        private int _logNumWarpsScanReduce;
-        private Func<int, T, FSharpRef<T>, T> _multiScan; 
+        private readonly Func<int, T, FSharpRef<T>, T> _multiScan; 
         
         // Downsweep values
-        private int _numWarpsDownsweep;
-        private int _numValues;
-        private int _valuesPerThread;
-        private int _valuesPerWarp;
-        private int _logNumWarpsDownsweep;
-        private int _size;
-        private Func<int, T, FSharpRef<T>, T> _multiScanExcl;
-        private ReduceModule<T> _reduceModule; 
+        private readonly int _numValues;
+        private readonly int _valuesPerThread;
+        private readonly int _valuesPerWarp;
+        private readonly int _size;
+        private readonly Func<int, T, FSharpRef<T>, T> _multiScanExcl;
+        private readonly ReduceModule<T> _reduceModule; 
         
         public ScanModule(GPUModuleTarget target, Func<T> init, Func<T,T,T> scanOp, Func<T,T> transform, Plan plan) : base(target)
         {
@@ -197,23 +191,23 @@ namespace Tutorial.Cs.examples.generic_scan
 
             // ScanReduce values
             _numThreadsScanReduce = plan.NumThreadsReduction;
-            _numWarpsScanReduce = plan.NumWarpsReduction;
-            _logNumWarpsScanReduce = Alea.CUDA.Utilities.Common.log2(_numWarpsScanReduce);
-            _multiScan = MultiScan(init, scanOp, _numWarpsScanReduce, _logNumWarpsScanReduce);
+            var numWarpsScanReduce = plan.NumWarpsReduction;
+            var logNumWarpsScanReduce = Alea.CUDA.Utilities.Common.log2(numWarpsScanReduce);
+            _multiScan = MultiScan(init, scanOp, numWarpsScanReduce, logNumWarpsScanReduce);
 
             // Downsweep values
-            _numWarpsDownsweep = plan.NumWarps;
+            var numWarpsDownsweep = plan.NumWarps;
             _numValues = plan.NumValues;
             _valuesPerThread = plan.ValuesPerThread;
             _valuesPerWarp = plan.ValuesPerWarp;
-            _logNumWarpsDownsweep = Alea.CUDA.Utilities.Common.log2(_numWarpsDownsweep);
-            _size = _numWarpsDownsweep*_valuesPerThread*(Const.WARP_SIZE + 1);
-            _multiScanExcl = MultiScanExcl(init, scanOp, _numWarpsDownsweep, _logNumWarpsDownsweep);
+            var logNumWarpsDownsweep = Alea.CUDA.Utilities.Common.log2(numWarpsDownsweep);
+            _size = numWarpsDownsweep*_valuesPerThread*(Const.WARP_SIZE + 1);
+            _multiScanExcl = MultiScanExcl(init, scanOp, numWarpsDownsweep, logNumWarpsDownsweep);
 
             _reduceModule = new ReduceModule<T>(target, init, scanOp, transform, plan);
         }
 
-        //[genericScanReduceKernel]
+        //[GenericScanReduceKernel]
         [Kernel]
         public void ScanReduce(int numRanges, deviceptr<T> dRangeTotals)
         {
@@ -228,9 +222,14 @@ namespace Tutorial.Cs.examples.generic_scan
             if (tid == 0)
                 dRangeTotals[0] = _init();
         }
-        //[/genericScanReduceKernel]
 
-        //[genericScanDownsweepKernel]
+        public void ScanReduce(LaunchParam lp, int numRanges, deviceptr<T> dRangeTotals)
+        {
+            GPULaunch(ScanReduce, lp, numRanges, dRangeTotals);
+        }
+        //[/GenericScanReduceKernel]
+
+        //[GenericScanDownsweepKernel]
         [Kernel]
         public void Downsweep(deviceptr<T> dValuesIn, deviceptr<T> dValuesOut, deviceptr<T> dRangeTotals,
             deviceptr<int> dRanges, int inclusive)
@@ -312,7 +311,13 @@ namespace Tutorial.Cs.examples.generic_scan
                 rangeX += _numValues;
             }
         }
-        //[/genericScanDownsweepKernel]
+
+        public void Downsweep(LaunchParam lp, deviceptr<T> dValuesIn, deviceptr<T> dValuesOut, deviceptr<T> dRangeTotals,
+            deviceptr<int> dRanges, int inclusive)
+        {
+            GPULaunch(Downsweep, lp, dValuesIn, dValuesOut, dRangeTotals, dRanges, inclusive);
+        }
+        //[/GenericScanDownsweepKernel]
 
         public T[] Apply(T[] input, bool inclusive)
         {

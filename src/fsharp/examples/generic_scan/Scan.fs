@@ -6,8 +6,10 @@ open Alea.CUDA
 open Alea.CUDA.Utilities
 open Plan
 
-/// Multi-scan function for all warps in the block.
-(*** define:genericScanMultiScan ***)
+(**
+Multi-scan function for all warps in the block.
+*)
+(*** define:GenericScanMultiScan ***)
 let multiScan (initExpr:Expr<unit -> 'T>) (opExpr:Expr<'T -> 'T -> 'T>) numWarps logNumWarps =
     let warpStride = WARP_SIZE + WARP_SIZE / 2 + 1
     <@ fun tid (x:'T) (totalRef:'T ref) ->
@@ -65,8 +67,10 @@ let multiScan (initExpr:Expr<unit -> 'T>) (opExpr:Expr<'T -> 'T -> 'T>) numWarps
         // Add the block scan to the inclusive scan for the block.
         op scan totalsShared.[warp] @>
 
-/// Multi-scan function for all warps in the block.
-(*** define:genericScanMultiScanExcl ***)
+(**
+Multi-scan function for all warps in the block.
+*)
+(*** define:GenericScanMultiScanExcl ***)
 let multiScanExcl (initExpr:Expr<unit -> 'T>) (opExpr:Expr<'T -> 'T -> 'T>) numWarps logNumWarps =
     let warpStride = WARP_SIZE + WARP_SIZE / 2 + 1
 
@@ -132,8 +136,10 @@ let multiScanExcl (initExpr:Expr<unit -> 'T>) (opExpr:Expr<'T -> 'T -> 'T>) numW
 
         exclScan.[tid] @>
 
-/// Exclusive scan of range totals.
-(*** define:genericScanReduceKernel ***)     
+(**
+Exclusive scan of range totals.
+*)
+(*** define:GenericScanReduceKernel ***)     
 let scanReduceKernel (initExpr:Expr<unit -> 'T>) (opExpr:Expr<'T -> 'T -> 'T>) (transfExpr:Expr<'T -> 'T>) (plan:Plan)  =
     let numThreads = plan.NumThreadsReduction
     let numWarps = plan.NumWarpsReduction
@@ -154,7 +160,10 @@ let scanReduceKernel (initExpr:Expr<unit -> 'T>) (opExpr:Expr<'T -> 'T -> 'T>) (
         // Have the first thread in the block set the scan total.
         if tid = 0 then dRangeTotals.[0] <- init() @>
 
-(*** define:genericScanDownsweepKernel ***)
+(**
+Generic scan downsweep kernel.
+*)
+(*** define:GenericScanDownsweepKernel ***)
 let scanDownSweepKernel (initExpr:Expr<unit -> 'T>) (opExpr:Expr<'T -> 'T -> 'T>) (transfExpr:Expr<'T -> 'T>) (plan:Plan) =
     let numWarps = plan.NumWarps
     let numValues = plan.NumValues

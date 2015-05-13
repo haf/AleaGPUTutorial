@@ -10,7 +10,9 @@ open FsUnit
 open Tutorial.Fs.examples.genericScan.Plan
 open Tutorial.Fs.examples.genericScan.ScanApi
 
-/// Creating a sum reduction work flow with data in CPU memory
+(**
+Creating a sum reduction work flow with data in CPU memory
+*)
 let inline sum () = cuda {      
     let! scanner = rawSum Planner.Default  
     return Entry(fun program (values:'T[]) inclusive ->
@@ -24,7 +26,9 @@ let inline sum () = cuda {
         results.Gather()
     ) }
 
-/// Create a generic reduction work flow with data in CPU memory
+(**
+Create a generic reduction work flow with data in CPU memory
+*)
 let inline scan init op transf = cuda {      
     let! scanner = rawGeneric Planner.Default init op transf 
     return Entry(fun program (values:'T[]) inclusive ->
@@ -38,10 +42,22 @@ let inline scan init op transf = cuda {
         results.Gather()
     ) }
 
+(**
+CPU scan implementation used for testing.
+*)
+(*** define:GenericScanCPUScan ***)
 let inline sumScan (v:'T[]) incl =
     let vs = Array.scan (+) 0G v
     if incl then Array.sub vs 1 v.Length else Array.sub vs 0 v.Length
 
+(**
+Finally we test the different scan interfaces with a few different types.
+*)
+
+(**
+Sum scan of integers.
+*)
+(*** define:GenericScanSumInts ***)
 let ``sum<int>`` () =
 
     let sum = sum() |> Compiler.load Worker.Default
@@ -61,10 +77,16 @@ let ``sum<int>`` () =
         d1 |> should equal h1   
         d2 |> should equal h2   
         d3 |> should equal h3  
-
+    
+    // Inclusive scan
     [1; 2; 8; 10; 128; 100; 1024; 1<<<22] |> Seq.iter (test true) 
+    // Exclusive scan
     [1; 2; 8; 10; 128; 100; 1024; 1<<<22] |> Seq.iter (test false) 
 
+(**
+Generic sum scan of integers.
+*)
+(*** define:GenericScanGenericSumInts ***)
 let ``sum<int> generic`` () =
 
     let sum = scan <@ fun () -> 0 @> <@ ( + ) @> <@ fun x -> x @> |> Compiler.load Worker.Default
@@ -85,9 +107,15 @@ let ``sum<int> generic`` () =
         d2 |> should equal h2   
         d3 |> should equal h3   
 
+    // Inclusive scan
     [1; 2; 8; 10; 128; 100; 1024; 1<<<22] |> Seq.iter (test true) 
+    // Exclusive scan
     [1; 2; 8; 10; 128; 100; 1024; 1<<<22] |> Seq.iter (test false) 
 
+(**
+Sum scan of doubles.
+*)
+(*** define:GenericScanSumDoubles ***)
 let ``sum<float>`` () =
 
     let sum = sum() |> Compiler.load Worker.Default
@@ -108,9 +136,15 @@ let ``sum<float>`` () =
         d2 |> should (equalWithin tol) h2   
         d3 |> should (equalWithin tol) h3   
 
+    // Inclusive scan
     [1, 1e-12; 2, 1e-12; 8, 1e-12; 10, 1e-12; 128, 1e-12; 100, 1e-12; 1024, 1e-10; 1<<<22, 1e-8] |> Seq.iter (test true) 
+    // Exclusive scan
     [1, 1e-12; 2, 1e-12; 8, 1e-12; 10, 1e-12; 128, 1e-12; 100, 1e-12; 1024, 1e-10; 1<<<22, 1e-8] |> Seq.iter (test false) 
 
+(**
+Generic sum scan of doubles.
+*)
+(*** define:GenericScanGenericSumDoubles ***)
 let ``sum<float> generic`` () =
 
     let sum = scan <@ fun () -> 0.0 @> <@ ( + ) @> <@ fun x -> x @> |> Compiler.load Worker.Default
@@ -131,9 +165,15 @@ let ``sum<float> generic`` () =
         d2 |> should (equalWithin tol) h2   
         d3 |> should (equalWithin tol) h3   
 
+    // Inclusive scan
     [1, 1e-12; 2, 1e-12; 8, 1e-12; 10, 1e-12; 128, 1e-12; 100, 1e-12; 1024, 1e-10; 1<<<22, 1e-8] |> Seq.iter (test true) 
+    // Exclusive scan
     [1, 1e-12; 2, 1e-12; 8, 1e-12; 10, 1e-12; 128, 1e-12; 100, 1e-12; 1024, 1e-10; 1<<<22, 1e-8] |> Seq.iter (test false) 
 
+(**
+Scan tests.
+*)
+(*** define:GenericScanTests ***)
 [<Test>]
 let scanTest () =
     ``sum<int>`` ()
