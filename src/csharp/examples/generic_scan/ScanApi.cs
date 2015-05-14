@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Alea.CUDA;
 using Tutorial.Cs.examples.generic_reduce;
 
@@ -68,6 +69,16 @@ namespace Tutorial.Cs.examples.generic_scan
                     Intrinsic.__sizeof<T>() == 4 ? Plan.Plan32 : Plan.Plan64)
                 ).Apply(input, inclusive);
         }
+
+        public static T[] CpuScan<T>(Func<T, T, T> op, T[] input, bool inclusive)
+        {
+            var result = new T[input.Length + 1];
+            result[0] = default(T);
+            for (var i = 1; i < result.Length; i++)
+                result[i] = op(result[i - 1], input[i - 1]);
+            return inclusive ? result.Skip(1).ToArray() : result.Take(input.Length).ToArray();
+        }
+
     }
     //[/GenericScanApi]
 }

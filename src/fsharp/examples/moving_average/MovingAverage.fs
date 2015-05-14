@@ -16,6 +16,7 @@ Windows differnce kernel to produce moving average from scan.
 Note that we assume that values have an additonal zero at the end so `n - windowSize`
 is the right length of the moving average vector, see comment below as well.
 *)
+(*** define:MovingAvgWinDiff ***)
 let inline windowDifference () = cuda {
     let! windowDifference = 
         <@ fun n (windowSize:int) (x:deviceptr<'T>) (y:deviceptr<'T>) ->
@@ -54,6 +55,7 @@ The scan based moving averag prduces `[|2.0; 3.0; 4.0; 5.0; 6.0; 7.0; 8.0; 9.0|]
 This version produces `[|1.0; 1.5; 2.0; 3.0; 4.0; 5.0; 6.0; 7.0; 8.0; 9.0|]`.
 
 *)
+(*** define:MovingAvgKernel ***)
 let inline movingAverage () = cuda {
     let! kernel =
         <@ fun windowSize (n:int) (values:deviceptr<'T>) (results:deviceptr<'T>) ->
@@ -113,6 +115,7 @@ let inline movingAverageSeq windowSize (series:seq<'T>) =
 (**
 Fast CPU version based on arrays to calculate moving average
 *)
+(*** define:MovingAvgArray ***)
 let inline movingAverageArray windowSize (series:'T[]) =
     let sums = Array.scan (fun s x -> s + x) 0G series
     let ma = Array.zeroCreate (sums.Length - windowSize)
@@ -125,6 +128,7 @@ Creating a moving average work flow with data in CPU memory
 by first performing a scan and then a window difference.
 Note that the values must have a zero appended.
 *)
+(*** define:MovingAvgScan ***)
 let inline movingAverageScan () = cuda {      
     let! scanner = ScanApi.rawSum Plan.Planner.Default  
     let! windowDifference = windowDifference ()  
@@ -159,6 +163,7 @@ let inline movingAverageDirect () = cuda {
         results.Gather()
     ) }
 
+(*** define:MovingAvgTestFunc ***)
 let inline test (real:RealTraits<'T>) sizes (movingAverageGPU:Program<int -> 'T[] -> 'T[]>) (tol:float) direct =
     let movingAverageGold = movingAverageArray
     let values n = Array.init n (fun _ -> TestUtil.genRandomDouble -5.0 5.0 0.0 |> real.Of)
@@ -188,6 +193,7 @@ let inline test (real:RealTraits<'T>) sizes (movingAverageGPU:Program<int -> 'T[
         
     sizes |> Array.iter (fun n -> let compare = compare n in windowSizes |> Array.iter compare)
 
+(*** define:MovingAvgTest ***)
 [<Test>]
 let movingAverageTest() =
 
@@ -196,6 +202,7 @@ let movingAverageTest() =
     use movingAverageScan = movingAverageScan() |> Compiler.load Worker.Default
     test real sizes movingAverageScan 1e-8 false
 
+(*** define:MovingAvgDirectTest ***)
 [<Test>]
 let movingAverageDirectTest() = 
 

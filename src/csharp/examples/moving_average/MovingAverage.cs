@@ -1,30 +1,24 @@
 ﻿using System;
 using System.Linq;
-using System.Runtime.InteropServices;
 using Alea.CUDA;
 using Alea.CUDA.IL;
 using Alea.CUDA.Utilities;
 using NUnit.Framework;
-using NUnit.Framework.Constraints;
-using SharpDX.Direct3D9;
 using Tutorial.Cs.examples.generic_scan;
-using LibDevice = Alea.CUDA.Utilities.LibDevice;
-
 
 namespace Tutorial.Cs.examples.moving_average
 {
+    //[MovingAvgWinDiff]
     public class WindowDifferenceModule<T> : ILGPUModule
     {
         private readonly Func<T, T, T> _sub;
         private readonly Func<T, T, T> _div;
-        private readonly Func<int, T> _gconv; 
-
-        public WindowDifferenceModule(GPUModuleTarget target, Func<int, T> gconv, Func<T,T,T> sub, Func<T,T,T> div)
+        
+        public WindowDifferenceModule(GPUModuleTarget target, Func<T,T,T> sub, Func<T,T,T> div)
             : base(target)
         {
             _sub = sub;
             _div = div;
-            _gconv = gconv;
         }
 
         [Kernel]
@@ -33,7 +27,7 @@ namespace Tutorial.Cs.examples.moving_average
             var start = blockIdx.x * blockDim.x + threadIdx.x;
             var stride = gridDim.x * blockDim.x;
             var i = start + windowSize;
-            T normalizer = _gconv(windowSize); //LibDevice2.__gconv<int,T>(windowSize);
+            T normalizer = LibDevice2.__gconv<int,T>(windowSize);
             while (i < n)
             {
                 y[i - windowSize] = _div(_sub(x[i], x[i - windowSize]), normalizer);
@@ -55,6 +49,7 @@ namespace Tutorial.Cs.examples.moving_average
             GPULaunch(Kernel, lp, n, windowSize, input, output);
         }
     }
+    //[/MovingAvgWinDiff]
 
     public class MovingAverageModule<T> : ILGPUModule
     {
@@ -62,8 +57,7 @@ namespace Tutorial.Cs.examples.moving_average
         private readonly Func<T, T, T> _mul;
         private readonly Func<T, T, T> _div; 
         private readonly T _1G;
-         
-
+        
         public MovingAverageModule(GPUModuleTarget target, Func<T,T,T> add, Func<T,T,T> mul, Func<T,T,T> div, T genericOne)
             : base(target)
         {
@@ -73,6 +67,7 @@ namespace Tutorial.Cs.examples.moving_average
             _div = div;
         }
 
+        //[MovingAvgKernel]
         [Kernel]
         public void Kernel(int windowSize, int n, deviceptr<T> values, deviceptr<T> results)
         {
@@ -113,6 +108,7 @@ namespace Tutorial.Cs.examples.moving_average
                 results[iGlobal] = temp;
             }
         }
+        //[/MovingAvgKernel]
 
         public LaunchParam LaunchParams(int n, int windowSize)
         {
@@ -136,54 +132,51 @@ namespace Tutorial.Cs.examples.moving_average
         }
     }
 
+    //[MovingAvgScan]
     public class MovingAverageScan<T> : ILGPUModule
     {
-        //private Func<int, Func<T,T,T>, ScanApi.Scanner<T>> _getScanner;
-        private readonly Func<int, ScanApi.Scanner<T>> _getScanner; 
-        private readonly WindowDifferenceModule<T> _windowDifference; 
+        private readonly WindowDifferenceModule<T> _windowDifference;
+        private readonly Func<T, T, T> _add; 
 
-        public MovingAverageScan(GPUModuleTarget target, Func<int,T> gconv, Func<T, T, T> add, Func<T,T,T> sub, Func<T, T, T> div, T _1G) : base(target)
+        public MovingAverageScan(GPUModuleTarget target, Func<T, T, T> add, Func<T,T,T> sub, Func<T, T, T> div, T _1G) : base(target)
         {
-            //_getScanner = (n, scanOp) => ScanApi.ExclusiveScanner<T>(target, n, scanOp);
-            _getScanner = n => ScanApi.ExclusiveScanner(target, n, add);
-            _windowDifference = new WindowDifferenceModule<T>(target, gconv, sub, div);
+            _add = add;
+            _windowDifference = new WindowDifferenceModule<T>(target, sub, div);
         }
 
         public T[] Apply(int windowSize, T[] values)
         {
             var n = values.Length;
-            var scanner = _getScanner(n);
-            using (var ranges = GPUWorker.Malloc(scanner.Ranges))
-            using (var rangeTotals = GPUWorker.Malloc<T>(scanner.NumRanges))
-            using (var dValues = GPUWorker.Malloc(values))
-            using (var sums = GPUWorker.Malloc<T>(n))
-            using (var results = GPUWorker.Malloc<T>(n - windowSize))
+            using (var dSums = GPUWorker.Malloc(ScanApi.Scan(_add, values, false)))
+            using (var dResults = GPUWorker.Malloc<T>(n - windowSize))
             {
-                scanner.Scan(ranges.Ptr, rangeTotals.Ptr, dValues.Ptr, sums.Ptr);
-                _windowDifference.Apply(n, windowSize, sums.Ptr, results.Ptr);
-                return results.Gather();
+                _windowDifference.Apply(n, windowSize, dSums.Ptr, dResults.Ptr);
+                return dResults.Gather();
             }
         }
     }
+    //[/MovingAvgScan]
 
     public static class MovingAverage_CPU
     {
-        public static T[] MovingAverageArray<T>(int windowSize, T[] series, Func<T,T,T> add, Func<T,T,T> sub, Func<T,T,T> div)
+        //[MovingAvgArray]
+        public static T[] MovingAverageArray<T>(int windowSize, T[] series, Func<int, T> conv, Func<T,T,T> add, Func<T,T,T> sub, Func<T,T,T> div)
         {
-            //var sums = series.Select((a, i) => series.Take(i + 1).Sum()).ToArray();
             var sums = ScanApi.CpuScan(add, series, false);
             var ma = new T[sums.Length - windowSize];
             for (var i = windowSize; i < sums.Length; i++)
-                ma[i - windowSize] = div(sub(sums[i], sums[i - windowSize]), (LibDevice2.__gconv<int, T>(windowSize)));
+                ma[i - windowSize] = div(sub(sums[i], sums[i - windowSize]), conv(windowSize));
             return ma;
         }
+        //[/MovingAvgArray]
     }
 
-    public class Test
+    public static class Test
     {
-        private Random Rng = new Random();
+        private static readonly Random _rng = new Random();
 
-        public void TestFunc<T>(T zero, int[] sizes, Func<int,T[]> gen, Func<T,T,T> add, Func<T,T,T> sub, Func<T,T,T> div, MovingAverageScan<T> movingAverageScan, Action<T[],T[]> assertArrayEqual, bool direct)
+        //[MovingAvgTestFunc]
+        public static void TestFunc<T>(T zero, int[] sizes, Func<int,T[]> gen, Func<int,T> conv, Func<T,T,T> add, Func<T,T,T> sub, Func<T,T,T> div, MovingAverageScan<T> movingAverageScan, Action<T[],T[]> assertArrayEqual, bool direct)
         {
             var windowSizes = new[] {2, 3, 10};
             Action<int, int> compare =
@@ -191,7 +184,7 @@ namespace Tutorial.Cs.examples.moving_average
                 {
                     var v = gen(n);
                     var d = movingAverageScan.Apply(windowSize, v);
-                    var h = MovingAverage_CPU.MovingAverageArray(windowSize, v, add, sub, div);
+                    var h = MovingAverage_CPU.MovingAverageArray(windowSize, v, conv, add, sub, div);
 
                     Console.WriteLine("window {0}", windowSize);
                     Console.WriteLine("gpu size: {0}", d.Length);
@@ -209,32 +202,18 @@ namespace Tutorial.Cs.examples.moving_average
                 }   
             }
         }
+        //[/MovingAvgTestFunc]
 
+        //[MovingAvgTest]
         [Test]
-        public void WindowDifferenceDouble()
-        {
-            var worker = GPUModuleTarget.DefaultWorker;
-            var wd = new WindowDifferenceModule<double>(worker, LibDevice2.__gconv<int, double>, (x, y) => x - y, (x, y) => x/y);
-            var v = Enumerable.Range(0, 12).Select(_ => Rng.NextDouble()).ToArray();
-            using(var dInput = worker.GetWorker().Malloc(v))
-            using (var dOutput = worker.GetWorker().Malloc<double>(v.Length))
-            {
-                wd.Apply(v.Length, 2, dInput.Ptr, dOutput.Ptr);
-                var r = dOutput.Gather();
-                for(var i = 0; i < r.Length; i++)
-                    Console.WriteLine("{0} ==> {1}", i, r[i]);
-            }
-        }
-
-        [Test]
-        public void MovingAverageDouble()
+        public static void MovingAverageTest()
         {
             var sizes = new[] {12};
             Func<int, double[]> gen = n =>
             {
-                return Enumerable.Range(0,n).Select(_ => Rng.NextDouble()).ToArray();
+                return Enumerable.Range(0,n).Select(_ => _rng.NextDouble()).ToArray();
             };
-            var mascan = new MovingAverageScan<double>(GPUModuleTarget.DefaultWorker, a => LibDevice2.__gconv<int, double>(a), (x, y) => x + y, (x, y) => x - y,
+            var mascan = new MovingAverageScan<double>(GPUModuleTarget.DefaultWorker, (x, y) => x + y, (x, y) => x - y,
                 (x, y) => x/y, 1.0);
             Action<double[], double[]> assert = (h, d) =>
             {
@@ -242,7 +221,16 @@ namespace Tutorial.Cs.examples.moving_average
                     Assert.AreEqual(h[i], d[i], 1e-11);
             };
 
-            TestFunc(0.0, sizes, gen, (x,y) => x + y, (x,y)=> x -y, (x,y)=> x / y, mascan, assert, false);
+            TestFunc(0.0, sizes, gen, x => (double) x, (x,y) => x+y, (x,y) => x-y, (x,y) => x/y, mascan, assert, false);
         }
+        //[/MovingAvgTest]
+
+        //[MovingAvgDirectTest]
+        [Test]
+        public static void MovingAverageDirectTest()
+        {
+            
+        }
+        //[/MovingAvgDirectTest]
     }
 }

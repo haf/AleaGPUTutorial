@@ -15,6 +15,8 @@ namespace Tutorial.Cs
             Console.WriteLine("        ExamplesScanTest                  |");
             Console.WriteLine("        ExamplesMatrixMultTest            |");
             Console.WriteLine("        ExamplesMatrixTranspPerformance   |");
+            Console.WriteLine("        ExamplesMovingAverage             |");
+            Console.WriteLine("        ExamplesMovingAverageDirect       |");
             Console.WriteLine("        ExamplesTriDiagSolverTest         |");
             Console.WriteLine("        ExamplescuBlasAxpyTest            |");
             Console.WriteLine("        ExamplescuBlasGemmTest            |");
@@ -63,6 +65,14 @@ namespace Tutorial.Cs
 
                     case "examplesmatrixtranspperformance":
                         examples.matrixTranspose.Test.MatrixTransposePerformance();
+                        break;
+
+                    case "examplesmovingaverage":
+                        examples.moving_average.Test.MovingAverageTest();
+                        break;
+
+                    case "examplesmovingaveragedirect":
+                        examples.moving_average.Test.MovingAverageDirectTest();
                         break;
 
                     case "examplestridiagsolvertest":
@@ -120,6 +130,8 @@ namespace Tutorial.Cs
                         examples.generic_scan.Test.ScanTest();
                         examples.matrixMultiplication.Test.MatrixMultiplyTest();
                         examples.matrixTranspose.Test.MatrixTransposePerformance();
+                        examples.moving_average.Test.MovingAverageTest();
+                        examples.moving_average.Test.MovingAverageDirectTest();
                         examples.tridiagSolver.Test.TriDiagSolverTest();
                         examples.cublas.Test.DaxpyTest();
                         examples.cublas.Test.ZaxpyTest();
