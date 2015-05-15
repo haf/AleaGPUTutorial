@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Alea.CUDA;
 using Alea.CUDA.CULib;
@@ -51,7 +51,8 @@ namespace Tutorial.Cs.examples.cudnn
             }
             base.Dispose(disposing);
         }
-
+        //[/CudnnMnistNetwork]
+        
         public class nchw_t
         {
             public int N { get; set; }
@@ -74,8 +75,7 @@ namespace Tutorial.Cs.examples.cudnn
             const float beta = 1.0f;
             _cudnn.AddTensor(CUDNNInterop.cudnnAddMode_t.CUDNN_ADD_SAME_C, alpha, _biasTensorDesc, layer.BiasD.Ptr, beta, dstTensorDesc, data.Ptr);
         }
-        //[/CudnnMnistNetwork]
-
+        
         //[CudnnMnistFCF]
         public void FullyConnectedForward(Layer ip, nchw_t nchw, DeviceMemory<float> srcData, ref DeviceMemory<float> dstData)
         {
