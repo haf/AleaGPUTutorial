@@ -180,7 +180,19 @@ namespace Tutorial.Cs.examples.generic_scan
         private readonly int _valuesPerWarp;
         private readonly int _size;
         private readonly Func<int, T, FSharpRef<T>, T> _multiScanExcl;
-        private readonly ReduceModule<T> _reduceModule; 
+        private readonly ReduceModule<T> _reduceModule;
+
+        public ScanModule(Func<T, T, T> scanOp)
+            : this(GPUModuleTarget.DefaultWorker, scanOp) { }
+
+        public ScanModule(GPUModuleTarget target, Func<T, T, T> scanOp)
+            : this(target, () => default(T), scanOp) { }
+
+        public ScanModule(GPUModuleTarget target, Func<T> init, Func<T, T, T> scanOp)
+            : this(target, init, scanOp, x => x) { }
+        
+        public ScanModule(GPUModuleTarget target, Func<T> init, Func<T, T, T> scanOp, Func<T, T> transform)
+            : this(target, init, scanOp, transform, Intrinsic.__sizeof<T>() == 4 ? Plan.Plan32 : Plan.Plan64) { }        
         
         public ScanModule(GPUModuleTarget target, Func<T> init, Func<T,T,T> scanOp, Func<T,T> transform, Plan plan) : base(target)
         {
@@ -206,6 +218,7 @@ namespace Tutorial.Cs.examples.generic_scan
 
             _reduceModule = new ReduceModule<T>(target, init, scanOp, transform, plan);
         }
+        
 
         //[GenericScanReduceKernel]
         [Kernel]
@@ -319,28 +332,34 @@ namespace Tutorial.Cs.examples.generic_scan
         }
         //[/GenericScanDownsweepKernel]
 
-        public T[] Apply(T[] input, bool inclusive)
+        public void Apply(int n, deviceptr<T> input, deviceptr<T> output, bool inclusive)
         {
-            var n = input.Length;
             var numSm = GPUWorker.Device.Attributes.MULTIPROCESSOR_COUNT;
             var tup = Plan.BlockRanges(numSm, n);
             var ranges = tup.Item1;
             var numRanges = tup.Item2;
-
 
             var lpUpsweep = new LaunchParam(numRanges, Plan.NumThreads);
             var lpReduce = new LaunchParam(1, Plan.NumThreadsReduction);
             var lpDownsweep = new LaunchParam(numRanges, Plan.NumThreads);
             var _inclusive = inclusive ? 1 : 0;
 
-            using(var dRanges = GPUWorker.Malloc(ranges))
-            using(var dRangeTotals = GPUWorker.Malloc<T>(numRanges + 1))
-            using(var dInput = GPUWorker.Malloc(input))
-            using (var dOutput = GPUWorker.Malloc(input))
+            using (var dRanges = GPUWorker.Malloc(ranges))
+            using (var dRangeTotals = GPUWorker.Malloc<T>(numRanges + 1))
             {
-                _reduceModule.Upsweep(lpUpsweep, dInput.Ptr, dRanges.Ptr, dRangeTotals.Ptr);
+                _reduceModule.Upsweep(lpUpsweep, input, dRanges.Ptr, dRangeTotals.Ptr);
                 GPULaunch(ScanReduce, lpReduce, numRanges, dRangeTotals.Ptr);
-                GPULaunch(Downsweep, lpDownsweep, dInput.Ptr, dOutput.Ptr, dRangeTotals.Ptr, dRanges.Ptr, _inclusive);
+                GPULaunch(Downsweep, lpDownsweep, input, output, dRangeTotals.Ptr, dRanges.Ptr, _inclusive);
+            }
+        }
+
+        public T[] Apply(T[] input, bool inclusive)
+        {
+            var n = input.Length;
+            using(var dInput = GPUWorker.Malloc(input))
+            using (var dOutput = GPUWorker.Malloc<T>(n))
+            {
+                Apply(n, dInput.Ptr, dOutput.Ptr, inclusive);
                 return dOutput.Gather();
             }
         }

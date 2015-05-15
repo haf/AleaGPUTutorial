@@ -9,7 +9,7 @@ using Tutorial.Cs.examples.generic_scan;
 namespace Tutorial.Cs.examples.moving_average
 {
     //[MovingAvgWinDiff]
-    public class WindowDifferenceModule<T> : ILGPUModule
+    internal class WindowDifferenceModule<T> : ILGPUModule
     {
         private readonly Func<T, T, T> _sub;
         private readonly Func<T, T, T> _div;
@@ -50,24 +50,29 @@ namespace Tutorial.Cs.examples.moving_average
         }
     }
     //[/MovingAvgWinDiff]
-
-    public class MovingAverageModule<T> : ILGPUModule
+    
+    //[MovingAverage]
+    internal class MovingAverageModule<T> : ILGPUModule
     {
         private readonly Func<T, T, T> _add;
         private readonly Func<T, T, T> _mul;
         private readonly Func<T, T, T> _div; 
         private readonly T _1G;
+        private readonly WindowDifferenceModule<T> _windowDifference;
+        private readonly Action<T[], deviceptr<T>> _scan; 
         
-        public MovingAverageModule(GPUModuleTarget target, Func<T,T,T> add, Func<T,T,T> mul, Func<T,T,T> div, T genericOne)
+        
+        public MovingAverageModule(GPUModuleTarget target, Func<T,T,T> add, Func<T,T,T> sub, Func<T,T,T> mul, Func<T,T,T> div, T genericOne)
             : base(target)
         {
             _1G = genericOne;
             _add = add;
             _mul = mul;
             _div = div;
+            _windowDifference = new WindowDifferenceModule<T>(target, sub, div);
+            _scan = ScanApi.InclusiveScan(target, add);
         }
 
-        //[MovingAvgKernel]
         [Kernel]
         public void Kernel(int windowSize, int n, deviceptr<T> values, deviceptr<T> results)
         {
@@ -108,9 +113,8 @@ namespace Tutorial.Cs.examples.moving_average
                 results[iGlobal] = temp;
             }
         }
-        //[/MovingAvgKernel]
 
-        public LaunchParam LaunchParams(int n, int windowSize)
+        private LaunchParam LaunchParams(int windowSize, int n)
         {
             const int maxBlockSize = 256;
             var blockSize = Math.Min(n, maxBlockSize);
@@ -124,45 +128,62 @@ namespace Tutorial.Cs.examples.moving_average
             gridSizeX = 1 + (n - 1) / (blockSize * gridSizeY);
             return new LaunchParam(new dim3(gridSizeX, gridSizeY), new dim3(blockSize), sharedMem);
         }
-
-        public void Apply(int n, int windowSize, deviceptr<T> values, deviceptr<T> results)
+    
+        public void MovingAverageDirect(int windowSize, int n, deviceptr<T> values, deviceptr<T> results)
         {
-            var lp = LaunchParams(n, windowSize);
-            GPULaunch(Kernel, lp, windowSize, n, values, results);
-        }
-    }
-
-    //[MovingAvgScan]
-    public class MovingAverageScan<T> : ILGPUModule
-    {
-        private readonly WindowDifferenceModule<T> _windowDifference;
-        private readonly Func<T, T, T> _add; 
-
-        public MovingAverageScan(GPUModuleTarget target, Func<T, T, T> add, Func<T,T,T> sub, Func<T, T, T> div, T _1G) : base(target)
-        {
-            _add = add;
-            _windowDifference = new WindowDifferenceModule<T>(target, sub, div);
+            GPULaunch(Kernel, LaunchParams(windowSize, n), windowSize, n, values, results);
         }
 
-        public T[] Apply(int windowSize, T[] values)
+        public T[] MovingAverageDirect(int windowSize, T[] values)
         {
             var n = values.Length;
-            using (var dSums = GPUWorker.Malloc(ScanApi.Scan(_add, values, false)))
+            using(var dValues = GPUWorker.Malloc(values))
+            using (var dResults = GPUWorker.Malloc<T>(n))
+            {
+                MovingAverageDirect(windowSize, n, dValues.Ptr, dResults.Ptr);
+                return dResults.Gather();
+            }
+        }
+        
+        public T[] MovingAverageScan(int windowSize, T[] values)
+        {
+            var n = values.Length;
+            using (var dSums = GPUWorker.Malloc<T>(n))
             using (var dResults = GPUWorker.Malloc<T>(n - windowSize))
             {
+                _scan(values, dSums.Ptr);
                 _windowDifference.Apply(n, windowSize, dSums.Ptr, dResults.Ptr);
                 return dResults.Gather();
             }
         }
-    }
-    //[/MovingAvgScan]
 
-    public static class MovingAverage_CPU
+        public static MovingAverageModule<double> Create(GPUModuleTarget target)
+        {
+            return new MovingAverageModule<double>(target, (x,y) => x+y, (x,y) => x-y, (x,y) => x*y, (x,y) => x/y, 1.0);
+        } 
+    }
+
+    //[AOTCompile]
+    //class MovingAverageModuleF64 : MovingAverageModule<double>
+    //{
+    //    public MovingAverageModuleF64(GPUModuleTarget target)
+    //        : base(target, (x, y) => x + y, (x, y) => x - y, (x, y) => x * y, (x, y) => x / y, 1.0) { }
+
+    //    private static MovingAverageModuleF64 _instance;
+
+    //    public static MovingAverageModuleF64 DefaultInstance
+    //    {
+    //        get { return _instance ?? (_instance = new MovingAverageModuleF64(GPUModuleTarget.DefaultWorker)); }
+    //    }
+    //}
+    //[/MovingAverage]
+
+    public static class MovingAverageCPU
     {
         //[MovingAvgArray]
         public static T[] MovingAverageArray<T>(int windowSize, T[] series, Func<int, T> conv, Func<T,T,T> add, Func<T,T,T> sub, Func<T,T,T> div)
         {
-            var sums = ScanApi.CpuScan(add, series, false);
+            var sums = ScanApi.CpuScan(add, series, true);
             var ma = new T[sums.Length - windowSize];
             for (var i = windowSize; i < sums.Length; i++)
                 ma[i - windowSize] = div(sub(sums[i], sums[i - windowSize]), conv(windowSize));
@@ -171,57 +192,72 @@ namespace Tutorial.Cs.examples.moving_average
         //[/MovingAvgArray]
     }
 
+
     public static class Test
     {
-        private static readonly Random _rng = new Random();
+        private static readonly Random Rng = new Random();
+
+        public static void AssertArrayEqual<T>(T[] h, T[] d, dynamic tol)
+        {
+            for (var i = 0; i < d.Length; i++)
+                Assert.AreEqual(h[i], d[i], tol);
+        }
 
         //[MovingAvgTestFunc]
-        public static void TestFunc<T>(T zero, int[] sizes, Func<int,T[]> gen, Func<int,T> conv, Func<T,T,T> add, Func<T,T,T> sub, Func<T,T,T> div, MovingAverageScan<T> movingAverageScan, Action<T[],T[]> assertArrayEqual, bool direct)
+        public static void TestFunc<T>(T zero, int[] sizes, Func<int, T[], T[]> movingAverageGpu, Func<int,T[]> gen, Func<int,T> conv, Func<T,T,T> add, Func<T,T,T> sub, Func<T,T,T> div, Action<T[],T[]> assert, bool direct)
         {
             var windowSizes = new[] {2, 3, 10};
-            Action<int, int> compare =
-                (n, windowSize) =>
+            
+            foreach (var n in sizes)
+            {
+                foreach (var windowSize in windowSizes)
                 {
-                    var v = gen(n);
-                    var d = movingAverageScan.Apply(windowSize, v);
-                    var h = MovingAverage_CPU.MovingAverageArray(windowSize, v, conv, add, sub, div);
+                    var v = gen(n); //.Concat(new []{default(T)}).ToArray();
+                    var d = movingAverageGpu(windowSize, v.Concat(new []{default(T)}).ToArray());
+                    d = direct ? d.Skip(windowSize - 1).ToArray() : d;
+                    var h = MovingAverageCPU.MovingAverageArray(windowSize, v, conv, add, sub, div);
+                    h = direct ? h : h.Take(h.Length - 1).ToArray();
 
                     Console.WriteLine("window {0}", windowSize);
                     Console.WriteLine("gpu size: {0}", d.Length);
                     Console.WriteLine("cpu size: {0}", h.Length);
-                    Console.WriteLine("gpu : {0}", d);
-                    Console.WriteLine("cpu : {0}", h);
+                    //for (var i = 0; i < h.Length; i++)
+                    //    Console.WriteLine("cpu, gpu : {0}, {1}", h[i], d[i]);
+                    //Console.WriteLine("cpu : {0}", h);
 
-                    assertArrayEqual(h, d);
-                };
-            foreach (var n in sizes)
-            {
-                foreach (var ws in windowSizes)
-                {
-                    compare(n, ws);
+                    assert(h, d);
                 }   
             }
         }
+
+        public static void TestFunc(int[] sizes, Func<int, double[], double[]> movingAverageGpu, bool direct)
+        {
+            TestFunc(0.0, sizes, 
+                movingAverageGpu, 
+                GenDoubles, x => (double) x, 
+                (x,y) => x+y, (x,y) => x-y, (x,y) => x/y, 
+                (h,d) => AssertArrayEqual(h,d,1e-11), 
+                direct);
+        }
         //[/MovingAvgTestFunc]
 
+        public static double[] GenDoubles(int n)
+        {
+            return Enumerable.Range(0, n).Select(_ => TestUtil.genRandomDouble(-5.0, 5.0, 0.0)).ToArray();
+        }
+        
         //[MovingAvgTest]
         [Test]
         public static void MovingAverageTest()
         {
-            var sizes = new[] {12};
-            Func<int, double[]> gen = n =>
-            {
-                return Enumerable.Range(0,n).Select(_ => _rng.NextDouble()).ToArray();
-            };
-            var mascan = new MovingAverageScan<double>(GPUModuleTarget.DefaultWorker, (x, y) => x + y, (x, y) => x - y,
-                (x, y) => x/y, 1.0);
-            Action<double[], double[]> assert = (h, d) =>
-            {
-                for (var i = 0; i < d.Length; i++)
-                    Assert.AreEqual(h[i], d[i], 1e-11);
-            };
-
-            TestFunc(0.0, sizes, gen, x => (double) x, (x,y) => x+y, (x,y) => x-y, (x,y) => x/y, mascan, assert, false);
+            var sizes = new[] {12, 15, 20, 32, 64, 128, 1024, 1200, 4096, 5000, 8191, 8192, 8193, 9000, 10000, 2097152, 8388608 };
+            //var mamod = MovingAverageModuleF64.DefaultInstance;
+            //TestFunc(sizes, mamod.MovingAverageScan, false);
+            TestFunc(
+                sizes,
+                MovingAverageModule<double>.Create(GPUModuleTarget.DefaultWorker)
+                    .MovingAverageScan,
+                false);
         }
         //[/MovingAvgTest]
 
@@ -229,7 +265,14 @@ namespace Tutorial.Cs.examples.moving_average
         [Test]
         public static void MovingAverageDirectTest()
         {
-            
+            var sizes = new[] {12, 15, 20, 32, 64, 128, 1024, 1200, 4096, 5000, 8191, 8192, 8193, 9000, 10000, 2097152, 8388608 };
+            //var mamod = MovingAverageModuleF64.DefaultInstance;
+            //TestFunc(sizes, mamod.MovingAverageDirect, true);
+            TestFunc(
+                sizes,
+                MovingAverageModule<double>.Create(GPUModuleTarget.DefaultWorker)
+                    .MovingAverageDirect,
+                true);
         }
         //[/MovingAvgDirectTest]
     }

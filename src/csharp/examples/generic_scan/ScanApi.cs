@@ -65,11 +65,56 @@ namespace Tutorial.Cs.examples.generic_scan
                     target,
                     init,
                     scanOp,
-                    transf,
-                    Intrinsic.__sizeof<T>() == 4 ? Plan.Plan32 : Plan.Plan64)
+                    transf)
                 ).Apply(input, inclusive);
         }
+        
+        /// Returns inclusive scan action; used when you need to reuse the scan output on the device. 
+        /// Uses () => default(T) for the init function and x => x for the transf function.
+        public static Action<T[], deviceptr<T>> InclusiveScan<T>(GPUModuleTarget target, Func<T, T, T> scanOp)
+        {
+            return Scan(target, scanOp, true);
+        }
 
+        /// Returns exclusive scan action; used when you need to reuse the scan output on the device. 
+        /// Uses () => default(T) for the init function and x => x for the transf function.
+        public static Action<T[], deviceptr<T>> ExclusiveScan<T>(GPUModuleTarget target, Func<T, T, T> scanOp)
+        {
+            return Scan(target, scanOp, false);
+        }
+
+        /// Returns scan action; used when you need to reuse the scan output on the device. 
+        /// Uses () => default(T) for the init function and x => x for the transf function.
+        public static Action<T[], deviceptr<T>> Scan<T>(GPUModuleTarget target, Func<T, T, T> scanOp, bool inclusive)
+        {
+            return Scan(target, () => default(T), scanOp, inclusive);
+        }
+
+        /// Returns scan action; used when you need to reuse the scan output on the device. 
+        /// Uses x => x for the transf function.
+        public static Action<T[], deviceptr<T>> Scan<T>(GPUModuleTarget target, Func<T> init, Func<T, T, T> scanOp, bool inclusive)
+        {
+            return Scan(target, init, scanOp, x => x, inclusive);
+        }
+
+        /// Returns scan action; used when you need to reuse the scan output on the device.
+        public static Action<T[], deviceptr<T>> Scan<T>(GPUModuleTarget target, Func<T> init, Func<T, T, T> scanOp, Func<T, T> transf, bool inclusive)
+        {
+            return (input, output) =>
+            {
+                using (var dInput = target.GetWorker().Malloc(input))
+                {
+                    (new ScanModule<T>(
+                        target,
+                        init,
+                        scanOp,
+                        transf)
+                        ).Apply(input.Length, dInput.Ptr, output, inclusive);
+                }
+            };
+        }
+        
+        /// Simple generic CPU scan.
         public static T[] CpuScan<T>(Func<T, T, T> op, T[] input, bool inclusive)
         {
             var result = new T[input.Length + 1];

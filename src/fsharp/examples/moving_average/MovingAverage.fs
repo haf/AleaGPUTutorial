@@ -55,7 +55,7 @@ The scan based moving averag prduces `[|2.0; 3.0; 4.0; 5.0; 6.0; 7.0; 8.0; 9.0|]
 This version produces `[|1.0; 1.5; 2.0; 3.0; 4.0; 5.0; 6.0; 7.0; 8.0; 9.0|]`.
 
 *)
-(*** define:MovingAvgKernel ***)
+(*** define:MovingAverage ***)
 let inline movingAverage () = cuda {
     let! kernel =
         <@ fun windowSize (n:int) (values:deviceptr<'T>) (results:deviceptr<'T>) ->
@@ -104,31 +104,26 @@ let inline movingAverage () = cuda {
     }
 
 (**
-CPU version to calculate moving average based on `Seq.windowed`.
+Creating a moving average work flow with data in CPU memory
+by using a direct implementation.
 *)
-let inline movingAverageSeq windowSize (series:seq<'T>) =
-    series    
-    |> Seq.windowed windowSize
-    |> Seq.map Array.sum
-    |> Seq.map (fun a -> a / (__gconv windowSize))  
-
-(**
-Fast CPU version based on arrays to calculate moving average
-*)
-(*** define:MovingAvgArray ***)
-let inline movingAverageArray windowSize (series:'T[]) =
-    let sums = Array.scan (fun s x -> s + x) 0G series
-    let ma = Array.zeroCreate (sums.Length - windowSize)
-    for i = windowSize to sums.Length - 1 do
-        ma.[i - windowSize] <- (sums.[i] - sums.[i - windowSize]) / (__gconv windowSize)   
-    ma   
+let inline movingAverageDirect () = cuda {      
+    let! movingAverage = movingAverage ()  
+    return Entry(fun program windowSize (values:'T[]) ->
+        let worker = program.Worker
+        let n = values.Length
+        let movingAverage = movingAverage program n
+        use values = worker.Malloc(values)
+        use results = worker.Malloc(n)
+        movingAverage windowSize values.Ptr results.Ptr
+        results.Gather()
+    ) }
 
 (**
 Creating a moving average work flow with data in CPU memory
 by first performing a scan and then a window difference.
 Note that the values must have a zero appended.
 *)
-(*** define:MovingAvgScan ***)
 let inline movingAverageScan () = cuda {      
     let! scanner = ScanApi.rawSum Plan.Planner.Default  
     let! windowDifference = windowDifference ()  
@@ -147,21 +142,26 @@ let inline movingAverageScan () = cuda {
         results.Gather()
     ) }
 
+//(**
+//CPU version to calculate moving average based on `Seq.windowed`.
+//*)
+//let inline movingAverageSeq windowSize (series:seq<'T>) =
+//    series    
+//    |> Seq.windowed windowSize
+//    |> Seq.map Array.sum
+//    |> Seq.map (fun a -> a / (__gconv windowSize))  
+
 (**
-Creating a moving average work flow with data in CPU memory
-by using a direct implementation.
+Fast CPU version based on arrays to calculate moving average
 *)
-let inline movingAverageDirect () = cuda {      
-    let! movingAverage = movingAverage ()  
-    return Entry(fun program windowSize (values:'T[]) ->
-        let worker = program.Worker
-        let n = values.Length
-        let movingAverage = movingAverage program n
-        use values = worker.Malloc(values)
-        use results = worker.Malloc(n)
-        movingAverage windowSize values.Ptr results.Ptr
-        results.Gather()
-    ) }
+(*** define:MovingAvgArray ***)
+let inline movingAverageArray windowSize (series:'T[]) =
+    let sums = Array.scan (fun s x -> s + x) 0G series
+    let ma = Array.zeroCreate (sums.Length - windowSize)
+    for i = windowSize to sums.Length - 1 do
+        ma.[i - windowSize] <- (sums.[i] - sums.[i - windowSize]) / (__gconv windowSize)   
+    ma   
+
 
 (*** define:MovingAvgTestFunc ***)
 let inline test (real:RealTraits<'T>) sizes (movingAverageGPU:Program<int -> 'T[] -> 'T[]>) (tol:float) direct =
