@@ -247,3 +247,7 @@ h6 a, h6 a:hover, h6 a:focus { color : inherit; text-decoration : inherit; outli
 #referenceContent td {
   padding-left: 5px;
 }
+
+#inTable ul {
+  padding-left: 15px;
+}
