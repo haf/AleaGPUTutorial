@@ -251,3 +251,72 @@ h6 a, h6 a:hover, h6 a:focus { color : inherit; text-decoration : inherit; outli
 #inTable ul {
   padding-left: 15px;
 }
+
+#referenceContent td {
+  padding-left: 5px;
+}
+
+/* Hide snippets on the home page snippet & nicely format table */
+#hp-snippet td.lines {
+  display: none;
+}
+#hp-snippet .table {
+  width:80%;
+  margin-left:30px;
+}
+
+#anim-holder {
+  overflow:hidden;
+  position:relative;
+  border-radius:5px;
+}
+
+.tablink-0, .tablink-1, .tablink-2 {
+  cursor:pointer;
+  border-style:none;
+  color:#f0f8ff;
+  border-radius:5px;
+  background:#415d60;
+  opacity:0.7;
+  width:50px;
+  height:23px;
+  text-align:center;
+  padding-top:0px;
+  position:absolute;
+  top:15px;
+}
+
+.tablink-0 {
+  right:140px
+}
+
+.tablink-1 {
+  right:80px
+}
+
+.tablink-2 {
+  right:20px
+}
+
+.tab-0 {
+  display:block;
+  overflow:auto;
+}
+
+.tab-1 {
+  display:none;
+}
+
+.tab-2 {
+  display:none;
+  overflow:auto;
+}
+
+
+#anim-holder a img {
+  min-width:800px;
+}
+
+.container-fluid table.pre, .container-fluid pre.fssnip {
+  padding: 45px 10px 10px 10px;
+}
