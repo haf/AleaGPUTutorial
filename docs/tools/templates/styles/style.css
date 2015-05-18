@@ -226,12 +226,22 @@ h6 a, h6 a:hover, h6 a:focus { color : inherit; text-decoration : inherit; outli
 
 #referenceContentInner {
   display: flex;
+  align-content: flex-start;
+  flex-direction: row;
+  flex-wrap: wrap;
+  padding-left: 25px;
 }
 
 #referenceContent .span3 {
-  min-width: 350px;
+  min-width: 325px;
   max-width: 400px;
   width: 25%;
+}
+
+#referenceContent .span9 {
+  min-width: 300px;
+  max-width: 800px;
+  width: 60%;
 }
 
 #referenceContent td {
