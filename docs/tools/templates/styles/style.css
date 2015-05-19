@@ -132,7 +132,6 @@ td.title, thead {
 
 /* Format the right-side menu */
 #menu {
-  margin-top:50px;
   font-size:11pt;
   padding-left:20px;
 }
@@ -148,9 +147,10 @@ td.title, thead {
 }
 
 /* Change font sizes for headings etc. */
-#main h1 { font-size: 26pt; margin:10px 0px 15px 0px; font-weight:400; }
-#main h2 { font-size: 20pt; margin:20px 0px 0px 0px; font-weight:400; }
-#main h3 { font-size: 14pt; margin:15px 0px 0px 0px; font-weight:600; }
+/*alea color: (45, 91, 161) */
+#main h1 { font-size: 24pt; margin:10px 0px 15px 0px; font-weight:400; color:rgb(51, 122, 183);}
+#main h2 { font-size: 18pt; margin:20px 0px 0px 0px; font-weight:400; color:rgb(51, 122, 183);}
+#main h3 { font-size: 14pt; margin:15px 0px 0px 0px; font-weight:400; color:rgb(51, 122, 183);}
 #main p  { font-size: 11pt; margin:5px 0px 15px 0px; }
 #main ul { font-size: 11pt; margin-top:10px; }
 #main li { font-size: 11pt; margin: 5px 0px 5px 0px; }
@@ -224,6 +224,11 @@ h6 a, h6 a:hover, h6 a:focus { color : inherit; text-decoration : inherit; outli
   display: none;
 }
 
+.san_logo{
+  padding-left: 16px;
+  padding-top: 6px;
+}
+
 #referenceContentInner {
   display: flex;
   align-content: flex-start;
@@ -233,7 +238,7 @@ h6 a, h6 a:hover, h6 a:focus { color : inherit; text-decoration : inherit; outli
 }
 
 #referenceContent .span3 {
-  min-width: 325px;
+  min-width: 300px;
   max-width: 400px;
   width: 25%;
 }
@@ -311,7 +316,6 @@ h6 a, h6 a:hover, h6 a:focus { color : inherit; text-decoration : inherit; outli
   display:none;
   overflow:auto;
 }
-
 
 #anim-holder a img {
   min-width:800px;
