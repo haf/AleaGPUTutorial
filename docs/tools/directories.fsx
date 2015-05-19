@@ -201,7 +201,7 @@ let createDocument (dirSettings: DirectorySettings) (compilerOptions: string) la
             folder.AddDocument(doc)
         folder :> Document
 
-    let rootdoc = create None "00.tutorial"
+    let rootdoc = create None "00.Alea GPU Tutorial"
     rootdoc
 
 let buildDocs dirSettings compilerOptions langs =

@@ -147,7 +147,7 @@ td.title, thead {
 }
 
 /* Change font sizes for headings etc. */
-/*alea color: (45, 91, 161) */
+/*blue alea color from logo: rgb(45, 91, 161) */
 #main h1 { font-size: 24pt; margin:10px 0px 15px 0px; font-weight:400; color:rgb(51, 122, 183);}
 #main h2 { font-size: 18pt; margin:20px 0px 0px 0px; font-weight:400; color:rgb(51, 122, 183);}
 #main h3 { font-size: 14pt; margin:15px 0px 0px 0px; font-weight:400; color:rgb(51, 122, 183);}
