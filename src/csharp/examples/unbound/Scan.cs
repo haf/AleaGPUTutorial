@@ -30,8 +30,7 @@ namespace Tutorial.Cs.examples.unbound
         {
             const int numItems = 1000000;
             var rng = new Random(42);
-            var inputs = (Enumerable.Repeat(rng, numItems).Select((random, i) => random.Next(-10, 10))).ToArray();
-            Func<int, int, int> scanOp = (a, b) => a + b;
+            var inputs = Enumerable.Range(0, numItems).Select(i => rng.Next(-10, 10)).ToArray();
             var gpuScanModule = DeviceSumScanModuleI32.Default;
 
             using (var gpuScan = gpuScanModule.Create(numItems))
@@ -40,10 +39,9 @@ namespace Tutorial.Cs.examples.unbound
             {
                 gpuScan.InclusiveScan(dInputs.Ptr, dOutputs.Ptr, numItems);
                 var actual = dOutputs.Gather();
-                var expected = inputs.ScanInclusive(0, scanOp).ToArray();
+                var expected = inputs.ScanInclusive(0, (a, b) => a + b).ToArray();
                 Assert.AreEqual(expected, actual);
             }
-
         }
         //[/unboundDeviceScanTest]
     }

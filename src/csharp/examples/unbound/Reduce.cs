@@ -19,7 +19,7 @@ namespace Tutorial.Cs.examples.unbound
         {
             const int numItems = 1000000;
             var rng = new Random(42);
-            var inputs = (Enumerable.Repeat(rng, numItems).Select((random, i) => random.Next(-10, 10))).ToArray();
+            var inputs = Enumerable.Range(0, numItems).Select(i => rng.Next(-10, 10)).ToArray();
             var gpuReduceModule = DeviceSumModuleI32.Default;
 
             using (var gpuReduce = gpuReduceModule.Create(numItems))
