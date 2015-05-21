@@ -44,7 +44,7 @@ let normalizeDocumentName (name:string) =
         let filename = filename.ToLower()
         order, name, filename
 
-type [<AbstractClass>] Document(dirSettings: DirectorySettings, parent: Document option, originalDocName: string, ?originalFileName: string) =
+type [<AbstractClass>] Document(dirSettings: DirectorySettings, parent: Document option, originalDocName: string, url:Option<string>, ?originalFileName: string) =
     let order, name, docName = normalizeDocumentName originalDocName
 
     let originalFileName, outputFileName =
@@ -64,7 +64,10 @@ type [<AbstractClass>] Document(dirSettings: DirectorySettings, parent: Document
         | Some parent, false -> parent.Dir
         | _ -> ""
 
-    member this.UrlName = dirSettings.Info.["root"] @@ this.Dir @@ outputFileName
+    member this.UrlName = 
+        match url with
+        | None -> dirSettings.Info.["root"] @@ this.Dir @@ outputFileName
+        | Some(url) -> url
 
     member this.TutorialDir =
         match parent, String.IsNullOrWhiteSpace originalFileName with
@@ -81,7 +84,7 @@ type [<AbstractClass>] Document(dirSettings: DirectorySettings, parent: Document
     abstract Build : unit -> unit
 
 type Folder(dirSettings: DirectorySettings, parent:Document option, folderName:string) =
-    inherit Document(dirSettings, parent, folderName)
+    inherit Document(dirSettings, parent, folderName, None)
 
     let documents = List<Document>()
 
@@ -117,8 +120,8 @@ type Folder(dirSettings: DirectorySettings, parent:Document option, folderName:s
             strs.Add("</ul>")
         strs |> String.concat "\n"
 
-type [<AbstractClass>] Page(dirSettings: DirectorySettings, parent:Document option, pageName:string) =
-    inherit Document(dirSettings, parent, Path.GetFileNameWithoutExtension pageName, pageName)
+type [<AbstractClass>] Page(dirSettings: DirectorySettings, parent:Document option, pageName:string, url) =
+    inherit Document(dirSettings, parent, Path.GetFileNameWithoutExtension pageName, url, pageName)
 
     override this.Dump() = printfn "%s -> %s" this.TutorialPath this.OutputPath
 
@@ -132,7 +135,7 @@ let getReplacements (dirSettings: DirectorySettings) (doc: #Document) (scriptOut
     |> Map.toList
 
 type MarkdownPage(dirSettings: DirectorySettings, parent:Document option, pageName:string) =
-    inherit Page(dirSettings, parent, pageName)
+    inherit Page(dirSettings, parent, pageName, None)
 
     override this.Build() =
         printfn "Generating %s ..." this.UrlName
@@ -140,7 +143,7 @@ type MarkdownPage(dirSettings: DirectorySettings, parent:Document option, pageNa
         Literate.ProcessMarkdown(this.TutorialPath, dirSettings.DocTemplate, this.OutputPath, OutputKind.Html, replacements = replacements, lineNumbers = true)
 
 type ScriptPage(dirSettings: DirectorySettings, parent:Document option, pageName:string) =
-    inherit Page(dirSettings, parent, pageName)
+    inherit Page(dirSettings, parent, pageName, None)
 
     override this.Build() =
         printfn "Generating %s ..." this.UrlName
@@ -170,12 +173,21 @@ type ScriptPage(dirSettings: DirectorySettings, parent:Document option, pageName
 
 
 type SamplePage(dirSettings: DirectorySettings, compilerOptions: string, parent: Document option, pageName: string, langs: string[]) =
-    inherit Page(dirSettings, parent, pageName)
+    inherit Page(dirSettings, parent, pageName, None)
 
     override this.Build() =
         let sampleName = (File.ReadAllText this.TutorialPath)
         let replacements = getReplacements dirSettings this ""
         processFile dirSettings replacements compilerOptions this.OutputPath this.Dir sampleName langs
+
+type LinkPage(dirSettings: DirectorySettings, compilerOptions: string, parent: Document option, pageName: string, langs: string[], url) =
+    inherit Page(dirSettings, parent, pageName, url)
+
+    override this.Build() =
+        ()
+        //let sampleName = (File.ReadAllText this.TutorialPath)
+        //let replacements = getReplacements dirSettings this ""
+        //processFile dirSettings replacements compilerOptions this.OutputPath this.Dir sampleName langs
 
 let createDocument (dirSettings: DirectorySettings) (compilerOptions: string) langs =
     let rec create (parent:Document option) (docName:string) =
@@ -193,6 +205,7 @@ let createDocument (dirSettings: DirectorySettings) (compilerOptions: string) la
                 | ".md" -> MarkdownPage(dirSettings, parent, fileName) :> Document
                 | ".fsx" -> ScriptPage(dirSettings, parent, fileName) :> Document
                 | ".ref" -> SamplePage(dirSettings, compilerOptions, parent, fileName, langs) :> Document
+                | ".link" -> LinkPage(dirSettings, compilerOptions, parent, fileName, langs, Some(File.ReadAllText (folder.TutorialPath @@ file.Name))) :> Document
                 | ext -> failwithf "Unknown ext %s" ext
             folder.AddDocument(doc)
 

@@ -154,7 +154,13 @@ td.title, thead {
 }
 
 #menu li {
-  line-height:25px;
+  line-height:10px;
+}
+
+#menu a {
+  line-height: 15px;
+  padding-top:  10px;
+  padding-bottom:  2px;
 }
 
 /* Change font sizes for headings etc. */
@@ -254,15 +260,12 @@ h6 a, h6 a:hover, h6 a:focus { color : inherit; text-decoration : inherit; outli
 }
 
 #referenceContent .span3 {
-  min-width: 250px;
-  max-width: 400px;
-  width: 25%;
+  min-width: 300px;
 }
 
 #referenceContent .span9 {
   min-width: 300px;
   max-width: 800px;
-  padding-left: 20px;
   width: 60%;
 }
 
@@ -384,7 +387,7 @@ h6 a, h6 a:hover, h6 a:focus { color : inherit; text-decoration : inherit; outli
    #forkongithub{
      position:absolute;
      display:block;
-     top:-15px;
+     top:-35px;
      right:0;
      width:200px;
      overflow:hidden;
