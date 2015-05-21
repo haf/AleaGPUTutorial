@@ -20,24 +20,30 @@ The example demonstrates how to use the CUDNN library to implement forward pass.
 *)
 (*** define:CudnnMnistTest ***)
 let [<Test>] test() =
-    use worker = Worker.Default
-    use network = new Network(worker)
-    let conv1, conv2 = Layer.conv1 worker, Layer.conv2 worker
-    let ip1, ip2 = Layer.ip1 worker, Layer.ip2 worker
+    if Worker.Default.Device.Arch.Number < 300 then
+        Assert.Inconclusive("running cudnn need at least cuda device of arch 3.0")
+    else
+        try
+            use worker = Worker.Default
+            use network = new Network(worker)
+            let conv1, conv2 = Layer.conv1 worker, Layer.conv2 worker
+            let ip1, ip2 = Layer.ip1 worker, Layer.ip2 worker
     
-    printfn "Classifying...."
-    let i1, i2, i3 =
-        network.ClassifyExample FirstImage conv1 conv2 ip1 ip2,
-        network.ClassifyExample SecondImage conv1 conv2 ip1 ip2,
-        network.ClassifyExample ThirdImage conv1 conv2 ip1 ip2
+            printfn "Classifying...."
+            let i1, i2, i3 =
+                network.ClassifyExample FirstImage conv1 conv2 ip1 ip2,
+                network.ClassifyExample SecondImage conv1 conv2 ip1 ip2,
+                network.ClassifyExample ThirdImage conv1 conv2 ip1 ip2
 
-    printfn "\n==========================================================\n"
-    printfn "Result of Classification: %A, %A, %A" i1 i2 i3
-    if i1 <> 1 || i2 <> 3 || i3 <> 5
-    then printfn "Test Failed!!"
-    else printfn "Test Passed!!"
-    printfn "\n==========================================================\n"
+            printfn "\n==========================================================\n"
+            printfn "Result of Classification: %A, %A, %A" i1 i2 i3
+            if i1 <> 1 || i2 <> 3 || i3 <> 5
+            then printfn "Test Failed!!"
+            else printfn "Test Passed!!"
+            printfn "\n==========================================================\n"
     
-    Assert.AreEqual(i1, 1)
-    Assert.AreEqual(i2, 3)
-    Assert.AreEqual(i3, 5)
+            Assert.AreEqual(i1, 1)
+            Assert.AreEqual(i2, 3)
+            Assert.AreEqual(i3, 5)
+
+        with :? System.DllNotFoundException -> Assert.Inconclusive("You need set the environment for cudnn native library to do this test.")
