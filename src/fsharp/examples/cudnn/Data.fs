@@ -5,7 +5,7 @@ open System
 open System.IO
 
 (*** define:CudnnMnistData ***)
-let datadir = @"./data"
+let datadir = @"../src/fsharp/examples/cudnn/data"
 
 let getPath fname = Path.Combine(datadir, fname)
 

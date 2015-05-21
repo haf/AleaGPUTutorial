@@ -26,7 +26,7 @@ namespace Tutorial.Cs.examples.cudnn
 
         public static string GetPath(string fname)
         {
-            return Path.Combine("./data", fname);
+            return Path.Combine("../src/csharp/examples/cudnn/data", fname);
         }
 
         public static float[] ReadBinaryFile(string fname)
