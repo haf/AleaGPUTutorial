@@ -60,7 +60,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="advanced_techniques\GenericTransform.cs" />
-    <Compile Include="examples\basic\Basic.cs" />
+    <Compile Include="examples\basic_examples\ParallelArrayTransformation.cs" />
     <Compile Include="examples\cublas\Axpy.cs" />
     <Compile Include="examples\cublas\Gemm.cs" />
     <Compile Include="examples\cublas\GemmBatched.cs" />

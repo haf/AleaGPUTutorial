@@ -67,7 +67,7 @@
     <Compile Include="advanced_techniques\GenericMatrixMult.fs" />
     <Compile Include="profiling_and_performance_tuning\GenericMatrixTransp.fs" />
     <Compile Include="examples\device_query\DeviceQuery.fs" />
-    <Compile Include="examples\basic\Basic.fs" />
+    <Compile Include="examples\basic_examples\ParallelArrayTransformation.fs" />
     <Compile Include="examples\simple_scan\SimpleScan.fs" />
     <Compile Include="examples\matrix_transpose\MatrixTransp.fs" />
     <Compile Include="examples\matrix_multiplication\MatrixMult.fs" />

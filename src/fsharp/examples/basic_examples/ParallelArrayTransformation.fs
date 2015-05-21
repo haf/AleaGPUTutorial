@@ -9,7 +9,7 @@ open Alea.CUDA.Utilities
 open NUnit.Framework
 
 (**
-# Simple Unary Transfrom Kernel 
+# Parallel Array Transformation
 
 For very large arrays we cannot assume that the thread grid is large enough to cover the entire data array.
 Therefore the kernel loops over the data array one grid-size at a time until all of the array elements are processed.
