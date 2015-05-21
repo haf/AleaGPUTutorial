@@ -414,3 +414,12 @@ div.tab-0{
      box-shadow:4px 4px 10px rgba(0,0,0,0.8);
      }
  }
+
+img{
+  max-width:100%;
+  width:auto\9;
+  height:auto;
+  vertical-align:middle;
+  border:0;
+  -ms-interpolation-mode:bicubic;
+}
