@@ -31,11 +31,11 @@ For more details on license, please reference:
 
 This project uses [Paket](http://fsprojects.github.io/Paket/) for package management.
 
-To build on Windows, simply run `build.bat` from command-line under the solution folder. This script will execute the following steps:
+To build on Windows, simply run `build.bat` from command-line under the solution folder (on Linux and OsX run `build.sh`). This script will execute the following steps:
 
 - download latest `paket.exe` from Internet;
 - run `paket.exe restore` to restore the packages listed in `paket.lock` file;
-- build projects and generate documents;
+- build projects and generate documents (only on Windows);
 
 Then you can:
 
