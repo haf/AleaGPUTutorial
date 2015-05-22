@@ -35,7 +35,8 @@ To build on Windows, simply run `build.bat` from command-line under the solution
 
 - download latest `paket.exe` from Internet;
 - run `paket.exe restore` to restore the packages listed in `paket.lock` file;
-- build projects and generate documents (only on Windows);
+- build projects;
+- generate documentation (only on Windows);
 
 Then you can:
 
