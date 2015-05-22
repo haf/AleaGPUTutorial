@@ -24,7 +24,7 @@ let [<Test>] test() =
         Assert.Inconclusive("running cudnn need at least cuda device of arch 3.0")
     else
         try
-            use worker = Worker.Default
+            let worker = Worker.Default
             use network = new Network(worker)
             let conv1, conv2 = Layer.conv1 worker, Layer.conv2 worker
             let ip1, ip2 = Layer.ip1 worker, Layer.ip2 worker
