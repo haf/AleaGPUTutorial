@@ -31,16 +31,14 @@ open NUnit.Framework
 let worker = Worker.Default
 
 (**
-## Method Based Approach  
+## Method-Based GPU Coding  
  
-For this simple example we apply the __method based__ approach which is the most basic GPU programming
-technique of Alea GPU.  
+For this simple example we use method-based GPU coding. It is the most basic GPU programming
+technique of Alea GPU. GPU kernels are implemented in terms of static member functions of a class. 
+This technique has some limitations but covers a broad set of common use cases. 
 
-With the method based approach everything is implemented in terms of static member functions of a class. 
-This technique has some limitations but covers already several common use cases. 
-
-More advanced methods are covered in the section on [advanced programming techniques](../advanced_techniques/index.html). 
-A guidance when to use which method can be found [here](../advanced_techniques/comparing_different_techniques.html).
+More advanced techniques are covered in the section on [advanced programming techniques](../advanced_techniques/index.html). 
+A guidance when to use which method can be found [here](../advanced_techniques/03.Comparing_Different_GPU_Coding_Techniques.html).
  
 A straightforward CPU implementation uses a `for` loop to iterate serially over the whole array. 
 For each iteration the computations are all independent and can be executed in parallel. 

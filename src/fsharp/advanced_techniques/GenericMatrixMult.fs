@@ -17,14 +17,14 @@ open Alea.CUDA.IL
 open NUnit.Framework
 
 (**
-# Workflow Technique 
+# Workflow-Based GPU Coding 
 
-The instance based technique is already very powerful but has limitations in generic 
-programming with generic arithmetic operations. 
-The workflow technique in combination with F# inline functions overcomes this limitation.
-Note that this approach does not work in C# because it is less powerful generic programming capabilities.  
+Class instance-based GPU coding is already very powerful but has limitations in generic 
+programming and generic arithmetic operations. 
+Workflow-based GPU coding in combination with F# inline functions overcomes this limitation.
+Note that this technique does not work in C# because it's less powerful generic programming capabilities.  
  
-To illustrate the workflow technique we consider a generic matrix multiplication algorithm. 
+To illustrate workflow-based GPU coding we consider a generic matrix multiplication algorithm. 
 
 The `multiply` kernel implements the tiled matrix multiplication algorithm using shared memory for matrices
 in row major storage format. The following picture illustrates the algorithm. The matrices are decomposed into 
@@ -175,7 +175,7 @@ We specialize the generic `MatrixMultiplyModule` implementation for the concrete
 but keep the block size variable. The static member function `ImplTemplate` uses the `cuda` computational workflow
 to define a GPU kernel resource with `Compiler.DefineKernel`.
 
-The computational workflow returns an entry function, which retrieves the
+The `cuda` computational workflow returns an entry function, which retrieves the
 compiled kernel function from the compiled program with `kernel |> program.Apply`,
 and returns it together with the selected block size. This `Template` instance can 
 now be used in the constructor of the specialized `MatrixMultiplyModule<float32>` type. 
