@@ -8,7 +8,7 @@ open Tutorial.Fs.examples.nbody
 
 
 (**
-# GPU n-body implementation with static-block-size
+# GPU N-Body implementation with Static Block Size
 
 GPU implementation of the n-body problem where the block-size is known at compile time. Infrastructure around kernel might be slightly more coplex, but the compiler can optimize the code better.
 

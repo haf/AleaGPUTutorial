@@ -5,7 +5,7 @@ open Alea.CUDA
 open Tutorial.Fs.examples.nbody.Common
 
 (**
-# CPU Implementation of The N-body Simulation. 
+# CPU Implementation of The N-Body Simulation. 
 
 It consists of:
 

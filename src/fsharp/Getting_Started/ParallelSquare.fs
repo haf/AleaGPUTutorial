@@ -12,7 +12,7 @@ open FSharp.Charting
 open System
 
 (**
-# Quick Start Example 
+# First Alea GPU Program 
 
 This example explains how to square the elements of an array in parallel on the GPU. 
 
