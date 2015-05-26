@@ -339,8 +339,8 @@ h6 a, h6 a:hover, h6 a:focus { color : inherit; text-decoration : inherit; outli
   min-width:800px;
 }
 
-table.pre, .container-fluid pre.fssnip {
-  padding: 45px 10px 10px 10px;
+.container-fluid table.pre, .container-fluid pre.fssnip {
+  padding:45px 10px 10px 10px;
 }
 
 .container-fluid{
