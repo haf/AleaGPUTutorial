@@ -17,14 +17,14 @@ open Alea.CUDA.IL
 open NUnit.Framework
 
 (**
-# Template Based Technique 
+# Workflow Technique 
 
 The instance based technique is already very powerful but has limitations in generic 
 programming with generic arithmetic operations. 
-The template technique in combination with F# inline functions overcomes this limitation.
+The workflow technique in combination with F# inline functions overcomes this limitation.
 Note that this approach does not work in C# because it is less powerful generic programming capabilities.  
  
-To illustrate the template technique we consider a generic matrix multiplication algorithm. 
+To illustrate the workflow technique we consider a generic matrix multiplication algorithm. 
 
 The `multiply` kernel implements the tiled matrix multiplication algorithm using shared memory for matrices
 in row major storage format. The following picture illustrates the algorithm. The matrices are decomposed into 
