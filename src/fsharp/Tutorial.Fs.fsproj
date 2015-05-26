@@ -62,7 +62,7 @@
   </Choose>
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
-    <Compile Include="quick_start\ParallelSquare.fs" />
+    <Compile Include="getting_started\ParallelSquare.fs" />
     <Compile Include="advanced_techniques\GenericTransform.fs" />
     <Compile Include="advanced_techniques\GenericMatrixMult.fs" />
     <Compile Include="profiling_and_performance_tuning\GenericMatrixTransp.fs" />

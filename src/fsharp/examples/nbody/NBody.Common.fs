@@ -6,7 +6,7 @@ open Alea.CUDA
 open FsUnit
 
 (**
-# Common code for the n-body simulation
+# Common Code for the N-body Simulation
 It consists of 
 
 - Types to get a common interface between CPU and the two GPU implementations

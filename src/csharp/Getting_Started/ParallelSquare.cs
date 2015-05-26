@@ -4,9 +4,10 @@ using Alea.CUDA;
 using Alea.CUDA.Utilities;
 using Alea.CUDA.IL;
 using NUnit.Framework;
-//[/parallelSquareImport]
 
 using System.Linq;
+//[/parallelSquareImport]
+
 
 namespace Tutorial.Cs.quick_start
 {
