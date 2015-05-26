@@ -10,14 +10,6 @@ open NUnit.Framework
 open Layer
 open Network
 
-(**
-# CUDNN
-
-Before starting with this tutorial you will need to download the CUDNN library [here](https://developer.nvidia.com/cuDNN).
-The code below is a port of the C++ MNist sample which accompanies the [library](https://developer.nvidia.com/cuDNN).
-
-The example demonstrates how to use the CUDNN library to implement forward pass.
-*)
 (*** define:CudnnMnistTest ***)
 let [<Test>] test() =
     if Worker.Default.Device.Arch.Number < 300 then

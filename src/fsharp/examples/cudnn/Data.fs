@@ -5,7 +5,21 @@ open System
 open System.IO
 
 (*** define:CudnnMnistData ***)
-let datadir = @"../src/fsharp/examples/cudnn/data"
+let findSolutionDir (startDir:string) =
+    let filesToCheck = [ "Alea.Tutorial.sln"
+                         "build.bat"
+                         "build.fsx" ]
+
+    let isSolutionDir (dir:string) =
+        filesToCheck |> List.forall (fun file -> File.Exists(Path.Combine(dir, file)))
+
+    let rec find (dir:string) =
+        if isSolutionDir dir then dir
+        else find (Directory.GetParent(dir).FullName)
+
+    find startDir
+
+let datadir = Path.Combine(findSolutionDir "./", "src/fsharp/examples/cudnn/data")
 
 let getPath fname = Path.Combine(datadir, fname)
 

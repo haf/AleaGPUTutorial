@@ -24,9 +24,26 @@ namespace Tutorial.Cs.examples.cudnn
         public const int ImageH = 28;
         public const int ImageW = 28;
 
+        private static readonly string[] FilesToCheck = {"Alea.Tutorial.sln", "build.bat", "build.fsx"};
+
+        private static bool IsSolutionDir(string dir)
+        {
+            return FilesToCheck.All(file => File.Exists(Path.Combine(dir, file)));
+        }
+
+        private static string FindSolutionDir(string dir)
+        {
+            return IsSolutionDir(dir) ? dir : FindSolutionDir(Directory.GetParent(dir).FullName);
+        }
+
+        private static string GetDataDir()
+        {
+            return Path.Combine(FindSolutionDir("./"), "src/csharp/examples/cudnn/data");
+        }
+
         public static string GetPath(string fname)
         {
-            return Path.Combine("../src/csharp/examples/cudnn/data", fname);
+            return Path.Combine(GetDataDir(), fname);
         }
 
         public static float[] ReadBinaryFile(string fname)

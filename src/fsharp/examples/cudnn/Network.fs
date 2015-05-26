@@ -42,6 +42,9 @@ type Network(worker:Worker) =
         let alpha, beta = 1.f, 1.f
         cudnn.AddTensor(CUDNNInterop.cudnnAddMode_t.CUDNN_ADD_SAME_C, alpha, biasTensorDesc, layer.BiasD.Ptr, beta, dstTensorDesc, data.contents.Ptr)
 
+(**
+Fully Connected Forward
+*)
 (*** define:CudnnMnistFCF ***)
     member net.FullyConnectedForward(ip:Layer, nchw:nchw_t, srcData:DeviceMemory<float32>, dstData:DeviceMemory<float32> ref) =
         if nchw.N <> 1 then failwith "Not Implemented"
@@ -57,6 +60,9 @@ type Network(worker:Worker) =
         cublas.Sgemv(CUBLASInterop.cublasOperation_t.CUBLAS_OP_T, dimX, dimY, alpha, ip.DataD.Ptr, dimX, srcData.Ptr, 1, beta, dstData.contents.Ptr, 1)
         nchw.H <- 1; nchw.W <- 1; nchw.C <- dimY
 
+(**
+Convolute Forward
+*)
 (*** define:CudnnMnistCF ***)
     member net.ConvoluteForward(conv:Layer, nchw:nchw_t, srcData:DeviceMemory<float32>, dstData:DeviceMemory<float32> ref) =
         srcTensorDesc.Set4D(TensorFormat, DataType, nchw.N, nchw.C, nchw.H, nchw.W)
@@ -76,6 +82,9 @@ type Network(worker:Worker) =
         cudnn.ConvolutionForward(alpha, srcTensorDesc, srcData.Ptr, filterDesc, conv.DataD.Ptr, convDesc, algo, workSpace.Ptr, sizeInBytes, beta, dstTensorDesc, dstData.contents.Ptr)
         net.AddBias(dstTensorDesc, conv, nchw.C, dstData)
 
+(**
+Pool Forward
+*)
 (*** define:CudnnMnistPF ***)        
     member net.PoolForward(nchw:nchw_t, srcData:DeviceMemory<float32>, dstData:DeviceMemory<float32> ref) =
         poolingDesc.Set2D(CUDNNInterop.cudnnPoolingMode_t.CUDNN_POOLING_MAX, 2, 2, 0, 0, 2, 2)
@@ -87,6 +96,9 @@ type Network(worker:Worker) =
         let alpha, beta = 1.f, 0.f
         cudnn.PoolingForward(poolingDesc, alpha, srcTensorDesc, srcData.Ptr, beta, dstTensorDesc, dstData.Value.Ptr)
 
+(**
+Softmax Forward
+*)
 (*** define:CudnnMnistSF ***)
     member net.SoftmaxForward(nchw:nchw_t, srcData:DeviceMemory<float32>, dstData:DeviceMemory<float32> ref) =
         net.Resize(dstData, nchw.N * nchw.C * nchw.H * nchw.W)
@@ -95,6 +107,9 @@ type Network(worker:Worker) =
         let alpha, beta = 1.f, 0.f
         cudnn.SoftmaxForward(CUDNNInterop.cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE, CUDNNInterop.cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_CHANNEL, alpha, srcTensorDesc, srcData.Ptr, beta, dstTensorDesc, dstData.contents.Ptr)
 
+(**
+Activation Forward
+*)
 (*** define:CudnnMnistAF ***)
     member net.ActivationForward(nchw:nchw_t, srcData:DeviceMemory<float32>, dstData:DeviceMemory<float32> ref) =
         net.Resize(dstData, nchw.N * nchw.C * nchw.H * nchw.W)
@@ -115,6 +130,9 @@ type Network(worker:Worker) =
             convDesc.Dispose()
             poolingDesc.Dispose()
 
+(**
+Classify Example
+*)
 (*** define:CudnnMnistClassify ***)
     member net.ClassifyExample fname conv1 conv2 ip1 ip2 =
         let nchw = nchw_t.create 1 1 ImageH ImageW
