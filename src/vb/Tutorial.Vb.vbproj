@@ -82,11 +82,11 @@
     <Import Include="System.Threading.Tasks" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="examples\basic\Basic.vb" />
+    <Compile Include="examples\basic_examples\ParallelArrayTransformation.vb" />
     <Compile Include="examples\matrix_multiplication\MatrixMult.vb" />
     <Compile Include="examples\matrix_transpose\MatrixTransp.vb" />
     <Compile Include="Program.vb" />
-    <Compile Include="quick_start\ParallelSquare.vb" />
+    <Compile Include="getting_started\ParallelSquare.vb" />
     <None Include="..\app.config">
       <Link>app.config</Link>
     </None>

@@ -60,7 +60,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="advanced_techniques\GenericTransform.cs" />
-    <Compile Include="examples\basic\Basic.cs" />
+    <Compile Include="examples\basic_examples\ParallelArrayTransformation.cs" />
     <Compile Include="examples\cublas\Axpy.cs" />
     <Compile Include="examples\cublas\Gemm.cs" />
     <Compile Include="examples\cublas\GemmBatched.cs" />
@@ -87,7 +87,7 @@
     <Compile Include="examples\nbody\NBody.GPU.StaticBlockSize.cs" />
     <Compile Include="examples\nbody\NBody.OpenGL.cs" />
     <Compile Include="examples\random_forest\DataModel.cs" />
-    <Compile Include="quick_start\ParallelSquare.cs" />
+    <Compile Include="getting_started\ParallelSquare.cs" />
     <Compile Include="Program.cs" />
     <None Include="..\app.config">
       <Link>app.config</Link>

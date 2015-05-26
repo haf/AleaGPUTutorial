@@ -9,10 +9,9 @@ module Tutorial.Fs.advancedTechniques.GenericTransform
 #endif
 
 (**
-# Instance Based Technique
+# Class Instance-Based GPU Coding
 
-The instance based technique allows more flexibility than the method based approach 
-with only minimal additional coding effort.  
+Class instance-based GPU coding is more flexibility than method-based GPU coding with only minimal additional coding effort.  
 *)
 
 (*** define:genericTransformImport ***) 
@@ -41,7 +40,7 @@ function expression and the second from a delegate `Func<'T, 'T, 'T>`.
         new TransformModule<'T>(target, <@ fun x y -> op.Invoke(x, y) @>)
 
 (**
-The thread organization in GPU kernel is as in the [quick start example.](../quick_start/quick_start_example.html).
+The thread organization in GPU kernel is as in the [getting started example.](../getting_started/first_alea_gpu_program.html).
 In F# the operation is stored as an expression of a binary function. We extract the function with `__eval(op)`. 
 In C# we can directly apply the delegate. 
 *)
