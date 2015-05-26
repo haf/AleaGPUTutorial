@@ -38,7 +38,7 @@ technique of Alea GPU. GPU kernels are implemented in terms of static member fun
 This technique has some limitations but covers a broad set of common use cases. 
 
 More advanced techniques are covered in the section on [advanced programming techniques](../advanced_techniques/index.html). 
-A guidance when to use which method can be found [here](../advanced_techniques/03.Comparing_Different_GPU_Coding_Techniques.html).
+A guidance when to use which method can be found [here](../advanced_techniques/comparing_different_gpu_coding_techniques.html).
  
 A straightforward CPU implementation uses a `for` loop to iterate serially over the whole array. 
 For each iteration the computations are all independent and can be executed in parallel. 
