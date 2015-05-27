@@ -95,7 +95,7 @@ Here is a schematic illustration how the threads of a grid of 3 blocks with 4 th
 ## Kernel
 
 The kernel is a static member function with the attribute `AOTCompile`. This attribute selects the Ahead of Time compilation mode. 
-For more details about different compilation modes we refer to [Licensing and Deployment](quick_start/licensing_and_deployment.html) section. 
+For more details about different compilation modes we refer to [Compilation Modes](../advanced_techniques/compilation_modes.html) section. 
 The kernel function obtains a pointer to the output and input data on the GPU of type `deviceptr<float>` and the length of the array to be processed. 
 
 Each thread first calculates where to start in the array and then loops over the array with stride `gridDim.x * blockDim.x`.
