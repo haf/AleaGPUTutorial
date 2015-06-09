@@ -36,14 +36,19 @@ To build on Windows, simply run `build.bat` from command-line under the solution
 - download latest `paket.exe` from Internet;
 - run `paket.exe restore` to restore the packages listed in `paket.lock` file;
 - build projects;
+- runs tests;
 - generate documentation (only on Windows);
+
+If you want to skip the tests run `build.bat NoTests`. Similarly if you don't want to build the documentation run `build.bat NoDocs`.
+To only build the projects run `build.bat NoTests NoDocs`.
 
 Then you can:
 
 - check `docs\output\index.html` for the generated document;
-- execute `release\Tutorial.FS.exe examplesnbodysimulation` to run NBody simulation written in F#.
-- execute `release\Tutorial.CS.exe examplesnbodysimulation` to run NBody simulation written in C#.
-- execute `release\Tutorial.FS.exe` or `release\Tutorial.CS.exe` to see more examples.
+- execute `release\Tutorial.FS.exe <name>` to run example `<name>` written in F#.
+- execute `release\Tutorial.CS.exe <name>` to run example `<name>` written in C#.
+- execute `release\Tutorial.VB.exe <name>` to run example `<name>` written in VB.
+- execute `release\Tutorial.FS.exe`, `release\Tutorial.CS.exe` or `release\Tutorial.VB.exe` to see more examples.
 - Explore the source code with Visual Studio and run unit tests.
 
 To build within Visual Studio, it is recommended to restore the packages before open the solution, since there is an known issue of Fody and F# project (for more details on this issue, please reference [installation manual (especially the Remarks section)](http://quantalea.com/static/app/manual/compilation-installation.html)). Please follow following steps:

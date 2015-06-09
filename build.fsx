@@ -35,7 +35,7 @@ Target "Default" DoNothing
 "Clean"
     ==> "Build"
     =?> ("Tests", not <| hasBuildParam "NoTests")
-    ==> "BuildDocs"
+    =?> ("BuildDocs", not <| hasBuildParam "NoDocs")
     ==> "Default"
 
 RunTargetOrDefault "Default"
