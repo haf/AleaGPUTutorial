@@ -69,56 +69,58 @@ module gpu =
 (*** define:gemmTest ***)
 [<Test>]
 let dgemmTest() =
-    let gen rows cols = 
-        Array.init (rows*cols) (TestUtil.genRandomDouble -5.0 5.0)
+    Util.fallback <| fun _ ->
+        let gen rows cols = 
+            Array.init (rows*cols) (TestUtil.genRandomDouble -5.0 5.0)
         
-    let transa = cublasOperation_t.CUBLAS_OP_N
-    let transb = cublasOperation_t.CUBLAS_OP_N
-    let m,n,k = 5,5,5
-    let lda = m // lda >= max(1,m)
-    let ldb = n // ldb >= max(1,k)
-    let ldc = k // ldc >= max(1,m)
+        let transa = cublasOperation_t.CUBLAS_OP_N
+        let transb = cublasOperation_t.CUBLAS_OP_N
+        let m,n,k = 5,5,5
+        let lda = m // lda >= max(1,m)
+        let ldb = n // ldb >= max(1,k)
+        let ldc = k // ldc >= max(1,m)
     
-    let alpha, beta = 1.5, 0.5
+        let alpha, beta = 1.5, 0.5
     
-    let A = gen lda k
-    let B = gen ldb n
-    let C = gen ldc n
+        let A = gen lda k
+        let B = gen ldb n
+        let C = gen ldc n
 
-    let outputs = gpu.dgemm transa transb m n k alpha A lda B ldb beta C ldc
-    let expected = cpu.dgemm transa transb m n k alpha A lda B ldb beta C ldc
+        let outputs = gpu.dgemm transa transb m n k alpha A lda B ldb beta C ldc
+        let expected = cpu.dgemm transa transb m n k alpha A lda B ldb beta C ldc
 
-    printfn "cpu result: %A" expected
-    printfn "gpu result: %A" outputs
+        printfn "cpu result: %A" expected
+        printfn "gpu result: %A" outputs
 
-    outputs |> should (equalWithin 1e-12) expected 
+        outputs |> should (equalWithin 1e-12) expected 
 
 [<Test>]
 let zgemmTest() =
-    let gen rows cols = 
-        Array.init (rows*cols) (TestUtil.genRandomDouble2 -5.0 5.0)
+    Util.fallback <| fun _ ->
+        let gen rows cols = 
+            Array.init (rows*cols) (TestUtil.genRandomDouble2 -5.0 5.0)
         
-    let transa = cublasOperation_t.CUBLAS_OP_N
-    let transb = cublasOperation_t.CUBLAS_OP_N
-    let m,n,k = 5,5,5
-    let lda = m // lda >= max(1,m)
-    let ldb = n // ldb >= max(1,k)
-    let ldc = k // ldc >= max(1,m)
+        let transa = cublasOperation_t.CUBLAS_OP_N
+        let transb = cublasOperation_t.CUBLAS_OP_N
+        let m,n,k = 5,5,5
+        let lda = m // lda >= max(1,m)
+        let ldb = n // ldb >= max(1,k)
+        let ldc = k // ldc >= max(1,m)
     
-    let alpha = double2(2.0, 0.5)
-    let beta = double2(1.5, 0.5)
+        let alpha = double2(2.0, 0.5)
+        let beta = double2(1.5, 0.5)
     
-    let A = gen lda k
-    let B = gen ldb n
-    let C = gen ldc n
+        let A = gen lda k
+        let B = gen ldb n
+        let C = gen ldc n
 
-    let outputs = gpu.zgemm transa transb m n k alpha A lda B ldb beta C ldc
-    let expected = cpu.zgemm transa transb m n k alpha A lda B ldb beta C ldc
+        let outputs = gpu.zgemm transa transb m n k alpha A lda B ldb beta C ldc
+        let expected = cpu.zgemm transa transb m n k alpha A lda B ldb beta C ldc
 
-    (outputs, expected)
-    ||> Array.iter2 (fun o e -> 
-        o.x |> should (equalWithin 1e-9) e.x
-        o.y |> should (equalWithin 1e-9) e.y)
+        (outputs, expected)
+        ||> Array.iter2 (fun o e -> 
+            o.x |> should (equalWithin 1e-9) e.x
+            o.y |> should (equalWithin 1e-9) e.y)
 
-    printfn "cpu result: %A" expected
-    printfn "gpu result: %A" outputs
+        printfn "cpu result: %A" expected
+        printfn "gpu result: %A" outputs

@@ -171,48 +171,54 @@ namespace Tutorial.Cs.examples.cublas
         [Test]
         public static void DgemmBatchedTest()
         {
-            const double alpha = 2.0;
-            const double beta = 2.0;
-            const int batchCount = 10;
-
-            var hAs = (Enumerable.Range(0, batchCount).Select(_ => DGen(Lda*K))).ToArray();
-            var hBs = (Enumerable.Range(0, batchCount).Select(_ => DGen(Ldb*N))).ToArray();
-            var hCs = (Enumerable.Range(0, batchCount).Select(_ => DGen(Ldc*N))).ToArray();
-            var expecteds = GemmBatched.cpu.Dgemm(M, N, K, alpha, hAs, Lda, hBs, Ldb, beta, hCs, Ldc);
-            var outputs = GemmBatched.gpu.Dgemm(M, N, K, alpha, hAs, Lda, hBs, Ldb, beta, hCs, Ldc);
-                
-            for (var batch = 0; batch < batchCount; ++batch)
+            Util.FallBack(() =>
             {
-                var expected = expecteds[batch];
-                var output = outputs[batch];
-                for (var i = 0; i < expected.Length; ++i)
-                    Assert.AreEqual(output[i], expected[i], 1e-12);
-            }
+                const double alpha = 2.0;
+                const double beta = 2.0;
+                const int batchCount = 10;
+
+                var hAs = (Enumerable.Range(0, batchCount).Select(_ => DGen(Lda * K))).ToArray();
+                var hBs = (Enumerable.Range(0, batchCount).Select(_ => DGen(Ldb * N))).ToArray();
+                var hCs = (Enumerable.Range(0, batchCount).Select(_ => DGen(Ldc * N))).ToArray();
+                var expecteds = GemmBatched.cpu.Dgemm(M, N, K, alpha, hAs, Lda, hBs, Ldb, beta, hCs, Ldc);
+                var outputs = GemmBatched.gpu.Dgemm(M, N, K, alpha, hAs, Lda, hBs, Ldb, beta, hCs, Ldc);
+
+                for (var batch = 0; batch < batchCount; ++batch)
+                {
+                    var expected = expecteds[batch];
+                    var output = outputs[batch];
+                    for (var i = 0; i < expected.Length; ++i)
+                        Assert.AreEqual(output[i], expected[i], 1e-12);
+                }
+            });
         }
 
         [Test]
         public static void ZgemmBatchedTest()
         {
-            var alpha = new double2(2.0, 2.0);
-            var beta = new double2(2.0, 2.0);
-            const int batchCount = 10;
-
-            var hAs = (Enumerable.Range(0, batchCount).Select(_ => ZGen(Lda*K))).ToArray();
-            var hBs = (Enumerable.Range(0, batchCount).Select(_ => ZGen(Ldb*N))).ToArray();
-            var hCs = (Enumerable.Range(0, batchCount).Select(_ => ZGen(Ldc*N))).ToArray();
-            var expecteds = GemmBatched.cpu.Zgemm(M, N, K, alpha, hAs, Lda, hBs, Ldb, beta, hCs, Ldc);
-            var outputs = GemmBatched.gpu.Zgemm(M, N, K, alpha, hAs, Lda, hBs, Ldb, beta, hCs, Ldc);
-
-            for (var batch = 0; batch < batchCount; ++batch)
+            Util.FallBack(() =>
             {
-                var expected = expecteds[batch];
-                var output = outputs[batch];
-                for (var i = 0; i < expected.Length; ++i)
+                var alpha = new double2(2.0, 2.0);
+                var beta = new double2(2.0, 2.0);
+                const int batchCount = 10;
+
+                var hAs = (Enumerable.Range(0, batchCount).Select(_ => ZGen(Lda * K))).ToArray();
+                var hBs = (Enumerable.Range(0, batchCount).Select(_ => ZGen(Ldb * N))).ToArray();
+                var hCs = (Enumerable.Range(0, batchCount).Select(_ => ZGen(Ldc * N))).ToArray();
+                var expecteds = GemmBatched.cpu.Zgemm(M, N, K, alpha, hAs, Lda, hBs, Ldb, beta, hCs, Ldc);
+                var outputs = GemmBatched.gpu.Zgemm(M, N, K, alpha, hAs, Lda, hBs, Ldb, beta, hCs, Ldc);
+
+                for (var batch = 0; batch < batchCount; ++batch)
                 {
-                    Assert.AreEqual(output[i].x, expected[i].x, 1e-12);
-                    Assert.AreEqual(output[i].y, expected[i].y, 1e-12);
+                    var expected = expecteds[batch];
+                    var output = outputs[batch];
+                    for (var i = 0; i < expected.Length; ++i)
+                    {
+                        Assert.AreEqual(output[i].x, expected[i].x, 1e-12);
+                        Assert.AreEqual(output[i].y, expected[i].y, 1e-12);
+                    }
                 }
-            }
+            });
         }
     }
     //[/gemmBatchedTest]

@@ -45,7 +45,7 @@ namespace Tutorial.Cs.examples.simpled3d9
             const float freq = 4.0f;
             var w = LibDevice.__nv_sinf(u*freq + time)*LibDevice.__nv_cosf(v*freq + time)*0.5f;
 
-            pos[y * Width + x] = new float4(u, w, v, LibDevice.__nv_int_as_float(0xff00ff00));
+            pos[y * Width + x] = new float4(u, w, v, LibDevice.__nv_uint_as_float(0xff00ff00));
         }
 
         unsafe public void Update(IntPtr vbRes, float time)

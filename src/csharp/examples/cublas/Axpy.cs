@@ -73,42 +73,48 @@ namespace Tutorial.Cs.examples.cublas
         [Test]
         public static void DaxpyTest()
         {
-            const int N = 5;
-            const double alpha = 2.0;
-
-            var x = new double[N];
-            var y = new double[N];
-
-            for (var i = 0; i < N; ++i)
+            Util.FallBack(() =>
             {
-                x[i] = 2.0;
-                y[i] = 1.0;
-            }
+                const int N = 5;
+                const double alpha = 2.0;
 
-            var outputs = Axpy.gpu.Daxpy(N, alpha, x, Incx, y, Incy);
-            var expected = Axpy.cpu.Daxpy(N, alpha, x, Incx, y, Incy);
+                var x = new double[N];
+                var y = new double[N];
 
-            for (var i = 0; i < N; ++i)
-                Assert.AreEqual(outputs[i], expected[i], 1e-12);
+                for (var i = 0; i < N; ++i)
+                {
+                    x[i] = 2.0;
+                    y[i] = 1.0;
+                }
+
+                var outputs = Axpy.gpu.Daxpy(N, alpha, x, Incx, y, Incy);
+                var expected = Axpy.cpu.Daxpy(N, alpha, x, Incx, y, Incy);
+
+                for (var i = 0; i < N; ++i)
+                    Assert.AreEqual(outputs[i], expected[i], 1e-12);
+            });
         }
 
         [Test]
         public static void ZaxpyTest()
         {
-            const int N = 5;
-            var alpha = new double2(2.0, 2.0);
-
-            var x = new double2[N];
-            var y = new double2[N];
-
-            var outputs = Axpy.gpu.Zaxpy(N, alpha, x, Incx, y, Incy);
-            var expected = Axpy.cpu.Zaxpy(N, alpha, x, Incx, y, Incy);
-
-            for (var i = 0; i < N; ++i)
+            Util.FallBack(() =>
             {
-                Assert.AreEqual(outputs[i].x, expected[i].x, 1e-12);
-                Assert.AreEqual(outputs[i].y, expected[i].y, 1e-12);
-            }
+                const int N = 5;
+                var alpha = new double2(2.0, 2.0);
+
+                var x = new double2[N];
+                var y = new double2[N];
+
+                var outputs = Axpy.gpu.Zaxpy(N, alpha, x, Incx, y, Incy);
+                var expected = Axpy.cpu.Zaxpy(N, alpha, x, Incx, y, Incy);
+
+                for (var i = 0; i < N; ++i)
+                {
+                    Assert.AreEqual(outputs[i].x, expected[i].x, 1e-12);
+                    Assert.AreEqual(outputs[i].y, expected[i].y, 1e-12);
+                }
+            });
         }
     }
     //[/axpyTest]

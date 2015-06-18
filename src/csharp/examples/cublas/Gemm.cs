@@ -109,49 +109,55 @@ namespace Tutorial.Cs.examples.cublas
         [Test]
         public static void DgemmTest()
         {
-            var rng = new Random();
-
-            const double alpha = 2.0;
-            const double beta = 1.0;
-
-            var A = new double[Lda*K];
-            var B = new double[Ldb*N];
-            var C = new double[Ldc*N];
-
-            for (var i = 0; i < Lda*K; ++i)
-                A[i] = rng.NextDouble();
-
-            for (var i = 0; i < Lda*N; ++i)
+            Util.FallBack(() =>
             {
-                B[i] = rng.NextDouble();
-                C[i] = rng.NextDouble();
-            }
-            
-            var outputs = Gemm.gpu.Dgemm(M, N, K, alpha, A, Lda, B, Ldb, beta, C, Ldc);
-            var expected = Gemm.cpu.Dgemm(M, N, K, alpha, A, Lda, B, Ldb, beta, C, Ldc);
+                var rng = new Random();
 
-            for (var i = 0; i < outputs.Length; ++i)
-                Assert.AreEqual(outputs[i], expected[i], 1e-12);
+                const double alpha = 2.0;
+                const double beta = 1.0;
+
+                var A = new double[Lda * K];
+                var B = new double[Ldb * N];
+                var C = new double[Ldc * N];
+
+                for (var i = 0; i < Lda * K; ++i)
+                    A[i] = rng.NextDouble();
+
+                for (var i = 0; i < Lda * N; ++i)
+                {
+                    B[i] = rng.NextDouble();
+                    C[i] = rng.NextDouble();
+                }
+
+                var outputs = Gemm.gpu.Dgemm(M, N, K, alpha, A, Lda, B, Ldb, beta, C, Ldc);
+                var expected = Gemm.cpu.Dgemm(M, N, K, alpha, A, Lda, B, Ldb, beta, C, Ldc);
+
+                for (var i = 0; i < outputs.Length; ++i)
+                    Assert.AreEqual(outputs[i], expected[i], 1e-12);
+            });
         }
 
         [Test]
         public static void ZgemmTest()
         {
-            var alpha = new double2(2.0, 0.5);
-            var beta = new double2(1.0, 0.5);
-
-            var A = new double2[Lda*K];
-            var B = new double2[Ldb*N];
-            var C = new double2[Ldc*N];
-
-            var outputs = Gemm.gpu.Zgemm(M, N, K, alpha, A, Lda, B, Ldb, beta, C, Ldc);
-            var expected = Gemm.cpu.Zgemm(M, N, K, alpha, A, Lda, B, Ldb, beta, C, Ldc);
-
-            for (var i = 0; i < outputs.Length; ++i)
+            Util.FallBack(() =>
             {
-                Assert.AreEqual(outputs[i].x, expected[i].x, 1e-12);
-                Assert.AreEqual(outputs[i].y, expected[i].y, 1e-12);
-            }
+                var alpha = new double2(2.0, 0.5);
+                var beta = new double2(1.0, 0.5);
+
+                var A = new double2[Lda * K];
+                var B = new double2[Ldb * N];
+                var C = new double2[Ldc * N];
+
+                var outputs = Gemm.gpu.Zgemm(M, N, K, alpha, A, Lda, B, Ldb, beta, C, Ldc);
+                var expected = Gemm.cpu.Zgemm(M, N, K, alpha, A, Lda, B, Ldb, beta, C, Ldc);
+
+                for (var i = 0; i < outputs.Length; ++i)
+                {
+                    Assert.AreEqual(outputs[i].x, expected[i].x, 1e-12);
+                    Assert.AreEqual(outputs[i].y, expected[i].y, 1e-12);
+                }
+            });
         }
     }
     //[/gemmTest]

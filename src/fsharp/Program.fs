@@ -27,6 +27,7 @@ let main argv =
         printfn "        ExamplesCublasAxpyTest               |"
         printfn "        ExamplesCublasGemmTest               |"
         printfn "        ExamplesCublasGemmBatchedTest        |"
+        printfn "        ExamplesCudnnMnistTest               |" 
         printfn "        ExamplesUnboundGemm                  |" 
         printfn "        ExamplesUnboundReduceTest            |"
         printfn "        ExamplesUnboundScanTest              |"
@@ -69,6 +70,7 @@ let main argv =
         | "examplescublasgemmtest"               -> Tutorial.Fs.examples.cublas.Gemm.dgemmTest()
                                                     Tutorial.Fs.examples.cublas.Gemm.zgemmTest()
         | "examplescublasgemmbatchedtest"        -> Tutorial.Fs.examples.cublas.GemmBatched.dgemmBatchedTest()
+        | "examplescudnnmnisttest"               -> Tutorial.Fs.examples.cudnn.Mnist.test()
         | "examplesunboundreducetest"            -> Tutorial.Fs.examples.unbound.Reduce.deviceReduceTest()
         | "examplesunboundscantest"              -> Tutorial.Fs.examples.unbound.Scan.deviceScanTest()
         | "examplesunboundblockrangescantest"    -> Tutorial.Fs.examples.unbound.BlockRageScan.blockRangeScanTest()
@@ -101,6 +103,7 @@ let main argv =
                                                     Tutorial.Fs.examples.cublas.Gemm.dgemmTest()
                                                     Tutorial.Fs.examples.cublas.Gemm.zgemmTest()
                                                     Tutorial.Fs.examples.cublas.GemmBatched.dgemmBatchedTest()
+                                                    Tutorial.Fs.examples.cudnn.Mnist.test()
                                                     Tutorial.Fs.examples.unbound.Reduce.deviceReduceTest()
                                                     Tutorial.Fs.examples.unbound.Scan.deviceScanTest()
                                                     Tutorial.Fs.examples.unbound.BlockRageScan.blockRangeScanTest()
