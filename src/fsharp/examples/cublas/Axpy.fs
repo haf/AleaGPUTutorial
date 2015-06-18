@@ -69,32 +69,34 @@ Testing against CPU reference implementation.
 (*** define:axpyTest ***)
 [<Test>]
 let daxpyTest() =
-    let n = 5
-    let incx,incy = 1,1
-    let alpha = 2.0
-    let x = Array.create n 2.0
-    let y = Array.create n 1.0
+    Util.fallback <| fun _ ->
+        let n = 5
+        let incx,incy = 1,1
+        let alpha = 2.0
+        let x = Array.create n 2.0
+        let y = Array.create n 1.0
     
-    let outputs = gpu.daxpy n alpha x incx y incy
-    let expected = cpu.daxpy n alpha x incx y incy
+        let outputs = gpu.daxpy n alpha x incx y incy
+        let expected = cpu.daxpy n alpha x incx y incy
 
-    printfn "cpu result: %A" expected
-    printfn "gpu result: %A" outputs
+        printfn "cpu result: %A" expected
+        printfn "gpu result: %A" outputs
 
-    outputs |> should equal expected
+        outputs |> should equal expected
 
 [<Test>]
 let zaxpyTest() =
-    let n = 5
-    let incx,incy = 1,1
-    let alpha = double2(2.0, 2.0)
-    let x = Array.init n (fun _ -> double2(2.0, 0.5))
-    let y = Array.init n (fun _ -> double2(1.0, 0.5))
+    Util.fallback <| fun _ ->
+        let n = 5
+        let incx,incy = 1,1
+        let alpha = double2(2.0, 2.0)
+        let x = Array.init n (fun _ -> double2(2.0, 0.5))
+        let y = Array.init n (fun _ -> double2(1.0, 0.5))
     
-    let outputs = gpu.zaxpy n alpha x incx y incy |> Array.map (fun x -> Numerics.Complex(x.x, x.y))
-    let expected = cpu.zaxpy n alpha x incx y incy
+        let outputs = gpu.zaxpy n alpha x incx y incy |> Array.map (fun x -> Numerics.Complex(x.x, x.y))
+        let expected = cpu.zaxpy n alpha x incx y incy
 
-    printfn "cpu result: %A" expected
-    printfn "gpu result: %A" outputs
+        printfn "cpu result: %A" expected
+        printfn "gpu result: %A" outputs
     
-    outputs |> should equal expected
+        outputs |> should equal expected

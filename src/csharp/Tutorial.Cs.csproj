@@ -66,6 +66,7 @@
     <Compile Include="examples\cublas\Axpy.cs" />
     <Compile Include="examples\cublas\Gemm.cs" />
     <Compile Include="examples\cublas\GemmBatched.cs" />
+    <Compile Include="examples\cublas\Util.cs" />
     <Compile Include="examples\cudnn\Data.cs" />
     <Compile Include="examples\cudnn\Layer.cs" />
     <Compile Include="examples\cudnn\Mnist.cs" />

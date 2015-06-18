@@ -38,4 +38,5 @@ let [<Test>] test() =
             Assert.AreEqual(i2, 3)
             Assert.AreEqual(i3, 5)
 
-        with :? System.DllNotFoundException -> Assert.Inconclusive("You need set the environment for cudnn native library to do this test.")
+        with :? System.DllNotFoundException ->
+            Assert.Inconclusive("You need set the environment for cudnn native library to do this test.")

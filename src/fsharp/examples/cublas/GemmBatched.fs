@@ -54,28 +54,29 @@ module gpu =
 (*** define:gemmBatchedTest ***)
 [<Test>]
 let dgemmBatchedTest() =
-    let gen rows cols = 
-        Array.init (rows*cols) (TestUtil.genRandomDouble -5.0 5.0)
+    Util.fallback <| fun _ ->
+        let gen rows cols = 
+            Array.init (rows*cols) (TestUtil.genRandomDouble -5.0 5.0)
     
-    let batchCount = 10
+        let batchCount = 10
 
-    let transa = cublasOperation_t.CUBLAS_OP_N
-    let transb = cublasOperation_t.CUBLAS_OP_N
-    let m, n, k = 5, 5, 5
-    let lda = m // lda >= max(1,m)
-    let ldb = n // ldb >= max(1,k)
-    let ldc = k // ldc >= max(1,m)
+        let transa = cublasOperation_t.CUBLAS_OP_N
+        let transb = cublasOperation_t.CUBLAS_OP_N
+        let m, n, k = 5, 5, 5
+        let lda = m // lda >= max(1,m)
+        let ldb = n // ldb >= max(1,k)
+        let ldc = k // ldc >= max(1,m)
     
-    let alpha, beta = 1.5, 0.5
+        let alpha, beta = 1.5, 0.5
 
-    let As = [for i in [1..batchCount] -> gen lda k] |> Array.ofList
-    let Bs = [for i in [1..batchCount] -> gen ldb n] |> Array.ofList
-    let Cs = [for i in [1..batchCount] -> gen ldc n] |> Array.ofList
+        let As = [for i in [1..batchCount] -> gen lda k] |> Array.ofList
+        let Bs = [for i in [1..batchCount] -> gen ldb n] |> Array.ofList
+        let Cs = [for i in [1..batchCount] -> gen ldc n] |> Array.ofList
 
-    let outputs = gpu.dgemmBatched transa transb m n k alpha As lda Bs ldb beta Cs ldc
-    let expected = cpu.dgemmBatched transa transb m n k alpha As lda Bs ldb beta Cs ldc
+        let outputs = gpu.dgemmBatched transa transb m n k alpha As lda Bs ldb beta Cs ldc
+        let expected = cpu.dgemmBatched transa transb m n k alpha As lda Bs ldb beta Cs ldc
 
-    printfn "cpu result: %A" expected
-    printfn "gpu result: %A" outputs
+        printfn "cpu result: %A" expected
+        printfn "gpu result: %A" outputs
 
-    outputs |> should (equalWithin 1e-12) expected
+        outputs |> should (equalWithin 1e-12) expected

@@ -91,6 +91,7 @@
     <Compile Include="examples\unbound\BlockRangeScan.fs" />
     <Compile Include="examples\unbound\MatrixMult.fs" />
     <Compile Include="examples\unbound\Random.fs" />
+    <Compile Include="examples\cublas\Util.fs" />
     <Compile Include="examples\cublas\Axpy.fs" />
     <Compile Include="examples\cublas\Gemm.fs" />
     <Compile Include="examples\cublas\GemmBatched.fs" />
