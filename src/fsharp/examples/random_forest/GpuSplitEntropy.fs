@@ -28,7 +28,7 @@ let DEFAULT_BLOCK_SIZE = 128
 let DEFAULT_REDUCE_BLOCK_SIZE = 512
 
 (**
-Type `ValueAndIndex` used to get back min and argmin resp. max and argmax.
+Type `ValueAndIndex` used to get back `min` and `argmin` resp. `max` and `argmax`.
 *)
 [<Struct; Align(8)>]
 type ValueAndIndex =
@@ -170,7 +170,7 @@ type EntropyOptimizationOptions =
         let relativeMinWeight = min (total / (numClasses * this.RelMinDivisor)) this.RelMinBound
         max this.AbsMinWeight relativeMinWeight
 
-    /// Returns array of length `n` of booleans where randomly sqrt `n` are true.
+    /// Returns array of length `n` of booleans where randomly $\sqrt$ `n` are true.
     static member SquareRootFeatureSelector (rnd : int -> int) (n : int) =
         let k = float n |> sqrt |> int
 
@@ -375,7 +375,7 @@ Returns for every initial weight (before sorting samples) if it has been non-zer
             weightMatrix.[matrixIdx] <- min weight 1
 
 (**
-Writes indices where initial weight is non-zero into `indexMatrix`. Note in `cumWeightMatrix` weights have been $\in \{0,1\}$.
+Writes indices where initial weight is non-zero into `indexMatrix`. Note weights which make up `cumWeightMatrix` have been $\in \{0,1\}$.
 *)
     [<Kernel; ReflectedDefinition>]
     member private this.FindNonZeroIndicesKernel (indexMatrix : deviceptr<int>) (cumWeightMatrix : deviceptr<int>) (numSamples : int) =
@@ -433,7 +433,18 @@ Launches three kernels in order to find indices where the initial weights were n
                    memories.WeightMatrix.DeviceData.Ptr problem.NumSamples)
 
 (**
-Writes initial weights (before sorting samples) into `weightMatrix`.
+Writes initial weights (before sorting samples) into `weightMatrix` and sorted in seperate groups for different classes.
+Given the following table consisting of weights and labels (assumed to be ordered according to the feature-value):
+
+    Weight: Label:
+    1       0
+    2       1
+    1       1
+    2       0
+
+We get the following expanded weights (0 if feature has different class): 
+
+    1 0 0 2 0 2 1 0
 *)
     [<Kernel; ReflectedDefinition>]
     member private this.WeightExpansionKernel (weightMatrix : deviceptr<int>) (labelMatrix : deviceptr<Label>)
@@ -455,7 +466,18 @@ Writes initial weights (before sorting samples) into `weightMatrix`.
                                                                else 0
 
 (**
-Launches `ExpandWeights` in order to get initial weights (before sorting samples) into `WeightsPerFeatureAndClass`.
+Launches `ExpandWeights` in order to get initial weights (before sorting samples) into `WeightsPerFeatureAndClass`, seperate groups for different classes.
+Given the following table consisting of weights and labels (assumed to be ordered according to the feature-value):
+
+    Weight: Label:
+    1       0
+    2       1
+    1       1
+    2       0
+
+We get the following expanded weights (0 if feature has different class):
+
+    1 0 0 2 0 2 1 0
 *)
     member this.ExpandWeights(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, numValid : int) =
         let lp = lp problem.NumFeatures numValid
@@ -465,7 +487,18 @@ Launches `ExpandWeights` in order to get initial weights (before sorting samples
         if DEBUG then printfn "weightsPerFeatureAndClass:\n%A" (memories.WeightsPerFeatureAndClass.ToArray2D())
 
 (**
-Launches `ExpandWeights` in order to get initial weights (before sorting samples) into `WeightsPerFeatureAndClass`. Uses CUDA-streams.
+Launches `ExpandWeights` in order to get initial weights (before sorting samples) into `WeightsPerFeatureAndClass`, seperate groups for different classes. Uses CUDA-streams.
+Given the following table consisting of weights and labels (assumed to be ordered according to the feature-value):
+
+    Weight: Label:
+    1       0
+    2       1
+    1       1
+    2       0
+
+We get the following expanded weights (0 if feature has different class):
+
+    1 0 0 2 0 2 1 0
 *)
     member this.ExpandWeights(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories)[], numValids : int[]) =
         let launch = this.LaunchWeightExpansionKernel.Value
@@ -662,7 +695,7 @@ Returns an array consisting of entropy and split-index by:
     - Make a cumulative sum.
     - launch the `NonZeroIndicesKernel`
 - Summing up weights.
-- Expanding weights using the `ExpandWeights`, i.e. returning the index of a given sample before sorting.
+- Expanding weights using the `ExpandWeights`, i.e. returning the index of a given sample before sorting and ordering them according to their labels.
 - Makeing a cumulative sum using the `CumSumKernel` kernel.
 - Calculating the Entropy for all features and samples using the `Entropy` kernel.
 - Calculating the minimum entropy using the `OptAndArgOptKernelDoubleWithIdcs`kernel.

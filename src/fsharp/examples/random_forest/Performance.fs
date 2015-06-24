@@ -8,7 +8,7 @@ open Tutorial.Fs.examples.RandomForest.RandomForest
 open Tutorial.Fs.examples.RandomForest.Tests
 
 (**
-# Performance measurement CPU vs GPU implementations.
+# Performance Measurement CPU vs GPU Implementations.
 
 We use the following parameters:
 

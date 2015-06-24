@@ -10,17 +10,16 @@ open Tutorial.Fs.examples.RandomForest.Array
 open Tutorial.Fs.examples.RandomForest.DataModel
 
 (**
-# Iris Example
+# Example using Iris Data Set
 
 The [Iris flower data set](http://en.wikipedia.org/wiki/Iris_flower_data_set) contains four features (length and the width of both:
-[sepals and petals](http://en.wikipedia.org/wiki/Sepal#/media/File:Petal-sepal.jpg)) of three species:
+[sepals and petals](http://en.wikipedia.org/wiki/Sepal#/media/File:Petal-sepal.jpg)) of three Iris species:
 
  - [Iris setosa](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Kosaciec_szczecinkowaty_Iris_setosa.jpg),
  - [Iris virginica](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_virginica.jpg) and
  - [Iris versicolor](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_versicolor_3.jpg).
 
-It is not the typical dataset for random forests, but as it only has few features it gives small trees: ideal as an example.
-
+Random Forests show their strengs when using data sets with many (100 and more) features. But for the purpose of an example having only few features helps to keep an overview on the data.
 
 In order to get a feeling for the data, we do three scatterplots of the different features:
 
