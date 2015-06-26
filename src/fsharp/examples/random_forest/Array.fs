@@ -57,14 +57,14 @@ let findNonZeroWeights (weightsPerFeature : Weights[]) =
 (**
 Shuffle the elements in an array.
 The function `rnd` is a random-number provider, a function taking an int `l` and returning a random number between 0 and `l`.
-You can use `DataModel.getRngFunction` as default.
+As a default you may use `DataModel.getRngFunction` for `rnd`.
 *)
 let shuffle (rnd : int -> int) arr = arr |> Seq.sortBy (fun _ -> rnd(System.Int32.MaxValue))
 
 (**
 Returns array of length `k` with unique random integer numbers from 0 to `n` - 1.
 The function `rnd` is a random-number provider, a function taking an int `l` and returning a random number between 0 and `l`.
-You can use `DataModel.getRngFunction` as default.
+As a default you may use `DataModel.getRngFunction` for `rnd`.
 *)
 let randomSubIndices rnd n k =
     seq { 0..n - 1 } |> shuffle rnd |> Seq.take k |> Seq.toArray
@@ -72,7 +72,7 @@ let randomSubIndices rnd n k =
 (**
 Selects randomly `k` elements (without replacement) of the array `x`.
 The function `rnd` is a random-number provider, a function taking an int `l` and returning a random number between 0 and `l`.
-You can use `DataModel.getRngFunction` as default.
+As a default you may use `DataModel.getRngFunction` for `rnd`.
 *)
 let randomlySplitUpArray rnd k x =
     let shuffledSequence =

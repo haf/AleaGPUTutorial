@@ -12,7 +12,7 @@ let private DEBUG = false
 (**
 # Random Forest
 
-This file contains the CPU tree-building and evaluating algorithms as well as infrastructure code to integrate the GPU code:
+This file contains the CPU tree-building and evaluating algorithms as well as infrastructure code integrating the GPU code:
 
 - Types for labels.
 - Evaluation function: `forecastTree` and `forecast`.
@@ -20,7 +20,7 @@ This file contains the CPU tree-building and evaluating algorithms as well as in
 - The recursive function `trainTrees` training trees using a `sortedTrainingSet` as well as `weights` and a `IEntropyOptimizer` with the method `Optimizer`.
     
 - Infrastructure code such as the type `EntropyDevice` creating an instance of `IEntropyOptimizer`.
-- The end-user functions `randomForestClassifier` and `randomStumpsClassifier` for training a random forest.
+- The end-user functions `randomForestClassifier` and `randomStumpsClassifier` training a random forest.
 
 Training data is expected in the `LabeledFeaterSet` form (see type below). It helps to transform `LabeledSamples` (input format) into `SortedFeatures` (working format).
 The input format has the form:
@@ -150,7 +150,7 @@ let splitEntropies (mask : bool seq) (countsPerSplit : LabelHistogram seq) (tota
         else System.Double.PositiveInfinity)
 
 (**
-Returns value in the middle between `splidIdx` and next non-empty index if it exists, else returns None.
+Returns value in the middle between `splidIdx` and next non-empty index if it exists, else returns `None`.
 *)
 let featureArrayThreshold weights (featureArray : _[]) splitIdx =
     let nextIdx = Array.findNextNonZeroIdx weights (splitIdx + 1)

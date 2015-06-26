@@ -19,7 +19,7 @@ This file contains all the functionality for the GPU implementation of `Optimize
 - Code to calculate cumulative sums using the `Alea.CUDA.Unbound` framework.
 - Type `EntropyOptimizationOptions` containing the parameters for the entropy optimization.
 - Records `EntropyOptimizationProblem` and `EntropyOptimizationMemories` entropy optimization related matrices.
-- Type `EntropyOptimizationModule` with the methods both called `Optimize` one of them using CUDA-streams one of them not.
+- Type `EntropyOptimizationModule` with the two methods called `Optimize` (one of them using [CUDA-streams](http://devblogs.nvidia.com/parallelforall/how-overlap-data-transfers-cuda-cc/) one of them not) which are the GPU methods used for training the a decision tree.
 *)
 [<Literal>]
 let private DEBUG = false
@@ -28,6 +28,8 @@ let DEFAULT_BLOCK_SIZE = 128
 let DEFAULT_REDUCE_BLOCK_SIZE = 512
 
 (**
+## Functionality to Calculate Min and Argmin, Resp. Max and Argmax
+
 Type `ValueAndIndex` used to get back `min` and `argmin` resp. `max` and `argmax`.
 *)
 [<Struct; Align(8)>]
@@ -85,18 +87,6 @@ type MinOrMax =
     member this.DefaultValue = ValueAndIndex.OPT_INFINITY this.Sign
 
 (**
-Function calculating the entropy term for the count of a bin of a histogram.
-Used in CPU and GPU implementation.
-*)
-[<ReflectedDefinition>]
-let entropyTerm (x : int) =
-    if x > 0 then
-        let xf = float x
-        xf * __nv_log2 xf
-    elif x = 0 then 0.0
-    else __nan()
-
-(**
 Matrix row scan resource, using block range scan from Alea-Unbound.
 Here we use it to find value and index of the minimal entropy.
 *)
@@ -126,6 +116,8 @@ type MultiChannelReducePrimitive(arch : DeviceArch, reduceBlockSize) =
         if tid = 0 then output.[blockIdx.x * numOutputCols + blockIdx.y] <- aggregate
 
 (**
+## Functionality to Calculate the Cummulative Sum
+
 Matrix row scan resource using block range scan from Alea-Unbound.
 Here we use it to calculate a cumulative sum.
 *)
@@ -141,6 +133,8 @@ type MatrixRowScanPrimitive(arch : DeviceArch, addressSize, blockThreads) =
     member this.BlockThreads = blockRangeScan.BlockThreads
 
 (**
+## Required Types
+
 Entropy options.
 See `MinWeight` function for purpose of `AbsMinWeight`, `RelMinDivisor` and `RelMinBound`.
 `Decimals` is used to round to the given decimals in the entropy split.
@@ -218,6 +212,22 @@ type EntropyOptimizationMemories =
         this.GpuMask.Dispose()
 
 (**
+## Entropy Calculation Function.
+
+Function calculating the entropy term for the count of a bin of a histogram.
+Used in CPU and GPU implementation.
+*)
+[<ReflectedDefinition>]
+let entropyTerm (x : int) =
+    if x > 0 then
+        let xf = float x
+        xf * __nv_log2 xf
+    elif x = 0 then 0.0
+    else __nan()
+
+(**
+## Entropy Optimization Module
+
 Entropy optimization module for GPU optimization with resp. without CUDA-streams.
 *)
 [<AOTCompile(SpecificArchs = "sm20;sm30;sm35")>]
@@ -466,18 +476,7 @@ We get the following expanded weights (0 if feature has different class):
                                                                else 0
 
 (**
-Launches `ExpandWeights` in order to get initial weights (before sorting samples) into `WeightsPerFeatureAndClass`, seperate groups for different classes.
-Given the following table consisting of weights and labels (assumed to be ordered according to the feature-value):
-
-    Weight: Label:
-    1       0
-    2       1
-    1       1
-    2       0
-
-We get the following expanded weights (0 if feature has different class):
-
-    1 0 0 2 0 2 1 0
+Launches `ExpandWeights` in order to get initial weights (before sorting samples) into `WeightsPerFeatureAndClass`, seperate groups for different classes. See example in `WeightExpansionKernel`.
 *)
     member this.ExpandWeights(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, numValid : int) =
         let lp = lp problem.NumFeatures numValid
@@ -487,18 +486,7 @@ We get the following expanded weights (0 if feature has different class):
         if DEBUG then printfn "weightsPerFeatureAndClass:\n%A" (memories.WeightsPerFeatureAndClass.ToArray2D())
 
 (**
-Launches `ExpandWeights` in order to get initial weights (before sorting samples) into `WeightsPerFeatureAndClass`, seperate groups for different classes. Uses CUDA-streams.
-Given the following table consisting of weights and labels (assumed to be ordered according to the feature-value):
-
-    Weight: Label:
-    1       0
-    2       1
-    1       1
-    2       0
-
-We get the following expanded weights (0 if feature has different class):
-
-    1 0 0 2 0 2 1 0
+Launches `ExpandWeights` in order to get initial weights (before sorting samples) into `WeightsPerFeatureAndClass`, seperate groups for different classes. See example in `WeightExpansionKernel`. Uses CUDA-streams.
 *)
     member this.ExpandWeights(problem : EntropyOptimizationProblem, param : (Stream * EntropyOptimizationMemories)[], numValids : int[]) =
         let launch = this.LaunchWeightExpansionKernel.Value

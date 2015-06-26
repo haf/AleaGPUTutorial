@@ -61,10 +61,10 @@ Train random forest and perform an out-of-sample test.
 
 1. Randomly split up data in a `training` and `test` set.
 2. Create set of parameters for random forest.
-3. Train the model using the `training` - set.
+3. Train the model using the `training`-set.
 4. Predict labels of the `test`-set and calculate the fraction of correct predictions.
 
-Similar code in Python looks like (some parameters might be different):
+Python code using the `RandomForestClassifier` from sklearn looks like (some parameters might be different):
 
     from sklearn.ensemble import RandomForestClassifier
     from sklearn import datasets
@@ -89,7 +89,7 @@ Similar code in Python looks like (some parameters might be different):
     
     print(str(float(sum(result)) / float(len(result))) + " of labels are correct.")
 
-Similar code in R looks like (some parameters might be different, especially the trees max depth not accessible directly):
+R code usingthe package caret looks like (some parameters are different, e.g. the trees max depth are not accessible directly):
 
     summary(iris)
 
@@ -116,7 +116,7 @@ Similar code in R looks like (some parameters might be different, especially the
     correct <- sum(Prediction == test$Species) / length(Prediction) * 100
     correct
 
-In our F# code it now looks like:
+F# code using our implementation looks like:
 *)
 let printFractionOfCorrectForcasts trainingData device =
     // split up data in training and test data:
