@@ -8,6 +8,7 @@ open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
 open Tutorial.Fs.examples.RandomForest.RandomForest
 open Tutorial.Fs.examples.RandomForest.Array
 open Tutorial.Fs.examples.RandomForest.DataModel
+open NUnit.Framework
 
 (**
 # Example using Iris Data Set
@@ -19,7 +20,7 @@ The [Iris flower data set](http://en.wikipedia.org/wiki/Iris_flower_data_set) co
  - [Iris virginica](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_virginica.jpg) and
  - [Iris versicolor](http://en.wikipedia.org/wiki/Iris_flower_data_set#/media/File:Iris_versicolor_3.jpg).
 
-Random Forests show their strengs when using data sets with many (100 and more) features. But for the purpose of an example having only few features helps to keep an overview on the data.
+Random forests show their strengs when using data sets with many (100 and more) features. But for the purpose of an example having only few features helps to keep an overview on the data.
 
 In order to get a feeling for the data, we do three scatterplots of the different features:
 
@@ -72,7 +73,7 @@ Python code using the `RandomForestClassifier` from sklearn looks like (some par
     
     # Load data and split in training and test data.
     iris = datasets.load_iris()
-    dataTrain, dataTest, labelTrain, labelTest = train_test_split(iris.data, iris.target, test_size=0.33, random_state=42)
+    dataTrain, dataTest, labelTrain, labelTest = train_test_split(iris.data, iris.target, test_size=0.5, random_state=42)
     
     print(iris)
     
@@ -89,7 +90,7 @@ Python code using the `RandomForestClassifier` from sklearn looks like (some par
     
     print(str(float(sum(result)) / float(len(result))) + " of labels are correct.")
 
-R code usingthe package caret looks like (some parameters are different, e.g. the trees max depth are not accessible directly):
+R code using the package caret looks like (some parameters are different, e.g. the trees max depth are not accessible directly):
 
     summary(iris)
 
@@ -99,7 +100,7 @@ R code usingthe package caret looks like (some parameters are different, e.g. th
     # install.packages('caret') # caret package needs to be installed.
     library(caret)
     set.seed(42)
-    trainIndex <- createDataPartition(iris$Species, p = .8, list = FALSE, times = 1)
+    trainIndex <- createDataPartition(iris$Species, p = .5, list = FALSE, times = 1)
     training <- iris[trainIndex,]
     test <- iris[-trainIndex,]
     
@@ -121,7 +122,7 @@ F# code using our implementation looks like:
 let printFractionOfCorrectForcasts trainingData device =
     // split up data in training and test data:
     let trainingData, testData =
-        randomlySplitUpArray (getRngFunction 42) (70*Array.length trainingData/100) trainingData
+        randomlySplitUpArray (getRngFunction 42) (50*Array.length trainingData/100) trainingData
 
     let options =
         { TreeOptions.Default with MaxDepth = 3
@@ -146,7 +147,7 @@ let printFractionOfCorrectForcasts trainingData device =
 (**
 Read in the Iris data set from csv-file using csv-type-provider
 and call the above functions for CPU as well as for GPU.
-prediction-accuracy is between 95% and 100%, depending on splitting fraction
+Prediction-accuracy is between 95% and 100%, depending on splitting fraction
 between training and test data.
 
 An array of `LabeledSample`s consisting of a tuple of an array of samples and
@@ -157,6 +158,7 @@ e.g:
 
 a CPU as well as a GPU variant of the code is used.
 *)
+[<Test>]
 let irisExample() =
     // read in data
     let path = @"..\src\fsharp\examples\random_forest\irisExample.csv"
@@ -174,7 +176,7 @@ let irisExample() =
                | "I. versicolor" -> 1
                | "I. virginica" -> 2
                | x -> failwithf "No such Label: %A" x) |]
-    irisScatterPlot trainingData
+    // irisScatterPlot trainingData
     let cpuDevice = CPU(CpuMode.Parallel)
     let gpuDevice = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
     printFractionOfCorrectForcasts trainingData cpuDevice

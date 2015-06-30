@@ -10,7 +10,7 @@ open Tutorial.Fs.examples.RandomForest.Tests
 (**
 # Performance Measurement CPU vs GPU Implementations.
 
-In order to see the benefit of the GPU implementation, we carry out performance tests, training Random Forests with the following parameters:
+In order to see the benefit of the GPU implementation, we carry out performance tests, training random forests with the following parameters:
 
     numSamples = 20000
     numFeatures = 20

@@ -40,7 +40,7 @@ let sortAllFeatures labels domains = domains |> Array.Parallel.map (sortFeature 
 (**
 The `LabeledFeatureSet` contains the training data which can be saved in three different ways, where only the first is important to the end user:
 
-1. As `LabeledSamples`, i.e. an array containing tuples of feature vectors & a label and is the most canonical way for entering a dataset.
+1. As `LabeledSamples`, i.e. an array containing tuples of feature vectors and a label and is the most canonical way for entering a dataset.
 2. As `LabeledFeatures`, i.e. a tuple of a `FeatureArray` (where instead of having features of a sample together, all features of different samples are saved in an array) and an array of Labels.
 3. As `SortedFeatures`, where for every feature all the values are sorted in ascending order as well as labelled and completed with the index before sorting. It is mainly used for finding the best split. The indices are needed in order to find the weights before ordering the features.
 *)
@@ -111,7 +111,7 @@ Function returning a histogram on `labels` weighted by `weights`.
 let countTotals numClasses labels weights = Seq.last <| cumHistograms numClasses labels weights
 
 (**
-Function calculating the entropy for a given branch, summing entropies for all bins in histogram.
+Function calculating the entropy for a given branch, summing entropies for all bins in the histogram.
 *)
 let private entropyTermSum node =
     let hist, total = node
@@ -121,7 +121,7 @@ let private entropyTermSum node =
         (sumLogs + entropyTerm total)
 
 (**
-Sums up entropy for all new branches after this split (only two for the continuous case).
+Sums up the entropy for all new branches after this split (only two for the continuous case).
 *)
 let entropy total (nodes : LabelHistogram seq) =
     if (total = 0) then 0.0
@@ -150,7 +150,7 @@ let splitEntropies (mask : bool seq) (countsPerSplit : LabelHistogram seq) (tota
         else System.Double.PositiveInfinity)
 
 (**
-Returns value in the middle between `splidIdx` and next non-empty index if it exists, else returns `None`.
+Returns the value in the middle between `splidIdx` and next non-empty index if it exists, else returns `None`.
 *)
 let featureArrayThreshold weights (featureArray : _[]) splitIdx =
     let nextIdx = Array.findNextNonZeroIdx weights (splitIdx + 1)
@@ -170,7 +170,7 @@ let countSamples (weights : Weights) numClasses (labels : Labels) =
     hist
 
 (**
-Returns the `class`/`label` with the most `weight`.
+Returns the `class`/`label` with the highest `weight`.
 *)
 let findMajorityClass weights numClasses labels =
     countSamples weights numClasses labels
@@ -178,7 +178,7 @@ let findMajorityClass weights numClasses labels =
 
 (**
 Masks out splits which are known to have non optimal entropy.
-It increases performance of CPU implementation.
+It is not necessary, but increases the performance of the CPU implementation.
 *)
 let entropyMask (weights : _[]) (labels : _[]) totalWeight absMinWeight =
     let findNextWeight = Array.findNextNonZeroIdx weights
@@ -212,18 +212,18 @@ type CpuMode =
     | Parallel
 
 (**
-Abstract class for entropy optimizer granting the same interface for CPU and GPU implementation.
+Abstract class for the entropy optimizer granting the same interface for CPU and GPU implementation.
 *)
 type IEntropyOptimizer =
     inherit System.IDisposable
     abstract Optimize : Weights[] -> (float * int)[][]
 
 (**
-CPU implementation of the Optimizer function. Uses `Array.Parallel.mapi` for parallelization.
+CPU implementation of the optimizer function. Uses `Array.Parallel.mapi` for parallelization.
 Returns for every feature the best split entropy to and its corresponding index.
 The following steps are taken:
 
-- Weights are expanded: As the labels are sorted according to their value, the weights do not correspond any more to the samples. Expanding weights means here to re-sort the weights such that every sample of every feature has the same weight as before sorting.
+- Weights are expanded: As the labels are sorted according to their value, the weights do not correspond any more to the samples. Expanding weights means that for every sample the initial weights are determined.
 - Creation of a mapper function which uses `Array.map` or `Array.mapi` depending on the `mode` (`Sequential` or `Parallel`).
 - Moving non-zero weighted features to the beginning of the array (this is what the function `projector` does).
 - The function `translator` changes the index from the array without non-zero weights back to the normal array and returns the end of the initial array, if the optimal split is at the sample with the last non-zero weight.
@@ -296,7 +296,7 @@ let restrictAbove idx (source : _[]) = restrict idx (source.Length - idx) source
 (**
 Main function to train a decision tree.
 
-Per recursion the following steps are done:
+Using recursion the following steps are done:
 
 - Calculate triples: entropy, split index and feature index with the minimal split entropy.
 - Find middle between the values to split using the function `featureArrayThreshold`. If no non-zero index exists, stop branching and create a leaf.
@@ -492,11 +492,11 @@ type EntropyDevice =
         this.Create EntropyOptimizationOptions.Default numClasses sortedTrainingSet
 
 (**
-Options for decision-tree:
+Options for decision-trees:
 
 - `MaxDepth`: maximal number of tree-layers.
 - `Device`: Decide between CPU and GPU implementation.
-- `EntropyOptions`
+- `EntropyOptions`: EntropyOptimizationOptions, `DefaultWithSquareRootFeatureSelector` is a good choice. different feature-selectors might be choosen.
 *)
 type TreeOptions =
     { MaxDepth : int
@@ -545,10 +545,10 @@ let randomWeights (rnd : int -> int) length : Weights =
 (**
 Create a random forest from a `trainingSet`:
 
-- `options`, the default options using GPU is a fair choice.
-- `rnd`, a random number generating function in order to create different weights for the trees. Default choice is a function created by `getRngFunction`.
-- `numTrees`, the number of trees to be grown in the random forest
-- `trainingSet`, data to train the random forest.
+- `options`: The default options using GPU is a fair choice.
+- `rnd`: A random number generating function in order to create different weights for the trees. Default choice is a function created by `getRngFunction`.
+- `numTrees`: The number of trees to be grown in the random forest.
+- `trainingSet`: Data to train the random forest.
 
 The method returns a random forest consisting of an array of trees and the number of classes (i.e. number of possible labels).
 *)
@@ -560,9 +560,9 @@ let randomForestClassifier options rnd numTrees (trainingSet : LabeledFeatureSet
 (**
 Trains only stumps, i.e. a random forest with trees of depth 1.
 
-- `rnd`, a random number generating function in order to create different weights for the trees. Default choice is a function created by `getRngFunction`.
-- `numTrees`, the number of trees to be grown in the random forest
-- `trainingSet`, data to train the random forest.
+- `rnd`: A random number generating function in order to create different weights for the trees. Default choice is a function created by `getRngFunction`.
+- `numTrees`: The number of trees to be grown in the random forest.
+- `trainingSet`: Data to train the random forest.
 *)
 let randomStumpsClassifier : (int -> int) -> int -> LabeledFeatureSet -> Model =
     randomForestClassifier { TreeOptions.Default with MaxDepth = 1 }

@@ -13,12 +13,12 @@ open Tutorial.Fs.examples.RandomForest.DataModel
 (**
 # Gpu Split Entropy
 
-This file contains all the functionality for the GPU implementation of `Optimizer`, as well as the function `entropyTerm` shared between CPU and GPU:
+This file contains the function `entropyTerm` shared between CPU and GPU implementation, as well as all the functionality for the GPU implementation of `Optimizer`:
 
 - Code in order to calculate minAndArgmin using the `BlockReduce` algorithms from Alea CUDA.
 - Code to calculate cumulative sums using the `Alea.CUDA.Unbound` framework.
 - Type `EntropyOptimizationOptions` containing the parameters for the entropy optimization.
-- Records `EntropyOptimizationProblem` and `EntropyOptimizationMemories` entropy optimization related matrices.
+- Types `EntropyOptimizationProblem` and `EntropyOptimizationMemories` entropy optimization related matrices.
 - Type `EntropyOptimizationModule` with the two methods called `Optimize` (one of them using [CUDA-streams](http://devblogs.nvidia.com/parallelforall/how-overlap-data-transfers-cuda-cc/) one of them not) which are the GPU methods used for training the a decision tree.
 *)
 [<Literal>]
@@ -26,6 +26,20 @@ let private DEBUG = false
 
 let DEFAULT_BLOCK_SIZE = 128
 let DEFAULT_REDUCE_BLOCK_SIZE = 512
+
+(**
+## Entropy Calculation Function.
+
+Function calculating the entropy term for the count of a bin of a histogram.
+Used in CPU and GPU implementation.
+*)
+[<ReflectedDefinition>]
+let inline entropyTerm (x : int) =
+    if x > 0 then
+        let xf = float x
+        xf * __nv_log2 xf
+    elif x = 0 then 0.0
+    else __nan()
 
 (**
 ## Functionality to Calculate Min and Argmin, Resp. Max and Argmax
@@ -48,7 +62,7 @@ type ValueAndIndex =
 Returns the maximum/minimum of the two values `a` and `b`
 If `sign` is 1 it computes the maximum, if -1 the minimum.
 In case `a` and `b` have the same value, the `ValueAndIndex` with
-largest index will be returned. This is important to get the same results for CPU and GPU implementation.
+the largest index will be returned. This is important to get the same results for the different implementation (CPU & GPU).
 *)
     [<ReflectedDefinition>]
     static member inline Opt sign (a : ValueAndIndex) (b : ValueAndIndex) =
@@ -72,7 +86,7 @@ largest index will be returned. This is important to get the same results for CP
     static member ofSingle (value : float32) index = new ValueAndIndex(float value, index)
 
 (**
-Type to distinguish between min and max in `ValueAndIndex`.
+Type to distinguish between minimum and maximum in `ValueAndIndex`.
 *)
 type MinOrMax =
     | Min
@@ -88,7 +102,7 @@ type MinOrMax =
 
 (**
 Matrix row scan resource, using block range scan from Alea-Unbound.
-Here we use it to find value and index of the minimal entropy.
+We will need it to find value and index of the minimal entropy.
 *)
 type MultiChannelReducePrimitive(arch : DeviceArch, reduceBlockSize) =
     let blockReduce = BlockReduce.WarpReductions<ValueAndIndex>(dim3 reduceBlockSize, arch)
@@ -138,7 +152,7 @@ type MatrixRowScanPrimitive(arch : DeviceArch, addressSize, blockThreads) =
 Entropy options.
 See `MinWeight` function for purpose of `AbsMinWeight`, `RelMinDivisor` and `RelMinBound`.
 `Decimals` is used to round to the given decimals in the entropy split.
-`FeatureSelector` selects a (random) subset of features. Next to the random weights this is the second way to bring some randomness into tree building.
+`FeatureSelector` selects a (random) subset of features. Next to the random weights this is the second way to bring some randomness into the tree building.
 *)
 type EntropyOptimizationOptions =
     { AbsMinWeight : int
@@ -210,20 +224,6 @@ type EntropyOptimizationMemories =
         this.EntropyMatrix.Dispose()
         this.ReducedOutput.Dispose()
         this.GpuMask.Dispose()
-
-(**
-## Entropy Calculation Function.
-
-Function calculating the entropy term for the count of a bin of a histogram.
-Used in CPU and GPU implementation.
-*)
-[<ReflectedDefinition>]
-let entropyTerm (x : int) =
-    if x > 0 then
-        let xf = float x
-        xf * __nv_log2 xf
-    elif x = 0 then 0.0
-    else __nan()
 
 (**
 ## Entropy Optimization Module
@@ -402,8 +402,8 @@ Writes indices where initial weight is non-zero into `indexMatrix`. Note weights
 
 (**
 Launches three kernels in order to find indices where the initial weights were non-zero.
-As for every feature the samples are sorted and hence not anymore in the same order as the weights. Weight-expansion reorders the weights such that every sample 
-gets the initial weight.
+As for every feature the samples are sorted increasingli according to their feature values and hence not anymore in the same order as the weights.
+Weight-expansion finds to every sample the initial weight.
 *)
     member this.FindNonZeroIndices(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories) =
         let lp = lp problem.NumFeatures problem.NumSamples
@@ -677,16 +677,16 @@ Optimization not using CUDA-streams.
 Returns an array consisting of entropy and split-index by:
 
 - Masking features using the `FeatureSelector`.
-- Scattering memory to GPU
+- Scattering memory to GPU.
 - Running `FindNonZeroIndices`:
     - Launches the `LogicalWeightExpansionKernel`: returning if the initial weights of a given sample has been zero before sorting.
     - Make a cumulative sum.
-    - launch the `NonZeroIndicesKernel`
+    - Launch the `NonZeroIndicesKernel`.
 - Summing up weights.
 - Expanding weights using the `ExpandWeights`, i.e. returning the index of a given sample before sorting and ordering them according to their labels.
 - Makeing a cumulative sum using the `CumSumKernel` kernel.
 - Calculating the Entropy for all features and samples using the `Entropy` kernel.
-- Calculating the minimum entropy using the `OptAndArgOptKernelDoubleWithIdcs`kernel.
+- Calculating the minimum entropy using the `OptAndArgOptKernelDoubleWithIdcs` kernel.
 *)
     member this.Optimize(problem : EntropyOptimizationProblem, memories : EntropyOptimizationMemories, options : EntropyOptimizationOptions, weights : Weights) =
         this.GPUWorker.Eval <| fun _ ->

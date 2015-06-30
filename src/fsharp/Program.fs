@@ -33,8 +33,9 @@ let main argv =
         printfn "        ExamplesUnboundBlockRangeScanTest    |"
         printfn "        ExamplesUnboundRandomTest            |"
         printfn "        ExamplesNbodySimulation              |"
-        printfn "        ExamplesRandomForest                 |"
-        printfn "        ExamplesSimpleD3D9"
+        printfn "        ExamplesRandomForestIrisExample      |"
+        printfn "        ExamplesRandomForestPerformance      |"
+        printfn "        ExamplesSimpleD3D9                   |"
         printfn "           ]"
     match argv with
     | [| name |] ->
@@ -80,8 +81,9 @@ let main argv =
         | "examplesunboundrandomtest" -> Tutorial.Fs.examples.unbound.Random.randomTest()
         | "examplesnbodysimulation" -> Tutorial.Fs.examples.nbody.OpenGL.runSim()
         | "examplessimpled3d9" -> Tutorial.Fs.examples.simpled3d9.SimpleD3D9.main()
-        | "examplesrandomforest" -> Tutorial.Fs.examples.RandomForest.IrisExample.irisExample()
-                                    Tutorial.Fs.examples.RandomForest.Performance.``Speed of training random forests``()
+        | "examplesrandomforestirisexample" -> Tutorial.Fs.examples.RandomForest.IrisExample.irisExample()
+        | "examplesrandomforestperformance" -> Tutorial.Fs.examples.RandomForest.Performance.``Speed of training random forests``()
+
         | "help" -> help()
         | _ ->
             printfn "unknown sample name %s\n" name

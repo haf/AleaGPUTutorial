@@ -80,7 +80,7 @@ let randomlySplitUpArray rnd k x =
     shuffledSequence.[0..k - 1], shuffledSequence.[k..]
 
 (**
-Returns value and position of minimum in a sequence.
+Returns value and position of the minimum in a sequence.
 In case of multiple minima it returns the last occurring.
 This function has been written in non-functional style in
 order to get higher performance.
@@ -100,7 +100,7 @@ let inline minAndArgMin (source : seq<'T>) : 'T*int =
     (accv, acci)
 
 (** 
-Returns value and position of maximum in a sequence.
+Returns value and position of the maximum in a sequence.
 In case of multiple maxima it returns the last occurring.
 This function has been written in non-functional style in
 order to get higher performance.
