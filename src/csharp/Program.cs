@@ -26,8 +26,7 @@ namespace Tutorial.Cs
             Console.WriteLine("        ExamplesUnboundBlockRangeScanTest |");
             Console.WriteLine("        ExamplesUnboundMatrixTest         |");
             Console.WriteLine("        ExamplesNbodySimulation           |");
-            Console.WriteLine("        ExamplesSimpleD3D9                |");
-            Console.WriteLine("        All ]                             ");
+            Console.WriteLine("        ExamplesSimpleD3D9 ]");
         }
 
         public static void Main(string[] args)
@@ -115,29 +114,6 @@ namespace Tutorial.Cs
 
                     case "examplessimpled3d9":
                         examples.simpled3d9.SimpleD3D9.Main();
-                        break;
-
-                    case "all":
-                        quick_start.ParallelSquare.SquareTest();
-                        advancedTechniques.GenericTransform.Test.SinCosTest();
-                        examples.basic.Test.SinTest();
-                        examples.generic_reduce.Test.ReduceTest();
-                        examples.generic_scan.Test.ScanTest();
-                        examples.matrixMultiplication.Test.MatrixMultiplyTest();
-                        examples.matrixTranspose.Test.MatrixTransposePerformance();
-                        examples.tridiagSolver.Test.TriDiagSolverTest();
-                        examples.cublas.Test.DaxpyTest();
-                        examples.cublas.Test.ZaxpyTest();
-                        examples.cublas.Test.DgemmTest();
-                        examples.cublas.Test.ZgemmTest();
-                        examples.cublas.Test.DgemmBatchedTest();
-                        examples.cudnn.Test.MnistTest();
-                        examples.unbound.Test.DeviceReduceTest();
-                        examples.unbound.Test.DeviceScanInclusiveTest();
-                        examples.unbound.Test.Gemm1DArrayTest();
-                        examples.unbound.Test.Gemm2DArrayTest();
-                        examples.unbound.Test.BlockRangeScanTest();
-                        examples.nbody.Run.Sim();
                         break;
 
                     default:

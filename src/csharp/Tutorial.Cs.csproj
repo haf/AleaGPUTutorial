@@ -93,7 +93,6 @@
     <Compile Include="examples\nbody\NBody.GPU.DynamicBlockSize.cs" />
     <Compile Include="examples\nbody\NBody.GPU.StaticBlockSize.cs" />
     <Compile Include="examples\nbody\NBody.OpenGL.cs" />
-    <Compile Include="examples\random_forest\DataModel.cs" />
     <Compile Include="getting_started\ParallelSquare.cs" />
     <Compile Include="Program.cs" />
     <None Include="..\app.config">
@@ -103,12 +102,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\..\.paket\paket.targets" />
-  <ItemGroup>
-    <ProjectReference Include="..\fsharp\Tutorial.Fs.fsproj">
-      <Project>{457fea7b-529b-4145-91a2-d7e9e02476a3}</Project>
-      <Name>Tutorial.Fs</Name>
-    </ProjectReference>
-  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\fsharp\Tutorial.Fs.fsproj">
       <Project>{457fea7b-529b-4145-91a2-d7e9e02476a3}</Project>

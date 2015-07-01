@@ -22,6 +22,8 @@ NUGET
     FSharp.Collections.ParallelSeq (1.0.2)
     FSharp.Compiler.Service (0.0.67)
     FSharp.Core (3.1.2.1)
+    FSharp.Data (2.2.0)
+      Zlib.Portable (>= 1.10.0) - framework: portable-net40+sl50+wp80+win80
     FSharp.Formatting (2.4.36)
       FSharp.Compiler.Service (0.0.67)
       Microsoft.AspNet.Razor (2.0.30506.0)
@@ -40,3 +42,4 @@ NUGET
       SharpDX (>= 2.5.0)
     SharpDX.RawInput (2.5.0)
       SharpDX (>= 2.5.0)
+    Zlib.Portable (1.10.0) - framework: portable-net40+sl50+wp80+win80

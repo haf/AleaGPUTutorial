@@ -8,3 +8,4 @@ FSharp.Core
 SharpDX.Direct3D9
 SharpDX.RawInput
 SharpDX
+fsharp.data
