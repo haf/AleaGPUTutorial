@@ -17,9 +17,9 @@ This file contains the function `entropyTerm` shared between CPU and GPU impleme
 
 - Code in order to calculate minAndArgmin using the `BlockReduce` algorithms from Alea CUDA.
 - Code to calculate cumulative sums using the `Alea.CUDA.Unbound` framework.
-- Type `EntropyOptimizationOptions` containing the parameters for the entropy optimization.
-- Types `EntropyOptimizationProblem` and `EntropyOptimizationMemories` entropy optimization related matrices.
-- Type `EntropyOptimizationModule` with the two methods called `Optimize` (one of them using [CUDA-streams](http://devblogs.nvidia.com/parallelforall/how-overlap-data-transfers-cuda-cc/) one of them not) which are the GPU methods used for training the a decision tree.
+- Class `EntropyOptimizationOptions` containing the parameters for the entropy optimization.
+- Records `EntropyOptimizationProblem` and `EntropyOptimizationMemories` entropy optimization related matrices.
+- Class `EntropyOptimizationModule` with the two methods called `Optimize` (one of them using [CUDA-streams](http://devblogs.nvidia.com/parallelforall/how-overlap-data-transfers-cuda-cc/) one of them not) which are the GPU methods used for training the a decision tree.
 *)
 [<Literal>]
 let private DEBUG = false
@@ -28,7 +28,7 @@ let DEFAULT_BLOCK_SIZE = 128
 let DEFAULT_REDUCE_BLOCK_SIZE = 512
 
 (**
-## Entropy Calculation Function.
+## Entropy Calculation Function
 
 Function calculating the entropy term for the count of a bin of a histogram.
 Used in CPU and GPU implementation.
@@ -147,7 +147,7 @@ type MatrixRowScanPrimitive(arch : DeviceArch, addressSize, blockThreads) =
     member this.BlockThreads = blockRangeScan.BlockThreads
 
 (**
-## Required Types
+## Required Classes and Records
 
 Entropy options.
 See `MinWeight` function for purpose of `AbsMinWeight`, `RelMinDivisor` and `RelMinBound`.
@@ -231,14 +231,14 @@ type EntropyOptimizationMemories =
 Entropy optimization module for GPU optimization with resp. without CUDA-streams.
 *)
 [<AOTCompile(SpecificArchs = "sm20;sm30;sm35")>]
-type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
+type EntropyOptimizationModule(target) as this =
     inherit GPUModule(target)
     let primitiveScan =
         fun (options : CompileOptions) ->
             cuda { return MatrixRowScanPrimitive(options.MinimalArch, options.AddressSize, None) }
         |> this.GPUDefineResource
     let primitiveReduce =
-        fun (options : CompileOptions) -> cuda { return MultiChannelReducePrimitive(options.MinimalArch, reduceBlockSize) }
+        fun (options : CompileOptions) -> cuda { return MultiChannelReducePrimitive(options.MinimalArch, DEFAULT_REDUCE_BLOCK_SIZE) }
         |> this.GPUDefineResource
 
     let summarizeWeights (weights : Weights) =
@@ -250,8 +250,8 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
         sum, count
 
     let lp numFeatures numCols =
-        let blockDim = dim3 (blockSize)
-        let gridDim = dim3 (divup numCols blockSize, numFeatures)
+        let blockDim = dim3 (DEFAULT_BLOCK_SIZE)
+        let gridDim = dim3 (divup numCols DEFAULT_BLOCK_SIZE, numFeatures)
         LaunchParam(gridDim, blockDim)
 
     let streams = System.Collections.Generic.Queue<Stream>()
@@ -259,7 +259,7 @@ type EntropyOptimizationModule(target, blockSize, reduceBlockSize) as this =
 (**
 We create a factory method returning a default instance of this class.
 *)
-    static let instance blockSize reduceBlockSize = Lazy.Create <| fun _ -> new EntropyOptimizationModule(GPUModuleTarget.DefaultWorker, blockSize, reduceBlockSize)
+    static let instance DEFAULT_BLOCK_SIZE DEFAULT_REDUCE_BLOCK_SIZE = Lazy.Create <| fun _ -> new EntropyOptimizationModule(GPUModuleTarget.DefaultWorker)
     static member Default = (instance DEFAULT_BLOCK_SIZE DEFAULT_REDUCE_BLOCK_SIZE).Value
 
 (**
@@ -337,9 +337,9 @@ Allocates needed memory on GPU using the `Cublas.Matrix` class. The record must 
         let nonZeroIdcsPerFeature = new Cublas.Matrix<_>(worker, numFeatures, numSamples)
         let weightsPerFeatureAndClass = new Cublas.Matrix<_>(worker, numFeatures * numClasses, numSamples)
         let entropyMatrix = new Cublas.Matrix<_>(worker, numFeatures, numSamples)
-        let reducedOutput = new Cublas.Matrix<_>(worker, numFeatures, divup numSamples reduceBlockSize)
+        let reducedOutput = new Cublas.Matrix<_>(worker, numFeatures, divup numSamples DEFAULT_REDUCE_BLOCK_SIZE)
         let gpuMask = new Cublas.Matrix<_>(worker, 1, numFeatures)
-        let valuesAndIndices = Array.zeroCreate (numFeatures * (divup numSamples reduceBlockSize))
+        let valuesAndIndices = Array.zeroCreate (numFeatures * (divup numSamples DEFAULT_REDUCE_BLOCK_SIZE))
         { GpuWeights = gpuWeights
           WeightMatrix = weightMatrix
           NonZeroIdcsPerFeature = nonZeroIdcsPerFeature
@@ -583,11 +583,11 @@ Method searching for every feature the best split according to the already calcu
             let minOrMax = MinOrMax.Min
             let numRows = problem.NumFeatures
             let numCols = problem.NumSamples
-            let numOutputCols = divup numCols reduceBlockSize
+            let numOutputCols = divup numCols DEFAULT_REDUCE_BLOCK_SIZE
             let sign = minOrMax.Sign
-            let numBlocks = divup numValid reduceBlockSize
+            let numBlocks = divup numValid DEFAULT_REDUCE_BLOCK_SIZE
             let gridSize = dim3 (numRows, numBlocks)
-            let lp = LaunchParam(gridSize, dim3 reduceBlockSize)
+            let lp = LaunchParam(gridSize, dim3 DEFAULT_REDUCE_BLOCK_SIZE)
             let matrix = memories.EntropyMatrix
             let idcs = memories.NonZeroIdcsPerFeature
             let reducedOut = memories.ReducedOutput
@@ -619,7 +619,7 @@ Method searching for every feature the best split according to the already calcu
         let minOrMax = MinOrMax.Min
         let numRows = problem.NumFeatures
         let numCols = problem.NumSamples
-        let numOutputCols = divup numCols reduceBlockSize
+        let numOutputCols = divup numCols DEFAULT_REDUCE_BLOCK_SIZE
         let sign = minOrMax.Sign
         let size = sizeof<float> |> nativeint
         let launch = this.LaunchOptAndArgOptKernelDoubleWithIdcs.Value
@@ -635,9 +635,9 @@ Method searching for every feature the best split according to the already calcu
                                    memories.EntropyMatrix.DeviceData.Ptr.Handle + offset, size, stream.Handle))
                          cuSafeCall (cuStreamSynchronize (stream.Handle))
                          if fullEntropy > 0.0 then
-                             let numBlocks = divup numValid reduceBlockSize
+                             let numBlocks = divup numValid DEFAULT_REDUCE_BLOCK_SIZE
                              let gridSize = dim3 (numRows, numBlocks)
-                             let lp = LaunchParam(gridSize, dim3 reduceBlockSize, 0, stream)
+                             let lp = LaunchParam(gridSize, dim3 DEFAULT_REDUCE_BLOCK_SIZE, 0, stream)
                              let matrix = memories.EntropyMatrix
                              let idcs = memories.NonZeroIdcsPerFeature
                              let reducedOut = memories.ReducedOutput
@@ -658,7 +658,7 @@ Method searching for every feature the best split according to the already calcu
         param |> Array.iteri (fun i (stream, memories) ->
                      if results.[i].IsNone then
                          let numValid = numValids.[i]
-                         let numBlocks = divup numValid reduceBlockSize
+                         let numBlocks = divup numValid DEFAULT_REDUCE_BLOCK_SIZE
                          let optima = Array.create numRows minOrMax.DefaultValue
                          cuSafeCall (cuStreamSynchronize (stream.Handle))
                          memories.ValuesAndIndicesHandle.Value.Free()

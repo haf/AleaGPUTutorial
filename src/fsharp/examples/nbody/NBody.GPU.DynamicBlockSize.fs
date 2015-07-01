@@ -16,7 +16,7 @@ Start a Class `SimulatorModule` and make sure it is (GPU)-compiled ahead of time
 We specify to compile and optimize for the three specific architectures: `sm20`, `sm30` and `sm35`.
 *)
 (*** define:DynamicAOTCompile***)
-[<AOTCompile(SpecificArchs = "sm20;sm30;sm35")>]
+[<AOTCompile(AOTOnly = true, SpecificArchs = "sm20;sm30;sm35")>]
 type SimulatorModule(target) =
     inherit GPUModule(target)
 

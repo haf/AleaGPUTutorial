@@ -43,6 +43,12 @@ The `LabeledFeatureSet` contains the training data which can be saved in three d
 1. As `LabeledSamples`, i.e. an array containing tuples of feature vectors and a label and is the most canonical way for entering a dataset.
 2. As `LabeledFeatures`, i.e. a tuple of a `FeatureArray` (where instead of having features of a sample together, all features of different samples are saved in an array) and an array of Labels.
 3. As `SortedFeatures`, where for every feature all the values are sorted in ascending order as well as labelled and completed with the index before sorting. It is mainly used for finding the best split. The indices are needed in order to find the weights before ordering the features.
+
+The canonical form of the input data is represented by `LabeledSamples`, which is an array of tuples `Sample * Label`. Recall that a Sample is just an array of float vectors and `Label` is an integer value representing the class of the sample. For the Iris data set a `LabeledSample` is a tuple of a float vector of four values and an integer `([|sepalLength; sepalWidth; petalLength; petalWidth|], 1)`.
+
+The type `SortedFeatures` is used to represent the sorted features during the implementation of the algorithm. For each feature, it holds the feature values from all samples in a `FeatureArray`, the corresponding labels in `Labels` and the indices representing the old position of the features.
+
+Note that both the `Sample` and `FeatureArray` are both float arrays. The reason why we distinguish them is because a `Sample` is an observation of one feature value per feature, whereas a `FeatureArray` holds the value of a single feature for a collection of samples. If we stack the samples row by row in a matrix, the rows would correspond to samples, whereas the columns would correspond to feature arrays.
 *)
 type LabeledFeatureSet =
     | LabeledSamples of LabeledSample[]
@@ -223,17 +229,20 @@ CPU implementation of the optimizer function. Uses `Array.Parallel.mapi` for par
 Returns for every feature the best split entropy to and its corresponding index.
 The following steps are taken:
 
-- Weights are expanded: As the labels are sorted according to their value, the weights do not correspond any more to the samples. Expanding weights means that for every sample the initial weights are determined.
-- Creation of a mapper function which uses `Array.map` or `Array.mapi` depending on the `mode` (`Sequential` or `Parallel`).
-- Moving non-zero weighted features to the beginning of the array (this is what the function `projector` does).
-- The function `translator` changes the index from the array without non-zero weights back to the normal array and returns the end of the initial array, if the optimal split is at the sample with the last non-zero weight.
-- The mapping function:
-    - Takes the weights for a given feature (which is not masked by the feature Selector).
-    - Calculates the histogram on the splits.
-    - Masks splits obviously non optimal.
-    - Calculates the entropy on the remaining splits.
-    - Calculates the minimum and its position.
-    - Translates the position back using the `translator` function.
+- Reorder the weights such that every weight is stored at the same index as the corresponding sample, which is done for every feature independently.
+- Project all features and weights which are non-zero to the beginning of the array.
+- Implement the helper functions
+    - mapper which, depending on the mode, is either Array.mapi or Array.Parallel.mapi.
+    - translator which translates the index after projection to the post projection index, or the last index in case for the last non-zero index.
+    - A mapping function, the argument for the mapper, which for all non-masked features performs the following:
+        - Get the weights.
+        - Create the histogram for every split possibility for the given feature.
+        - Mask splits which are clearly not optimal. This is not necessary, but helps speeding up the CPU implementation.
+        - Calculate the entropy for remaining split possibilities.
+        - Return the lowest entropy and its index and translates the index to its value before the projection using the translator function.
+
+- Select a subset of the features using a FeatureSelector.
+- Calculate the entropy for the remaining split possibilities using the helper functions.
 *)
 let optimizeFeatures (mode : CpuMode) (options : EntropyOptimizationOptions) numClasses (labelsPerFeature : Labels[])
     (indicesPerFeature : Indices[]) weights =

@@ -84,7 +84,7 @@ let ``Speed of training random forests``() =
             numFeatures numClasses numTrees poolSize
         let runner = measureDevice numWarmups numTrees options trainingData
         use worker2 = Worker.Create(Device.Default)
-        use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2), blockSize, reduceBlockSize)
+        use gpuModule2 = new GpuSplitEntropy.EntropyOptimizationModule(GPUModuleTarget.Worker(worker2))
         let gpuDevice1 = GPU(GpuMode.SingleWeight, GpuModuleProvider.DefaultModule)
         let gpuDevice2 = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.Specified(gpuModule2))
         let gpuDevice3 = GPU(GpuMode.SingleWeightWithStream 10, GpuModuleProvider.DefaultModule)
