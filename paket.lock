@@ -1,28 +1,30 @@
 CONTENT: NONE
 NUGET
+  remote: http://alpha.aleacubase.com/nuget
+  specs:
+    Alea.CUDA (2.1.2.3272-beta)
+    Alea.CUDA.Fody (2.1.2.3272-beta)
+      Alea.CUDA (2.1.2.3272-beta)
+      Alea.CUDA.IL (2.1.2.3272-beta)
+      Alea.IL (2.1.2.3272-beta)
+      Fody (>= 1.28.0)
+    Alea.CUDA.IL (2.1.2.3272-beta)
+      Alea.CUDA (2.1.2.3272-beta)
+      Alea.IL (2.1.2.3272-beta)
+    Alea.CUDA.Unbound (2.1.2.3272-beta)
+      Alea.CUDA (2.1.2.3272-beta)
+      Alea.CUDA.IL (2.1.2.3272-beta)
+      Alea.IL (2.1.2.3272-beta)
+    Alea.IL (2.1.2.3272-beta)
   remote: https://www.nuget.org/api/v2
   specs:
-    Alea.CUDA (2.1.1.3264)
-    Alea.CUDA.Fody (2.1.1.3264)
-      Alea.CUDA (2.1.1.3264)
-      Alea.CUDA.IL (2.1.1.3264)
-      Alea.IL (2.1.1.3264)
-      Fody (>= 1.28.0)
-    Alea.CUDA.IL (2.1.1.3264)
-      Alea.CUDA (2.1.1.3264)
-      Alea.IL (2.1.1.3264)
-    Alea.CUDA.Unbound (2.1.1.3264)
-      Alea.CUDA (2.1.1.3264)
-      Alea.CUDA.IL (2.1.1.3264)
-      Alea.IL (2.1.1.3264)
-    Alea.IL (2.1.1.3264)
-    FAKE (3.35.4)
+    FAKE (3.35.5)
     Fody (1.28.3)
     FSharp.Charting (0.90.10)
     FSharp.Collections.ParallelSeq (1.0.2)
     FSharp.Compiler.Service (0.0.67)
     FSharp.Core (3.1.2.1)
-    FSharp.Data (2.2.0)
+    FSharp.Data (2.2.3)
       Zlib.Portable (>= 1.10.0) - framework: portable-net40+sl50+wp80+win80
     FSharp.Formatting (2.4.36)
       FSharp.Compiler.Service (0.0.67)
@@ -42,4 +44,4 @@ NUGET
       SharpDX (>= 2.5.0)
     SharpDX.RawInput (2.5.0)
       SharpDX (>= 2.5.0)
-    Zlib.Portable (1.10.0) - framework: portable-net40+sl50+wp80+win80
+    Zlib.Portable (1.11.0) - framework: portable-net40+sl50+wp80+win80
