@@ -1,23 +1,21 @@
 CONTENT: NONE
 NUGET
-  remote: http://alpha.aleacubase.com/nuget
-  specs:
-    Alea.CUDA (2.1.2.3273-beta)
-    Alea.CUDA.Fody (2.1.2.3273-beta)
-      Alea.CUDA (2.1.2.3273-beta)
-      Alea.CUDA.IL (2.1.2.3273-beta)
-      Alea.IL (2.1.2.3273-beta)
-      Fody (>= 1.28.0)
-    Alea.CUDA.IL (2.1.2.3273-beta)
-      Alea.CUDA (2.1.2.3273-beta)
-      Alea.IL (2.1.2.3273-beta)
-    Alea.CUDA.Unbound (2.1.2.3273-beta)
-      Alea.CUDA (2.1.2.3273-beta)
-      Alea.CUDA.IL (2.1.2.3273-beta)
-      Alea.IL (2.1.2.3273-beta)
-    Alea.IL (2.1.2.3273-beta)
   remote: https://www.nuget.org/api/v2
   specs:
+    Alea.CUDA (2.1.2.3274)
+    Alea.CUDA.Fody (2.1.2.3274)
+      Alea.CUDA (2.1.2.3274)
+      Alea.CUDA.IL (2.1.2.3274)
+      Alea.IL (2.1.2.3274)
+      Fody (>= 1.28.0)
+    Alea.CUDA.IL (2.1.2.3274)
+      Alea.CUDA (2.1.2.3274)
+      Alea.IL (2.1.2.3274)
+    Alea.CUDA.Unbound (2.1.2.3274)
+      Alea.CUDA (2.1.2.3274)
+      Alea.CUDA.IL (2.1.2.3274)
+      Alea.IL (2.1.2.3274)
+    Alea.IL (2.1.2.3274)
     FAKE (3.35.5)
     Fody (1.28.3)
     FSharp.Charting (0.90.10)
