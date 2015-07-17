@@ -26,7 +26,8 @@ let main argv =
         printfn "        ExamplesCublasAxpyTest               |"
         printfn "        ExamplesCublasGemmTest               |"
         printfn "        ExamplesCublasGemmBatchedTest        |"
-        printfn "        ExamplesCudnnMnistTest               |" 
+        printfn "        ExamplesCudnnMnistTest               |"
+        printfn "        ExamplesCurandEstimatePiTest         |" 
         printfn "        ExamplesUnboundGemm                  |"
         printfn "        ExamplesUnboundReduceTest            |"
         printfn "        ExamplesUnboundScanTest              |"
@@ -75,6 +76,7 @@ let main argv =
             Tutorial.Fs.examples.cublas.Gemm.zgemmTest()
         | "examplescublasgemmbatchedtest" -> Tutorial.Fs.examples.cublas.GemmBatched.dgemmBatchedTest()
         | "examplescudnnmnisttest" -> Tutorial.Fs.examples.cudnn.Mnist.test()
+        | "examplescurandestimatepitest" -> Tutorial.Fs.examples.curand.EstimatePi.estimatePi()
         | "examplesunboundreducetest" -> Tutorial.Fs.examples.unbound.Reduce.deviceReduceTest()
         | "examplesunboundscantest" -> Tutorial.Fs.examples.unbound.Scan.deviceScanTest()
         | "examplesunboundblockrangescantest" -> Tutorial.Fs.examples.unbound.BlockRageScan.blockRangeScanTest()

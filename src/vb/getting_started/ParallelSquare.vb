@@ -42,7 +42,7 @@ Namespace Tutorial.Vb.quickStart
                     Dim numSm = worker.Device.Attributes.MULTIPROCESSOR_COUNT
                     Dim gridSize = Math.Min(16 * numSm, Alea.CUDA.Utilities.Common.divup(inputs.Length, blockSize))
                     Dim lp = New LaunchParam(gridSize, blockSize)
-                    worker.Launch(AddressOf SquareKernel, lp, dOutput.Ptr, dInputs.Ptr, n)
+                    'worker.Launch(AddressOf SquareKernel, lp, dOutput.Ptr, dInputs.Ptr, n)
                     Return dOutput.Gather()
                 End Using
             End Using
