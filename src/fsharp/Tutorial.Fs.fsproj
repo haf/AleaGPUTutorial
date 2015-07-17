@@ -102,6 +102,7 @@
     <Compile Include="examples\cudnn\Data.fs" />
     <Compile Include="examples\cudnn\Layer.fs" />
     <Compile Include="examples\cudnn\Network.fs" />
+    <Compile Include="examples\curand\EstimatePi.fs" />
     <Compile Include="examples\nbody\NBody.Common.fs" />
     <Compile Include="examples\nbody\NBody.CPU.fs" />
     <Compile Include="examples\nbody\NBody.GPU.DynamicBlockSize.fs" />

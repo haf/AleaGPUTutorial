@@ -71,6 +71,7 @@
     <Compile Include="examples\cudnn\Layer.cs" />
     <Compile Include="examples\cudnn\Mnist.cs" />
     <Compile Include="examples\cudnn\Network.cs" />
+    <Compile Include="examples\curand\EstimatePi.cs" />
     <Compile Include="examples\generic_reduce\Plan.cs" />
     <Compile Include="examples\generic_reduce\Reduce.cs" />
     <Compile Include="examples\generic_reduce\ReduceApi.cs" />
