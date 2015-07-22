@@ -50,6 +50,7 @@ let kmeans data initialCentroids =
             res <- res + diff * diff
         res
 
+    /// assign each point to a centroid. Essentially an arg min
     let assignCluster centroids data =
         let centroids = centroids |> Array.mapi (fun idx v -> idx, v)
             
@@ -59,6 +60,7 @@ let kmeans data initialCentroids =
             |> Array.minBy (fun (_, y) -> ``dist^2`` x y)
             |> fst)
 
+    /// adjust the centroids by data: assign each point to a centroid and then calculate the n-dimensional mean.
     let adjustCentroids data centroids =
         let clusterIndices = assignCluster centroids data
         let centroids =
@@ -78,6 +80,8 @@ let kmeans data initialCentroids =
 
         centroids, clusterIndices        
 
+    /// alternatively iterate assignment and cluster adjustment, until either the maximum number
+    /// of iterations is reached, or the cluster assignment is stable enough (delta small enough)
     let rec loop data centroids maxIter (oldClusterIndices : _ []) =
         if maxIter <= 0 then 
             centroids
