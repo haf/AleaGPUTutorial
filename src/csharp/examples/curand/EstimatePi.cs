@@ -22,10 +22,14 @@ namespace Tutorial.Cs.examples.curand
         private int ReduceSum(int x)
         {
             var sdata = __shared__.ExternArray<int>();
+            
+            // Perform first level of reduction:
+            // - Write to shared memory
             var ltid = threadIdx.x;
             sdata[ltid] = x;
             Intrinsic.__syncthreads();
 
+            // Do reduction in shared mem
             for (var s = blockDim.x / 2; s > 0; s >>= 1)
             {
                 if (ltid < s) sdata[ltid] += sdata[ltid + s];
@@ -40,10 +44,12 @@ namespace Tutorial.Cs.examples.curand
         [Kernel]
         public void ComputeValue(deviceptr<double> results, deviceptr<double> points, int numSims)
         {
+            // Determine thread ID
             var bid = blockIdx.x;
             var tid = blockIdx.x * blockDim.x + threadIdx.x;
             var step = gridDim.x * blockDim.x;
 
+            // Shift the input/output pointers
             var pointx = points + tid;
             var pointy = pointx + numSims;
 
@@ -57,8 +63,10 @@ namespace Tutorial.Cs.examples.curand
                 if (l2norm2 < 1.0) pointsInside++;
             }
 
+            // Reduce within the block
             pointsInside = ReduceSum(pointsInside);
 
+            // Store the result
             if (threadIdx.x == 0) results[bid] = pointsInside;
         }
         //[/cuRANDComputeValue]
@@ -66,9 +74,12 @@ namespace Tutorial.Cs.examples.curand
         //[cuRANDPiEstimator]
         public double RunEstimation(int numSims, int threadBlockSize)
         {
+            // Aim to launch around ten or more times as many blocks as there
+            // are multiprocessors on the target device.
             const int blocksPerSm = 10;
             var numSMs = GPUWorker.Device.Attributes.MULTIPROCESSOR_COUNT;
 
+            // Determine how to divide the work between cores
             var block = new dim3(threadBlockSize);
             var grid = new dim3((numSims + threadBlockSize - 1) / threadBlockSize);
             while (grid.x > 2 * blocksPerSm * numSims) grid.x >>= 1;
@@ -77,6 +88,7 @@ namespace Tutorial.Cs.examples.curand
             using (var dPoints = GPUWorker.Malloc<double>(n))
             using (var dResults = GPUWorker.Malloc<double>(grid.x))
             {
+                // Generate random points in unit square
                 var curand = new CURAND(GPUWorker, CURANDInterop.curandRngType.CURAND_RNG_QUASI_SOBOL64);
                 curand.SetQuasiRandomGeneratorDimensions(2);
                 curand.SetGeneratorOrdering(CURANDInterop.curandOrdering.CURAND_ORDERING_QUASI_DEFAULT);
@@ -126,6 +138,7 @@ namespace Tutorial.Cs.examples.curand
                     .RunEstimation(numSims, threadBlockSize);
             watch.Stop();
             var elapsedTime = watch.Elapsed.TotalMilliseconds;
+            
             const double tol = 0.01;
             var abserror = Math.Abs(result - Math.PI);
             var relerror = abserror / Math.PI;

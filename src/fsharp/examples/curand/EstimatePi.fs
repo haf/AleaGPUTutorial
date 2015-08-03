@@ -1,5 +1,5 @@
-﻿module Tutorial.Fs.examples.curand.EstimatePi
-
+﻿(*** hide ***)
+module Tutorial.Fs.examples.curand.EstimatePi
 open System
 open Alea.CUDA
 open Alea.CUDA.CULib
@@ -7,9 +7,10 @@ open Alea.CUDA.Utilities.Timing
 open NUnit.Framework
 open CURANDInterop
 
-// Target value
-let PI = 3.14159265359
-
+(**
+We begin with coding a simple device function, reduceSum, which will use shared memory to compute
+the sum within a block.
+*)
 (*** define:cuRANDReduceSum ***)
 let [<ReflectedDefinition>] reduceSum in' = 
     let sdata = __shared__.ExternArray<int>()
@@ -30,6 +31,10 @@ let [<ReflectedDefinition>] reduceSum in' =
     
     sdata.[0]
 
+(**
+Next we define a kernel which uses the reduceSum function to count the number of points that lie within 
+a unit quarter-circle.
+*)
 (*** define:cuRANDComputeValue ***)
 let computeValue =
     <@ fun (results:deviceptr<float>) (points:deviceptr<float>) (numSims:int) ->
@@ -42,7 +47,6 @@ let computeValue =
         let mutable pointx = points + tid
         let mutable pointy = pointx + numSims
         
-        // Count the number of points which lie inside the unit quarter-circle
         let mutable pointsInside = 0
 
         let mutable i = tid
@@ -62,6 +66,10 @@ let computeValue =
         if threadIdx.x = 0 then results.[bid] <- float pointsInside
     @>
 
+(**
+The piEstimator function is where the actual calls to the cuRAND library are performed.  Here, we use cuRAND
+to generate random points that fall within the unit square.
+*)
 (*** define:cuRANDPiEstimator ***)
 let piEstimator (worker:Worker) numSims threadBlockSize =
 
@@ -122,8 +130,16 @@ let piEstimator (worker:Worker) numSims threadBlockSize =
         // is pi * r^2, and r is one, the value will be an estimate for the value of pi.
         value * 4.0
 
+(**
+Finally we define a simple test function to perform an estimation of Pi and then compare our result to
+the known value.  We use a low tolerance of 0.01 to simply ensure that there have been no major errors 
+in the estimation.  The true accuracy of the estimation will depend on the number of Monte Carlo trials.
+*)
 (*** define:cuRANDEstimatePiTest ***)
 let [<Test>] estimatePi() =
+    // Target value
+    let PI = 3.14159265359
+    
     let numSims = 100000
     let threadBlockSize = 128
     
@@ -135,9 +151,6 @@ let [<Test>] estimatePi() =
     let elapsedTime = t.TotalMilliseconds
 
     // Tolerance to compare result with expected
-    // This is just to check that nothing has gone very wrong with the
-    // test, the actual accuracy of the result depends on the number of
-    // Monte Carlo trials
     let tol = 0.01
 
     // Display results
