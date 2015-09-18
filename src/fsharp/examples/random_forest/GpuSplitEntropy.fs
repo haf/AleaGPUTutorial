@@ -46,7 +46,7 @@ let inline entropyTerm (x : int) =
 
 Type `ValueAndIndex` used to get back `min` and `argmin` resp. `max` and `argmax`.
 *)
-[<Struct; Align(8)>]
+[<Struct; StructLayout(LayoutKind.Sequential, Size=16); Align(8)>]
 type ValueAndIndex =
     val Value : float
     val Index : int
