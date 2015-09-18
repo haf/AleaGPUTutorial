@@ -111,7 +111,7 @@ namespace Tutorial.Cs.examples.simpled3d9
 
             var vertexDecl = new VertexDeclaration(device, vertexElems);
 
-            var worker = Worker.CreateOnCurrentThreadByFunc(() => Generate(device));
+            var worker = Worker.CreateByFunc(() => Generate(device));
             var updater = new SimpleD3D9(GPUModuleTarget.Worker(worker));
 
             var view = Matrix.LookAtLH(

@@ -54,7 +54,7 @@ Create worker using Cuda GL context generation function.
 (*** define:CreateWorker ***)
     // Note, we don't need worker.Eval cause we will run it in single thread.
     let worker =
-        Worker.CreateOnCurrentThread(generate)
+        Worker.Create(generate)
 
 (**
 Create several simulators: dynamic & static with different `blockSize`s, it will allow us to switch the simulator during runtime.
