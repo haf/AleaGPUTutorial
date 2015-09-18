@@ -9,8 +9,7 @@ First we have to set the include paths and reference the required assemblies.
 
 #load @"..\..\..\packages\Alea.CUDA\Alea.CUDA.fsx"
 #I @"..\..\..\packages\NUnit\lib"
-#I @"..\..\..\packages\FsUnit\Lib\Net40"
-#r "Alea.CUDA.dll"
+#I @"..\..\..\packages\FsUnit\lib"
 #r "nunit.framework.dll"
 #r "FsUnit.NUnit.dll"
 
