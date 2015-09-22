@@ -1,4 +1,3 @@
-Alea.CUDA.Fody
 Alea.CUDA.Unbound
 FsUnit
 FSharp.Charting
@@ -8,3 +7,4 @@ SharpDX.Direct3D9
 SharpDX.RawInput
 SharpDX
 fsharp.data
+Alea.CUDA.Fody
