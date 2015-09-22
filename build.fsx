@@ -13,7 +13,8 @@ Target "Clean" (fun _ ->
 )
 
 Target "Build" (fun _ ->
-    !! "/**/*.*proj"
+    //!! "/**/*.*proj"
+    !! "Alea.Tutorial.sln"
     |> MSBuildRelease resultsDir "Build"
     |> Log "Build-Output: "
 )

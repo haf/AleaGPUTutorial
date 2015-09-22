@@ -1,4 +1,4 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Weavers>
-  <Alea.CUDA SMs="sm20" Bits="32;64" Verbose="true" Disable="false"/>
+  <Alea.CUDA SMs="sm20" Bits="32;64" Verbose="true" Disable="false" ForceExternalCompile="false"/>
 </Weavers>
