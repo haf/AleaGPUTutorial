@@ -2,20 +2,20 @@ CONTENT: NONE
 NUGET
   remote: http://alpha.aleacubase.com/nuget
   specs:
-    Alea.CUDA (2.2.0.3297-beta)
-    Alea.CUDA.Fody (2.2.0.3297-beta)
-      Alea.CUDA (2.2.0.3297-beta)
-      Alea.CUDA.IL (2.2.0.3297-beta)
-      Alea.IL (2.2.0.3297-beta)
+    Alea.CUDA (2.2.0.1361-beta)
+    Alea.CUDA.Fody (2.2.0.1361-beta)
+      Alea.CUDA (2.2.0.1361-beta)
+      Alea.CUDA.IL (2.2.0.1361-beta)
+      Alea.IL (2.2.0.1361-beta)
       Fody (>= 1.28.0)
-    Alea.CUDA.IL (2.2.0.3297-beta)
-      Alea.CUDA (2.2.0.3297-beta)
-      Alea.IL (2.2.0.3297-beta)
-    Alea.CUDA.Unbound (2.2.0.3297-beta)
-      Alea.CUDA (2.2.0.3297-beta)
-      Alea.CUDA.IL (2.2.0.3297-beta)
-      Alea.IL (2.2.0.3297-beta)
-    Alea.IL (2.2.0.3297-beta)
+    Alea.CUDA.IL (2.2.0.1361-beta)
+      Alea.CUDA (2.2.0.1361-beta)
+      Alea.IL (2.2.0.1361-beta)
+    Alea.CUDA.Unbound (2.2.0.1361-beta)
+      Alea.CUDA (2.2.0.1361-beta)
+      Alea.CUDA.IL (2.2.0.1361-beta)
+      Alea.IL (2.2.0.1361-beta)
+    Alea.IL (2.2.0.1361-beta)
   remote: https://www.nuget.org/api/v2
   specs:
     FAKE (4.4.4)
