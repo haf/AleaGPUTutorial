@@ -18,7 +18,8 @@ Target "Build" (fun _ ->
 Target "Tests" (fun _ ->
     !! "/**/*.exe"
     |> SetBaseDir resultsDir
-    |> NUnitParallel (fun defaults -> { defaults with Framework = "net-4.5"})
+    //|> NUnitParallel (fun defaults -> { defaults with Framework = "net-4.5"})
+    |> NUnit (fun defaults -> { defaults with Framework = "4.5" } )
 )
 
 Target "Default" DoNothing
