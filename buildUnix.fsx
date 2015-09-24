@@ -19,7 +19,8 @@ Target "Tests" (fun _ ->
     !! "/**/*.exe"
     |> SetBaseDir resultsDir
     //|> NUnitParallel (fun defaults -> { defaults with Framework = "net-4.5"})
-    |> NUnit (fun defaults -> { defaults with Framework = "4.5" } )
+    |> NUnit (fun defaults -> { defaults with Framework = "4.5"
+                                              TimeOut = (TimeSpan.FromDays 1.0)  } )
 )
 
 Target "Default" DoNothing
