@@ -1,5 +1,6 @@
 ﻿#r @"packages/FAKE/tools/FakeLib.dll"
 
+open System
 open Fake
 
 let resultsDir = "release"
