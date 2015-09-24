@@ -176,7 +176,7 @@ let findSolutionDir (startDir:string) =
 [<Test>]
 let irisExample() =
     // read in data
-    let path = Path.Combine(findSolutionDir "./", @"src\fsharp\examples\random_forest\irisExample.csv")
+    let path = Path.Combine(findSolutionDir "./", "src/fsharp/examples/random_forest/irisExample.csv")
     let data = CsvFile.Load(path).Cache()
 
     let trainingData =
