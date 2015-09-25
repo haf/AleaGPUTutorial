@@ -23,15 +23,15 @@ on your system. To ensure this, you can try:
 Here we create a fallback function to our tests in case the native library cannot be found.
 *)
 let fallback (f:unit -> unit) =
-    match Alea.CUDA.PlatformUtil.Instance.OperatingSystem with
-    | OperatingSystem.MacOSX ->
-        Assert.Inconclusive("CUBLAS destroy has some issues in macosx when deinit it in finalizer.")
-    | _ ->
-        try
-            f()
-        with :? TypeInitializationException as ex ->
-            match ex.InnerException with
-            | :? DllNotFoundException ->
-                Assert.Inconclusive("Native libraries cannot be found, please setup your environment, or use app.config.")
-            | _ -> raise ex
+//    match Alea.CUDA.PlatformUtil.Instance.OperatingSystem with
+//    | OperatingSystem.MacOSX ->
+//        Assert.Inconclusive("CUBLAS destroy has some issues in macosx when deinit it in finalizer.")
+//    | _ ->
+    try
+        f()
+    with :? TypeInitializationException as ex ->
+        match ex.InnerException with
+        | :? DllNotFoundException ->
+            Assert.Inconclusive("Native libraries cannot be found, please setup your environment, or use app.config.")
+        | _ -> raise ex
 

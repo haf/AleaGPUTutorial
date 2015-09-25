@@ -11,26 +11,26 @@ namespace Tutorial.Cs.examples.cublas
     {
         public static void FallBack(Action action)
         {
-            if (Alea.CUDA.PlatformUtil.Instance.OperatingSystem.IsMacOSX)
+            //if (Alea.CUDA.PlatformUtil.Instance.OperatingSystem.IsMacOSX)
+            //{
+            //    Assert.Inconclusive("CUBLAS destroy has some issues in macosx when deinit it in finalizer.");
+            //}
+            //else
+            //{
+            try
             {
-                Assert.Inconclusive("CUBLAS destroy has some issues in macosx when deinit it in finalizer.");
+                action();
             }
-            else
+            catch (TypeInitializationException ex)
             {
-                try
+                if (ex.InnerException.GetType().FullName == "System.DllNotFoundException")
                 {
-                    action();
+                    Assert.Inconclusive(
+                        "Native libraries cannot be found, please setup your environment, or use app.config.");
                 }
-                catch (TypeInitializationException ex)
-                {
-                    if (ex.InnerException.GetType().FullName == "System.DllNotFoundException")
-                    {
-                        Assert.Inconclusive(
-                            "Native libraries cannot be found, please setup your environment, or use app.config.");
-                    }
-                    else throw;
-                }
+                else throw;
             }
+            //}
         }
     }
 }
