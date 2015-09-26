@@ -7,10 +7,9 @@ the generated IR and PTX code.
 First we have to set the include paths and reference the required assemblies.
 *)
 
-#I @"..\..\..\packages\Alea.CUDA\lib\net40"
+#load @"..\..\..\packages\Alea.CUDA\Alea.CUDA.fsx"
 #I @"..\..\..\packages\NUnit\lib"
-#I @"..\..\..\packages\FsUnit\Lib\Net40"
-#r "Alea.CUDA.dll"
+#I @"..\..\..\packages\FsUnit\lib"
 #r "nunit.framework.dll"
 #r "FsUnit.NUnit.dll"
 
@@ -20,9 +19,6 @@ open Alea.CUDA
 open Alea.CUDA.Utilities
 open NUnit.Framework
 open FsUnit
-
-Alea.CUDA.Settings.Instance.Resource.AssemblyPath <- __SOURCE_DIRECTORY__ + @"\..\..\..\packages\Alea.CUDA\private"
-Alea.CUDA.Settings.Instance.Resource.Path <- __SOURCE_DIRECTORY__ + @"\..\..\..\Release"
 
 (**
 We code the GPU kernel code in with the template technique.

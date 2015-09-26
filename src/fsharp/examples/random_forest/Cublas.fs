@@ -44,7 +44,7 @@ type Matrix<'T> private (worker : Worker, matrixType) =
         if colIdx >= nCols then failwith "colIdx out of bounds"
         let offset = rowIdx * nCols + colIdx
         let host = Array.zeroCreate 1
-        MemoryUtil.gather worker.Thread (deviceData.Ptr + offset) host 0 1
+        MemoryUtil.gather worker.Context (deviceData.Ptr + offset) host 0 1
         host.[0]
 
     member this.Scatter(host : 'T[]) =

@@ -3,12 +3,11 @@ source https://www.nuget.org/api/v2
 source http://nuget.aleacubase.com/nuget
 source http://alpha.aleacubase.com/nuget
 
-nuget Alea.IL 2.1.2.3274
-nuget Alea.CUDA 2.1.2.3274
-nuget Alea.CUDA.IL 2.1.2.3274
-nuget Alea.CUDA.Fody 2.1.2.3274
-nuget Alea.CUDA.Unbound 2.1.2.3274
-nuget FSharp.Core
+nuget Alea.CUDA.Fody 2.2.0.3307
+nuget Alea.IL 2.2.0.3307
+nuget Alea.CUDA 2.2.0.3307
+nuget Alea.CUDA.IL 2.2.0.3307
+nuget Alea.CUDA.Unbound 2.2.0.3307
 nuget FSharp.Collections.ParallelSeq
 nuget Nuget.CommandLine
 nuget FsUnit

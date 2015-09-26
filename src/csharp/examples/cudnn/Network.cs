@@ -198,7 +198,7 @@ namespace Tutorial.Cs.examples.cudnn
             using (var srcData = _worker.Malloc(imgDataH))
             using (var dstData = _worker.Malloc<float>(0))
             {
-                Console.WriteLine("Performing forward propigation...");
+                Console.WriteLine("Performing forward propagation...");
                 var src = srcData;
                 var dst = dstData;
 
@@ -214,7 +214,7 @@ namespace Tutorial.Cs.examples.cudnn
                 FullyConnectedForward(ip2, nchw, src, ref dst);
                 SoftmaxForward(nchw, dst, ref src);
 
-                Console.WriteLine("Finished forward propigation.");
+                Console.WriteLine("Finished forward propagation.");
                 const int maxDigits = 10;
                 var hsrc = src.Gather();
                 var result = hsrc.Take(maxDigits).ToArray();

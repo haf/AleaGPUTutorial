@@ -20,6 +20,7 @@ namespace Tutorial.Cs
             Console.WriteLine("        ExamplescuBlasGemmTest            |");
             Console.WriteLine("        ExamplescuBlasGemmBatchedTest     |");
             Console.WriteLine("        ExamplesCUDNNMnistTest            |");
+            Console.WriteLine("        ExamplesCURANDEstimatePiTest      |");
             Console.WriteLine("        ExamplesUnboundDeviceReduceTest   |");
             Console.WriteLine("        ExamplesUnboundDeviceScanTest     |");
             Console.WriteLine("        ExamplesUnboundGemm               |");
@@ -85,6 +86,10 @@ namespace Tutorial.Cs
 
                     case "examplescudnnmnisttest":
                         examples.cudnn.Test.MnistTest();
+                        break;
+
+                    case "examplescurandestimatepitest":
+                        examples.curand.Test.EstimatePi();
                         break;
 
                     case "examplesunbounddevicereducetest":

@@ -102,7 +102,7 @@ namespace Tutorial.Cs.examples.nbody
             _softeningSquared = 0.00125f;
             _damping = 0.9995f;
             //[CreateWorker]
-            _worker = Worker.CreateOnCurrentThreadByFunc(Generate);
+            _worker = Worker.CreateByFunc(Generate);
             //[/CreateWorker]
 
             _stopwatch = Stopwatch.StartNew();

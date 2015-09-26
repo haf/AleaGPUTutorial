@@ -2,6 +2,7 @@
 
 module Tutorial.Fs.examples.RandomForest.IrisExample
 
+open System.IO
 open FSharp.Data
 open FSharp.Charting
 open Tutorial.Fs.examples.RandomForest.GpuSplitEntropy
@@ -158,10 +159,24 @@ e.g:
 
 a CPU as well as a GPU variant of the code is used.
 *)
+let findSolutionDir (startDir:string) =
+    let filesToCheck = [ "Alea.Tutorial.sln"
+                         "build.bat"
+                         "build.fsx" ]
+
+    let isSolutionDir (dir:string) =
+        filesToCheck |> List.forall (fun file -> File.Exists(Path.Combine(dir, file)))
+
+    let rec find (dir:string) =
+        if isSolutionDir dir then dir
+        else find (Directory.GetParent(dir).FullName)
+
+    find startDir
+
 [<Test>]
 let irisExample() =
     // read in data
-    let path = @"..\src\fsharp\examples\random_forest\irisExample.csv"
+    let path = Path.Combine(findSolutionDir "./", "src/fsharp/examples/random_forest/irisExample.csv")
     let data = CsvFile.Load(path).Cache()
 
     let trainingData =

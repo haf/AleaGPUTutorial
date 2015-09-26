@@ -131,7 +131,7 @@ let main () =
             cuSafeCall(cuD3D9CtxCreate(&&ctx, &&dev, 0u, device.NativePointer))
             let dev = Device.DeviceDict.[dev]
             dev, ctx
-        Worker.CreateOnCurrentThread(generate)
+        Worker.Create(generate)
 
     use updater = new VerticesUpdater(GPUModuleTarget.Worker(worker))
 

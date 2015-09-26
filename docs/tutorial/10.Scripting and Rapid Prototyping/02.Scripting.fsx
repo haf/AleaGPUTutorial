@@ -7,13 +7,11 @@ This script can be executed in a command
 
 First we have to set the include paths and reference the required assemblies.
 *)
-#I @"..\..\..\packages\Alea.CUDA\lib\net40"
+#load @"..\..\..\packages\Alea.CUDA\Alea.CUDA.fsx"
 #I @"..\..\..\packages\NUnit\lib"
-#I @"..\..\..\packages\FsUnit\Lib\Net40"
-#r "Alea.CUDA.dll"
+#I @"..\..\..\packages\FsUnit\lib"
 #r "nunit.framework.dll"
 #r "FsUnit.NUnit.dll"
-#r "System.Configuration.dll"
 
 open System
 open Microsoft.FSharp.Quotations
@@ -21,12 +19,6 @@ open Alea.CUDA
 open Alea.CUDA.Utilities
 open NUnit.Framework
 open FsUnit
-
-(**
-We have to set the assembly path so that the JIT compiler finds the dlls. 
-*)
-Alea.CUDA.Settings.Instance.Resource.AssemblyPath <- __SOURCE_DIRECTORY__ + @"\..\..\..\packages\Alea.CUDA.2.0.3057\private"
-Alea.CUDA.Settings.Instance.Resource.Path <- __SOURCE_DIRECTORY__ + @"\..\..\..\release"
 
 (**
 We code a binary transform on the GPU. 

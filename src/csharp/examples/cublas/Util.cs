@@ -11,6 +11,12 @@ namespace Tutorial.Cs.examples.cublas
     {
         public static void FallBack(Action action)
         {
+            //if (Alea.CUDA.PlatformUtil.Instance.OperatingSystem.IsMacOSX)
+            //{
+            //    Assert.Inconclusive("CUBLAS destroy has some issues in macosx when deinit it in finalizer.");
+            //}
+            //else
+            //{
             try
             {
                 action();
@@ -24,6 +30,7 @@ namespace Tutorial.Cs.examples.cublas
                 }
                 else throw;
             }
+            //}
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿#r @"packages/FAKE/tools/FakeLib.dll"
 
+open System
 open Fake
 
 let resultsDir = "release"
@@ -16,10 +17,11 @@ Target "Build" (fun _ ->
 )
 
 Target "Tests" (fun _ ->
-    !! "/**/Test.*.dll"
-    ++ "/**/Test.*.exe"
+    !! "/**/*.exe"
     |> SetBaseDir resultsDir
-    |> NUnitParallel (fun defaults -> { defaults with Framework = "net-4.5"})
+    //|> NUnitParallel (fun defaults -> { defaults with Framework = "net-4.0"})
+    |> NUnit (fun defaults -> { defaults with Framework = "4.0"
+                                              TimeOut = (TimeSpan.FromDays 1.0)  } )
 )
 
 Target "Default" DoNothing

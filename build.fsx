@@ -8,12 +8,22 @@ open Fake.AssemblyInfoFile
 let resultsDir = "release"
 let docDir = "docs/output"
 
+let SetMSBuildToolsVersion (toolsVersion:Option<string>) =
+    trace "Setting MSBuild tools version..."
+
+    match toolsVersion with
+    | Some version -> MSBuildHelper.MSBuildDefaults <- { MSBuildHelper.MSBuildDefaults with ToolsVersion = toolsVersion }
+    | None -> trace "No MSBuild tools version provided, using default."
+
+SetMSBuildToolsVersion (Some "12.0")
+
 Target "Clean" (fun _ ->
     DeleteDirs [resultsDir; docDir]
 )
 
 Target "Build" (fun _ ->
-    !! "/**/*.*proj"
+    //!! "/**/*.*proj"
+    !! "Alea.Tutorial.sln"
     |> MSBuildRelease resultsDir "Build"
     |> Log "Build-Output: "
 )
