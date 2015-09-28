@@ -149,7 +149,7 @@ Classify Example
         let src = ref srcData
         let dst = ref dstData
         
-        printfn "Performing forward propigation..."
+        printfn "Performing forward propagation..."
         
         net.ConvoluteForward(conv1, nchw, !src, dst)
         net.PoolForward(nchw, !dst, src)
@@ -163,7 +163,7 @@ Classify Example
         net.FullyConnectedForward(ip2, nchw, !src, dst)
         net.SoftmaxForward(nchw, !dst, src)
         
-        printfn "Finished forward propigation."
+        printfn "Finished forward propagation."
         
         let maxDigits = 10;
         let result = src.contents.Gather().[0..maxDigits-1]
