@@ -181,3 +181,5 @@ obj
 # SublimeText
 *.sublime-project
 *.sublime-workspace
+*.bak
+.fake/
