@@ -9,6 +9,7 @@ nuget Alea.CUDA 2.2.0.3307
 nuget Alea.CUDA.IL 2.2.0.3307
 nuget Alea.CUDA.Unbound 2.2.0.3307
 nuget FSharp.Collections.ParallelSeq
+nuget FSharp.Core ~> 3.1
 nuget Nuget.CommandLine
 nuget FsUnit
 nuget FAKE

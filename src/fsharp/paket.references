@@ -8,3 +8,4 @@ SharpDX.RawInput
 SharpDX
 fsharp.data
 Alea.CUDA.Fody
+FSharp.Core

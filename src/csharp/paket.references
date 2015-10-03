@@ -5,3 +5,4 @@ SharpDX.Direct3D9
 SharpDX.RawInput
 SharpDX
 Alea.CUDA.Fody
+FSharp.Core
